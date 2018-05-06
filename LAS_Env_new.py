@@ -82,6 +82,7 @@ class LivingArchitectureEnv(gym.Env):
         proxSensorIndex = []
         lightIndex = []
         jointIndex = []
+        visitorIndex = []
         # proximity sensor
         rc = vrep.simx_return_initialize_error_flag
         while rc != vrep.simx_return_ok:
@@ -122,6 +123,21 @@ class LivingArchitectureEnv(gym.Env):
             else:
                 print ('Fail to get joints!!!')
         
+        # visitor
+        rc = vrep.simx_return_initialize_error_flag
+        while rc != vrep.simx_return_ok:
+            rc, visitorHandles, intData, floatData, visitorNames = vrep.simxGetObjectGroupData(self.clientID,vrep.sim_object_dummy_type, dataType, self._def_op_mode)
+            if rc==vrep.simx_return_ok:
+                print ('Get Visitor Success!!!!!') # display the reply from V-REP (in this case, just a string)
+                for i, name in enumerate(visitorNames):
+                    if "Visitor#" in name:
+                        print("Visitor: {}, and handle: {}".format(name, visitorHandles[i]))
+                        visitorIndex.append(i)
+                break
+            else:
+                print ('Fail to get visitors!!!')
+        
+        
         proxSensorHandles = np.array(proxSensorHandles)
         proxSensorNames = np.array(proxSensorNames)
         lightHandles = np.array(lightHandles)
@@ -134,6 +150,8 @@ class LivingArchitectureEnv(gym.Env):
         self.lightNames = lightNames[lightIndex]
         self.jointHandles = jointHandles[jointIndex]
         self.jointNames = jointNames[jointIndex]
+        self.visitorNames = visitorNames[visitorIndex]
+        self.visitorHandles = visitorHandles[visitorIndex]
 
     def step(self, action):
         """
@@ -165,7 +183,16 @@ class LivingArchitectureEnv(gym.Env):
         
         done = False
         
-        return self.observation, self.reward, done, [] 
+        return self.observation, self.reward, done, []
+    
+#    def step_visitor(self, position):
+#        """
+#        This interface is for change visitor's position.
+#        Input: position
+#        Output: observation, reward, done, info
+#        """
+#        #
+#        position = np.clip(position,)
     
     def _set_all_joint_position(self, targetPosition):
         jointNum = len(self.jointHandles)
