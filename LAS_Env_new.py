@@ -166,7 +166,7 @@ class LivingArchitectureEnv(gym.Env):
         self.visitorNames = visitorNames[visitorIndex]
         self.visitorHandles = visitorHandles[visitorIndex]
 
-    def step(self, action):
+    def step_LAS(self, action):
         """
         Take one step of action
         Input: action
@@ -339,25 +339,27 @@ if __name__ == '__main__':
 #        lights_color = np.random.uniform(0,1,39*3)
 #        action = np.concatenate((smas, lights_state, lights_color))
 #
-#        observation, reward, done, info = env.step(action)
+#        observation, reward, done, info = env.step_LAS(action)
 #        print("Step: {}, reward: {}".format(i, reward))
 #        i = i+1
 #        time.sleep(0.1)
-    for step in range(10):
-        # random actions
-        smas = np.random.randn(39)
-        #lights_state = np.random.randint(2,size = 39)
-        lights_state = np.ones(39)
-        lights_color = np.random.uniform(0,1,39*3)
-        action = np.concatenate((smas, lights_state, lights_color))
-
-        observation, reward, done, info = env.step(action)
-        print("Step: {}, reward: {}".format(i, reward))
-        i = i+1
-        time.sleep(0.1)
+#    for step in range(10):
+#        # random actions
+#        smas = np.random.randn(39)
+#        #lights_state = np.random.randint(2,size = 39)
+#        lights_state = np.ones(39)
+#        lights_color = np.random.uniform(0,1,39*3)
+#        action = np.concatenate((smas, lights_state, lights_color))
+#
+#        observation, reward, done, info = env.step_LAS(action)
+#        print("Step: {}, reward: {}".format(i, reward))
+#        i = i+1
+#        time.sleep(0.1)
         
-    for step in range(5):
+    for step in range(10):
         # random position
+        # the target position must be whthin a small range, if not
+        # current script cannot plan a path, so the visitor will keep still.
         position = np.random.uniform(-7,7,2)
         observation, reward, done, info = env.step_visitor(position)
         
