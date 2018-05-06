@@ -141,7 +141,7 @@ class LivingArchitectureEnv(gym.Env):
             if rc==vrep.simx_return_ok:
                 print ('Get Visitor Success!!!!!') # display the reply from V-REP (in this case, just a string)
                 for i, name in enumerate(visitorNames):
-                    if "Visitor#" in name:
+                    if "TargetPosition_Visitor#" in name:
                         print("Visitor: {}, and handle: {}".format(name, visitorHandles[i]))
                         visitorIndex.append(i)
                 break
@@ -219,7 +219,7 @@ class LivingArchitectureEnv(gym.Env):
     def _set_all_visitor_position(self, position):
         visitorNum = len(self.visitorHandles)
         for i in range(visitorNum):
-            vrep.simxSetObjectPosition(self.clientID, self.visitorHandles[i], -1, [position[i*2],position[(i+1)*2],0], self._set_visitor_op_mode)
+            vrep.simxSetObjectPosition(self.clientID, self.visitorHandles[i], -1, [position[i*2],position[i*2+1],0], self._set_visitor_op_mode)
     
     def _set_all_joint_position(self, targetPosition):
         jointNum = len(self.jointHandles)
@@ -356,14 +356,23 @@ if __name__ == '__main__':
         i = i+1
         time.sleep(0.1)
         
-    for step in range(10):
+    for step in range(5):
         # random position
         position = np.random.uniform(-7,7,2)
         observation, reward, done, info = env.step_visitor(position)
         
-        print("Visitor Step: {}, reward: {}".format(i, reward))
+        print("Visitor Step: {}, reward: {}".format(step, reward))
         i = i+1
         time.sleep(0.1)
     
     
     env.destroy()
+
+def stop_unstoped_simulation():
+    """
+    If not stoped normally, call this function, or copy the following three
+    lines and run them.
+    """
+    clientID = vrep.simxStart('127.0.0.1',19997,True,True,5000,5)
+    vrep.simxStopSimulation(clientID, vrep.simx_opmode_blocking)
+    vrep.simxFinish(clientID)
