@@ -39,6 +39,7 @@ class LivingArchitectureEnv(gym.Env):
         self._def_op_mode = vrep.simx_opmode_blocking
         self._set_joint_op_mode = vrep.simx_opmode_oneshot
         self._set_light_op_mode = vrep.simx_opmode_oneshot
+        self._set_visitor_op_mode = vrep.simx_opmode_blocking
         
         self._get_prox_op_mode = vrep.simx_opmode_buffer
         self._get_light_op_mode = vrep.simx_opmode_buffer
@@ -49,9 +50,9 @@ class LivingArchitectureEnv(gym.Env):
         
         # get object names and handles
         self._get_object_name_and_handle()
-        self.smas_num = len(self.jointHandles)
+        
         # initialize action and observation space
-        print("Initialize action and observation space...")
+        print("Initialize LAS action and observation space...")
         self.prox_sensor_num = len(self.proxSensorHandles)
         self.smas_num = len(self.jointHandles)
         self.lights_num = len(self.lightHandles)
@@ -65,7 +66,17 @@ class LivingArchitectureEnv(gym.Env):
         
         self.observation_space = spaces.Box(self.obs_min, self.obs_max)
         self.action_space = spaces.Box(self.act_min, self.act_max)
-        print("Initialization done!")
+        print("Initialization of LAS done!")
+        
+        # initialize Visitor action and observation space
+        print("Initialize Visitor action and observation space...")
+        self.visitor_num = len(self.visitorHandles)
+        self.visitor_action_dim = self.visitor_num * 2 # visitor's position (x,y,0)
+        self.visitor_action_max = np.array([7, 9]) # later we should find a way to automatic get this limit
+        self.visitor_action_min = np.array([-7, -9])
+        self.visitor_action_space = spaces.Box(self.visitor_action_min, self.visitor_action_max)
+        
+        print("Initialization of visitor done!")
         
         self.reward = 0
         
@@ -144,6 +155,8 @@ class LivingArchitectureEnv(gym.Env):
         lightNames = np.array(lightNames)
         jointHandles = np.array(jointHandles)
         jointNames = np.array(jointNames)
+        visitorHandles = np.array(visitorHandles)
+        visitorNames = np.array(visitorNames)
         self.proxSensorHandles = proxSensorHandles[proxSensorIndex]
         self.proxSensorNames = proxSensorNames[proxSensorIndex]
         self.lightHandles = lightHandles[lightIndex]
@@ -185,14 +198,28 @@ class LivingArchitectureEnv(gym.Env):
         
         return self.observation, self.reward, done, []
     
-#    def step_visitor(self, position):
-#        """
-#        This interface is for change visitor's position.
-#        Input: position
-#        Output: observation, reward, done, info
-#        """
-#        #
-#        position = np.clip(position,)
+    def step_visitor(self, position):
+        """
+        This interface is for change visitor's position.
+        Input: position
+        Output: observation, reward, done, info
+        """
+        #
+        position = np.clip(position,self.visitor_action_min, self.visitor_action_max)
+        vrep.simxPauseCommunication(self.clientID,True)
+        self._set_all_visitor_position(position)
+        vrep.simxPauseCommunication(self.clientID,False)
+        
+        self._self_observe()
+        self._reward_visitor()
+        done = False
+        return self.observation, self.reward_visitor, done, [] 
+        
+    
+    def _set_all_visitor_position(self, position):
+        visitorNum = len(self.visitorHandles)
+        for i in range(visitorNum):
+            vrep.simxSetObjectPosition(self.clientID, self.visitorHandles[i], -1, [position[i*2],position[(i+1)*2],0], self._set_visitor_op_mode)
     
     def _set_all_joint_position(self, targetPosition):
         jointNum = len(self.jointHandles)
@@ -224,6 +251,13 @@ class LivingArchitectureEnv(gym.Env):
         """ calculate reward based on observation of prximity sensor"""
         self.reward = np.mean(self.observation[:self.prox_sensor_num])
         return self.reward
+    
+    def _reward_visitor(self):
+        """
+        Calculate reward for visitor
+        """
+        self.reward_visitor = 0
+        return self.reward_visitor
     
     def _self_observe(self):
         """
@@ -297,7 +331,19 @@ if __name__ == '__main__':
     observation, done = env.reset()
     # trival agent
     i = 1
-    while not done:
+#    while not done:
+#        # random actions
+#        smas = np.random.randn(39)
+#        #lights_state = np.random.randint(2,size = 39)
+#        lights_state = np.ones(39)
+#        lights_color = np.random.uniform(0,1,39*3)
+#        action = np.concatenate((smas, lights_state, lights_color))
+#
+#        observation, reward, done, info = env.step(action)
+#        print("Step: {}, reward: {}".format(i, reward))
+#        i = i+1
+#        time.sleep(0.1)
+    for step in range(10):
         # random actions
         smas = np.random.randn(39)
         #lights_state = np.random.randint(2,size = 39)
@@ -309,5 +355,15 @@ if __name__ == '__main__':
         print("Step: {}, reward: {}".format(i, reward))
         i = i+1
         time.sleep(0.1)
+        
+    for step in range(10):
+        # random position
+        position = np.random.uniform(-7,7,2)
+        observation, reward, done, info = env.step_visitor(position)
+        
+        print("Visitor Step: {}, reward: {}".format(i, reward))
+        i = i+1
+        time.sleep(0.1)
+    
     
     env.destroy()
