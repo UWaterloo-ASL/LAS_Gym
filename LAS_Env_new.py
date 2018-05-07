@@ -439,7 +439,7 @@ def multiprocessing_LAS_agent(Env, observation, reward, done, LASAgent):
         print(observation[:3])
         print("LAS Step: {}, reward: {}".format(i, reward))
         i = i+1
-        time.sleep(0.5)
+        time.sleep(3)
         
 # Multiprocessing parallelizes multiple visitor-agents
 def multiprocessing_Visitor_agent(Env, observation, reward, done, VisitorAgent):
@@ -453,6 +453,19 @@ def multiprocessing_Visitor_agent(Env, observation, reward, done, VisitorAgent):
         action = VisitorAgent.perceive_and_act(observation, reward, done)
         observation, reward, done, info = Env.step_visitor(action)
         print("Visitor Step: {}, reward: {}".format(i, reward))
+        i = i+1
+        time.sleep(3)
+
+# Multiprocessing parallelizes multiple visitor
+def multiprocessing_single_visitor_agent(Env, observation, reward, done, visitorAgent):
+    """
+    Each processing handles one single visitor
+    """
+    i = 1
+    while not done:
+        name, visitorAction = visitorAgent.perceive_and_act(observation,reward, done)
+        observation, rewardVisitor, done, info = env.step_single_visitor(name, visitorAction)
+        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name, i, rewardVisitor))
         i = i+1
         time.sleep(3)
 
@@ -477,20 +490,25 @@ if __name__ == '__main__':
     """
     Test parallel
     """
-    pool = mp.Pool(processes = 2)
-    pool.apply_async(multiprocessing_LAS_agent, args = (env, 
-                                                       observation, 
-                                                       rewardLAS,
-                                                       done,
-                                                       LASAgent1))
-    
-    pool.apply_async(multiprocessing_Visitor_agent, args = (env,
-                                                           observation,
-                                                           rewardVisitor,
-                                                           done,
-                                                           VisitorsAgent))
-    pool.close()
-    pool.join()
+#    pool = mp.Pool(processes = 2)
+#    pool.apply_async(multiprocessing_LAS_agent, args = (env, 
+#                                                       observation, 
+#                                                       rewardLAS,
+#                                                       done,
+#                                                       LASAgent1))
+#    
+#    pool.apply_async(multiprocessing_single_visitor_agent, args = (env,
+#                                                                   observation,
+#                                                                   rewardVisitor,
+#                                                                   done,
+#                                                                   visitorAgent0))
+##    pool.apply_async(multiprocessing_Visitor_agent, args = (env,
+##                                                           observation,
+##                                                           rewardVisitor,
+##                                                           done,
+##                                                           VisitorsAgent))
+#    pool.close()
+#    pool.join()
     
     """
     ***************************************************************************
