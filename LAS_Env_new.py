@@ -226,7 +226,7 @@ class LivingArchitectureEnv(gym.Env):
         self._reward_visitor()
         done = False
         return self.observation, self.reward_visitor, done, [] 
-    
+
     def step_single_visitor(self, name, position):
         """
         This interface is for change visitor's position.
@@ -242,7 +242,26 @@ class LivingArchitectureEnv(gym.Env):
         self._self_observe()
         self._reward_visitor()
         done = False
-        return self.observation, self.reward_visitor, done, []     
+        return self.observation, self.reward_visitor, done, []   
+    
+    def step_red_light_excited_visitor(self, name, action):
+        """
+        A specific interface for red excited visitor
+        """
+        move = action[0]
+        position = action[1:3] # we can leave z coordinate
+        print("position:{}".format(position))
+        position = np.clip(position,self.single_visitor_action_min, self.single_visitor_action_max)
+        # if move == 1, move; otherwise don't move.
+        if move == 1:
+            #vrep.simxPauseCommunication(self.clientID,True)
+            self._set_single_visitor_position(name, position)
+            #vrep.simxPauseCommunication(self.clientID,False)
+        
+        observation = self._self_observe_for_red_excited_visitor()
+        reward = 0
+        done = False
+        return observation, reward, done, []
     
     def _set_single_visitor_position(self, name, position):
         visitorIndex = np.where(self.visitorNames == name)
@@ -296,12 +315,29 @@ class LivingArchitectureEnv(gym.Env):
     
     def _self_observe(self):
         """
-        
+        This observe function is for LAS:
+            proximity sensors
+            light state
+            light color
         """
         proxStates, proxPosition = self._get_all_prox_data()
         lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
         self.observation = np.concatenate((proxStates, lightStates, lightDiffsePart.flatten()))
         return self.observation
+    
+    def _self_observe_for_red_excited_visitor(self):
+        """
+        This obervave function is for visitors:
+            light state: observation[:lightNum]
+            light color: observation[lightNum:lightNum * 4]
+            light position: observation[lightNum * 4:]
+        """
+        lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
+        lightPositions = self._get_all_light_position()
+        self.obser_for_red_light_excited_visitor = np.concatenate((lightStates,
+                                                                   lightDiffsePart.flatten(),
+                                                                   lightPositions.flatten()))
+        return self.obser_for_red_light_excited_visitor
     
     def _get_all_prox_data(self):
         """
@@ -347,7 +383,17 @@ class LivingArchitectureEnv(gym.Env):
            lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
         
         return lightStates, lightDiffsePart, lightSpecularPart
-
+    
+    def _get_all_light_position(self):
+        """
+        Get all lights position
+        """
+        lightNum = self.lights_num
+        lightPositions = np.zeros([lightNum, 3]) # 3: (x, y, z)
+        for i in range(lightNum):
+            res, lightPositions[i,:] = vrep.simxGetObjectPosition(self.clientID, self.lightHandles[i], -1, self._get_light_op_mode)
+        return lightPositions
+    
     def reset(self):
         #vrep.simxStopSimulation(self.clientID, self._def_op_mode)
         vrep.simxStartSimulation(self.clientID, self._def_op_mode)
@@ -469,6 +515,68 @@ def multiprocessing_single_visitor_agent(Env, observation, reward, done, visitor
         i = i+1
         time.sleep(3)
 
+class RedLightExcitedVisitorAgent():
+    """
+    Visitor who is only excited about red light.
+        Return:
+            name: visitor name
+            action: [move, x, y, z] if move = 0, don't move, else move.
+    """
+    def __init__(self, name):
+        self._visitorName = name
+        self.red_light_num = 0
+    def perceive_and_act(self, observation, reward, done):
+        self._observation = observation
+        self._reward = reward
+        self._done = done
+        
+        self._actionNew = self._act()
+        return self._actionNew
+    
+    def _act(self):
+        red_light_positions = self._red_light_position()
+        if self.red_light_num == 0:
+            move = 0
+            action = [move, 0, 0, 0]
+        else:
+            move = 1
+            random_red_light = np.random.randint(0,self.red_light_num)
+            position = red_light_positions[random_red_light,:]
+            action = np.concatenate(([move], position.flatten()))
+        print("action:{}".format(action))
+        return self._visitorName, action
+    
+    def _red_light_position(self):
+        """
+        Function find where are red lights:
+            Red:    0.75 - 1.00
+            Green:  0.00 - 0.25
+            Blue:   0.00 - 0.25
+        """
+        light_num = int(len(self._observation) / 7) # (1State + 3Color + 3Position)
+        print("Light number: {}".format(light_num))
+        light_color_start_index = light_num
+        light_position_start_index = light_num + light_num * 3 # start after state & color
+        red_light_index = []
+        for i in range(light_num):
+            R = self._observation[light_color_start_index + i*3]
+            G = self._observation[light_color_start_index + i*3 + 1]
+            B = self._observation[light_color_start_index + i*3 + 2]
+            #print("Light: {}, R={}, G={}, B={}".format(i, R,G,B))
+            if 0.75<= R <=1 and 0<=G<=0.25 and 0<=B<=0.25:
+                print("Find one red light!!")
+                red_light_index.append(i)
+        print(red_light_index)
+        self.red_light_num = len(red_light_index)
+        print("Red light number: {}".format(self.red_light_num))
+        red_light_positions = np.zeros([self.red_light_num,3])
+        
+        for i in range(self.red_light_num):
+            index = red_light_index[i]
+            red_light_positions[i,:] = self._observation[light_position_start_index + index*3:light_position_start_index + (index+1)*3]
+            print("Red light index:{}, Position:{}".format(index, red_light_positions[i,:]))
+        return red_light_positions       
+
 if __name__ == '__main__':
     
     # Iinstantiate LAS-agent
@@ -476,17 +584,27 @@ if __name__ == '__main__':
     # Instantiate
     VisitorsAgent = VisitorsControlledByOneAgent()
     # instantiate a single visitor
-    visitorAgent0 = VisitorAgent("TargetPosition_Visitor#0")
-    visitorAgent1 = VisitorAgent("TargetPosition_Visitor#1")
-    visitorAgent2 = VisitorAgent("TargetPosition_Visitor#2")
-    visitorAgent3 = VisitorAgent("TargetPosition_Visitor#3")
+    visitor = RedLightExcitedVisitorAgent("TargetPosition_Visitor#0")
     # Instantiate environment object
     env = LivingArchitectureEnv()
     observation, rewardLAS, rewardVisitor, done = env.reset()
     
     # Step counter
     i = 1
-    
+    last_time = time.time()
+    while not done:
+        action_LAS = LASAgent1.perceive_and_act(observation, rewardLAS, done)
+        observation, rewardLAS, done, info = env.step_LAS(action_LAS)
+        #print("Step: {}, reward: {}".format(i, rewardLAS))
+        
+        #if time.time()-last_time >3:
+        last_time = time.time()
+        name, action_visitor = visitor.perceive_and_act(observation,rewardVisitor,done)
+        observation, reward, done, [] = env.step_red_light_excited_visitor(name, action_visitor)
+            #time.sleep(3)
+
+
+
     """
     Test parallel
     """
