@@ -60,7 +60,7 @@ class LivingArchitectureEnv(gym.Env):
         self.prox_sensor_num = len(self.proxSensorHandles)
         self.smas_num = len(self.jointHandles)
         self.lights_num = len(self.lightHandles)
-        self.sensors_dim = self.prox_sensor_num + self.lights_num
+        self.sensors_dim = self.prox_sensor_num + self.lights_num * (1+3)
         self.actuators_dim = self.smas_num + self.lights_num * (1+3) # light state & color
         
         self.act_max = np.array([np.inf]*self.actuators_dim)
@@ -254,7 +254,7 @@ class LivingArchitectureEnv(gym.Env):
     def _reward(self):
         """ calculate reward based on observation of prximity sensor"""
         self.reward = np.sum(self.observation[:self.prox_sensor_num])
-        print(self.observation[self.prox_sensor_num:self.prox_sensor_num+3])
+        print(self.observation[self.prox_sensor_num+self.lights_num:self.prox_sensor_num+self.lights_num+3])
         return self.reward
     
     def _reward_visitor(self):
@@ -270,7 +270,7 @@ class LivingArchitectureEnv(gym.Env):
         """
         proxStates, proxPosition = self._get_all_prox_data()
         lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
-        self.observation = np.array([proxStates,lightStates]).flatten()
+        self.observation = np.concatenate((proxStates, lightStates, lightDiffsePart.flatten()))
         return self.observation
     
     def _get_all_prox_data(self):
