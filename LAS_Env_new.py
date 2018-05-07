@@ -41,8 +41,12 @@ class LivingArchitectureEnv(gym.Env):
         self._set_light_op_mode = vrep.simx_opmode_oneshot
         self._set_visitor_op_mode = vrep.simx_opmode_blocking
         
-        self._get_prox_op_mode = vrep.simx_opmode_buffer
-        self._get_light_op_mode = vrep.simx_opmode_buffer
+        # To get sensor data
+        #   vrep.simx_opmode_buffer: does not work, don't know why?
+        #   vrep.simx_opmode_blocking: too slow
+        #   vrep.simx_opmode_oneshot: works pretty good
+        self._get_prox_op_mode = vrep.simx_opmode_oneshot 
+        self._get_light_op_mode = vrep.simx_opmode_oneshot
         
         
         
@@ -205,7 +209,7 @@ class LivingArchitectureEnv(gym.Env):
         Output: observation, reward, done, info
         """
         #
-        position = np.clip(position,self.visitor_action_min, self.visitor_action_max)
+        position = np.clip(position,self.visitor_action_min, vrep.simx_opmode_oneshot) #self.visitor_action_max vrep.simx_opmode_oneshot
         vrep.simxPauseCommunication(self.clientID,True)
         self._set_all_visitor_position(position)
         vrep.simxPauseCommunication(self.clientID,False)
@@ -249,7 +253,8 @@ class LivingArchitectureEnv(gym.Env):
 
     def _reward(self):
         """ calculate reward based on observation of prximity sensor"""
-        self.reward = np.mean(self.observation[:self.prox_sensor_num])
+        self.reward = np.sum(self.observation[:self.prox_sensor_num])
+        print(self.observation[self.prox_sensor_num:self.prox_sensor_num+3])
         return self.reward
     
     def _reward_visitor(self):
@@ -331,18 +336,19 @@ if __name__ == '__main__':
     observation, done = env.reset()
     # trival agent
     i = 1
-#    while not done:
-#        # random actions
-#        smas = np.random.randn(39)
-#        #lights_state = np.random.randint(2,size = 39)
-#        lights_state = np.ones(39)
-#        lights_color = np.random.uniform(0,1,39*3)
-#        action = np.concatenate((smas, lights_state, lights_color))
-#
-#        observation, reward, done, info = env.step_LAS(action)
-#        print("Step: {}, reward: {}".format(i, reward))
-#        i = i+1
-#        time.sleep(0.1)
+    while not done:
+        # random actions
+        smas = np.random.randn(39)
+        #lights_state = np.random.randint(2,size = 39)
+        lights_state = np.ones(39)
+        lights_color = np.random.uniform(0,1,39*3)
+        action = np.concatenate((smas, lights_state, lights_color))
+
+        observation, reward, done, info = env.step_LAS(action)
+        print("Step: {}, reward: {}".format(i, reward))
+        i = i+1
+        time.sleep(0.1)
+
 #    for step in range(10):
 #        # random actions
 #        smas = np.random.randn(39)
@@ -356,16 +362,16 @@ if __name__ == '__main__':
 #        i = i+1
 #        time.sleep(0.1)
         
-    for step in range(10):
-        # random position
-        # the target position must be whthin a small range, if not
-        # current script cannot plan a path, so the visitor will keep still.
-        position = np.random.uniform(-7,7,2)
-        observation, reward, done, info = env.step_visitor(position)
-        
-        print("Visitor Step: {}, reward: {}".format(step, reward))
-        i = i+1
-        time.sleep(0.1)
+#    for step in range(5):
+#        # random position
+#        # the target position must be whthin a small range, if not
+#        # current script cannot plan a path, so the visitor will keep still.
+#        position = np.random.uniform(-7,7,2)
+#        observation, reward, done, info = env.step_visitor(position)
+#        
+#        print("Visitor Step: {}, reward: {}".format(step, reward))
+#        i = i+1
+#        time.sleep(0.1)
     
     
     env.destroy()
