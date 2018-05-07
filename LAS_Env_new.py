@@ -253,8 +253,7 @@ class LivingArchitectureEnv(gym.Env):
 
     def _reward(self):
         """ calculate reward based on observation of prximity sensor"""
-        self.reward = np.sum(self.observation[:self.prox_sensor_num])
-        print(self.observation[self.prox_sensor_num+self.lights_num:self.prox_sensor_num+self.lights_num+3])
+        self.reward = np.mean(self.observation[:self.prox_sensor_num])
         return self.reward
     
     def _reward_visitor(self):
