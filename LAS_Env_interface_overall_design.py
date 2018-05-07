@@ -166,7 +166,7 @@ class Agent():
     # ========================================================================= #
     #                      perceive and remember experiences                    #
     # ========================================================================= #        
-    def perceive_act(self, observation, reward, done = False, info = []):
+    def perceive_and_act(self, observation, reward, done = False):
         """
         Perceive observation and reward from environment after an interaction
         Input: observation, reward, done, info
