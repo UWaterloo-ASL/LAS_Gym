@@ -322,26 +322,67 @@ class LivingArchitectureEnv(gym.Env):
         vrep.simxStartSimulation(self.clientID, self._def_op_mode)
         
         self._self_observe()
+        self._reward()
+        self._reward_visitor()
         done = False
-        return self.observation, done
+        return self.observation, self.reward, self.reward_visitor, done
         
     def destroy(self):
         vrep.simxStopSimulation(self.clientID, self._def_op_mode)
         vrep.simxFinish(self.clientID)
 
+# Multiprocessing parallelizes multiple LAS-agents 
+def multiprocessing_LAS_agent(Env, observation, reward, done, LASAgent):
+    while not done:
+        action = LASAgent.perceive_and_act(observation, reward, done)
+        observation, reward, done, info = Env.step_LAS(action)
+# Multiprocessing parallelizes multiple visitor-agents
+def multiprocessing_Visitor_agent(Env, observation, reward, done, VisitorAgent):
+    while not done:
+        action = VisitorAgent.perceive_and_act(observation, reward, done)
+        observation, reward, done, info = Env.step_visitor(action)
+
+class LASAgent():
+    def __init__(self):
+        self._smas_num = 3*13   # 13 nodes, each has 3 smas
+        self._light_num = 3*13  # 13 nodes, each has 3 lights
+        
+    def perceive_and_act(self, observation, reward, done):
+        self._observation = observation
+        self._reward = reward
+        self._done = done
+        
+        self._actionNew = self._act()
+        return self._actionNew
+    
+    def _act(self):
+        smas = np.random.randn(self._smas_num)
+        #lights_state = np.random.randint(2,size = 39)
+        lights_state = np.ones(self._light_num)
+        lights_color = np.random.uniform(0,1,self._light_num*3)
+        action = np.concatenate((smas, lights_state, lights_color))
+        return action
+    
+
 
 if __name__ == '__main__':
+    
+    # instantiate LAS-agent
+    LASAgent1 = LASAgent()
+    
+    # instantiate environment object
     env = LivingArchitectureEnv()
-    observation, done = env.reset()
+    observation, rewardLAS, rewardVisitor, done = env.reset()
     # trival agent
     i = 1
     while not done:
         # random actions
-        smas = np.random.randn(39)
-        #lights_state = np.random.randint(2,size = 39)
-        lights_state = np.ones(39)
-        lights_color = np.random.uniform(0,1,39*3)
-        action = np.concatenate((smas, lights_state, lights_color))
+        action = LASAgent1.perceive_and_act(observation, rewardLAS, done)
+#        smas = np.random.randn(39)
+#        #lights_state = np.random.randint(2,size = 39)
+#        lights_state = np.ones(39)
+#        lights_color = np.random.uniform(0,1,39*3)
+#        action = np.concatenate((smas, lights_state, lights_color))
 
         observation, reward, done, info = env.step_LAS(action)
         print("Step: {}, reward: {}".format(i, reward))
