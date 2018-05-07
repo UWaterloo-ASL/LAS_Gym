@@ -462,7 +462,7 @@ if __name__ == '__main__':
         observation, rewardVisitor, done, info = env.step_single_visitor(name, visitorAction)
         print("Visitor: {} Step: {}, rewardVisitor: {}".format(name, i, rewardVisitor))
         i = i+1
-        time.sleep(3)
+        time.sleep(3) # should find a way to delete the sleep and let an angent finishes its movement before setting another target
 
 #    for step in range(10):
 #        # random actions
