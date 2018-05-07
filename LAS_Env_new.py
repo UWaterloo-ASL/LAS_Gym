@@ -76,9 +76,16 @@ class LivingArchitectureEnv(gym.Env):
         print("Initialize Visitor action and observation space...")
         self.visitor_num = len(self.visitorHandles)
         self.visitor_action_dim = self.visitor_num * 2 # visitor's position (x,y,0)
-        self.visitor_action_max = np.array([7, 9]) # later we should find a way to automatic get this limit
-        self.visitor_action_min = np.array([-7, -9])
+        self.visitor_action_max = np.array([7,9]*self.visitor_num) # later we should find a way to automatic get this limit
+        self.visitor_action_min = np.array([-7,-9]*self.visitor_num)
         self.visitor_action_space = spaces.Box(self.visitor_action_min, self.visitor_action_max)
+        
+        # initialize Single Visitor action and observation space
+        print("Initialize Visitor action and observation space...")
+        self.single_visitor_action_dim = self.visitor_num * 2 # visitor's position (x,y,0)
+        self.single_visitor_action_max = np.array([7,9]) # later we should find a way to automatic get this limit
+        self.single_visitor_action_min = np.array([-7,-9])
+        self.single_visitor_action_space = spaces.Box(self.single_visitor_action_min, self.single_visitor_action_max)
         
         print("Initialization of visitor done!")
         
@@ -209,7 +216,7 @@ class LivingArchitectureEnv(gym.Env):
         Output: observation, reward, done, info
         """
         #
-        position = np.clip(position,self.visitor_action_min, vrep.simx_opmode_oneshot) #self.visitor_action_max vrep.simx_opmode_oneshot
+        position = np.clip(position,self.visitor_action_min, self.visitor_action_max)
         vrep.simxPauseCommunication(self.clientID,True)
         self._set_all_visitor_position(position)
         vrep.simxPauseCommunication(self.clientID,False)
@@ -218,7 +225,32 @@ class LivingArchitectureEnv(gym.Env):
         self._reward_visitor()
         done = False
         return self.observation, self.reward_visitor, done, [] 
+    
+    def step_single_visitor(self, name, position):
+        """
+        This interface is for change visitor's position.
+        Input: position
+        Output: observation, reward, done, info
+        """
+        #
+        position = np.clip(position,self.single_visitor_action_min, self.single_visitor_action_max)
+        #vrep.simxPauseCommunication(self.clientID,True)
+        self._set_single_visitor_position(name, position)
+        #vrep.simxPauseCommunication(self.clientID,False)
         
+        self._self_observe()
+        self._reward_visitor()
+        done = False
+        return self.observation, self.reward_visitor, done, []     
+    
+    def _set_single_visitor_position(self, name, position):
+        visitorIndex = np.where(self.visitorNames == name)
+        #print("visitorNames: {}".format(visitorNames))
+        print("visitorIndex: {}".format(visitorIndex))
+        if len(visitorIndex[0]) == 0:
+            print("Not found visitor: {}".format(name))
+        else:
+            vrep.simxSetObjectPosition(self.clientID, self.visitorHandles[visitorIndex], -1, [position[0],position[1],0], self._set_visitor_op_mode)
     
     def _set_all_visitor_position(self, position):
         visitorNum = len(self.visitorHandles)
@@ -363,31 +395,74 @@ class LASAgent():
         action = np.concatenate((smas, lights_state, lights_color))
         return action
     
-
+class VisitorsControlledByOneAgent():
+    def __init__(self):
+        self._visitor_num = 4
+        
+    def perceive_and_act(self, observation, reward, done):
+        self._observation = observation
+        self._reward = reward
+        self._done = done
+        
+        self._actionNew = self._act()
+        return self._actionNew
+    
+    def _act(self):
+        position = np.random.uniform(-7,7,self._visitor_num * 2) # 2: (x, y)
+        return position
+    
+class VisitorAgent():
+    def __init__(self, name):
+        self._visitorName = name
+        
+    def perceive_and_act(self, observation, reward, done):
+        self._observation = observation
+        self._reward = reward
+        self._done = done
+        
+        self._actionNew = self._act()
+        return self._actionNew
+    
+    def _act(self):
+        position = np.random.uniform(-7,7, 2) # 2: (x, y)
+        return self._visitorName, position
 
 if __name__ == '__main__':
     
     # instantiate LAS-agent
     LASAgent1 = LASAgent()
-    
+    # instantiate
+    VisitorsAgent = VisitorsControlledByOneAgent()
+    # instantiate a single visitor
+    visitorAgent1 = VisitorAgent("TargetPosition_Visitor#1")
     # instantiate environment object
     env = LivingArchitectureEnv()
     observation, rewardLAS, rewardVisitor, done = env.reset()
     # trival agent
     i = 1
-    while not done:
-        # random actions
-        action = LASAgent1.perceive_and_act(observation, rewardLAS, done)
-#        smas = np.random.randn(39)
-#        #lights_state = np.random.randint(2,size = 39)
-#        lights_state = np.ones(39)
-#        lights_color = np.random.uniform(0,1,39*3)
-#        action = np.concatenate((smas, lights_state, lights_color))
+#    while not done:
+#        # simple LAS-agent takes random actions
+#        action = LASAgent1.perceive_and_act(observation, rewardLAS, done)
+#        observation, rewardLAS, done, info = env.step_LAS(action)
+#        print("Step: {}, reward: {}".format(i, rewardLAS))
+#        i = i+1
+#        time.sleep(0.1)
 
-        observation, reward, done, info = env.step_LAS(action)
-        print("Step: {}, reward: {}".format(i, reward))
+#    while not done:
+#        # All visitors are controlled by one agent, and actions are randomly picked
+#        visitorAction = VisitorsAgent.perceive_and_act(observation,rewardVisitor, done)
+#        observation, rewardVisitor, done, info = env.step_visitor(visitorAction)
+#        print("Visitor Step: {}, rewardVisitor: {}".format(i, rewardVisitor))
+#        i = i+1
+#        time.sleep(0.1)
+    
+    while not done:
+        # All visitors are controlled by one agent, and actions are randomly picked
+        name, visitorAction = visitorAgent1.perceive_and_act(observation,rewardVisitor, done)
+        observation, rewardVisitor, done, info = env.step_single_visitor(name, visitorAction)
+        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name, i, rewardVisitor))
         i = i+1
-        time.sleep(0.1)
+        time.sleep(3)
 
 #    for step in range(10):
 #        # random actions
