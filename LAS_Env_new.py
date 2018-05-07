@@ -39,7 +39,7 @@ class LivingArchitectureEnv(gym.Env):
         self._def_op_mode = vrep.simx_opmode_blocking
         self._set_joint_op_mode = vrep.simx_opmode_oneshot
         self._set_light_op_mode = vrep.simx_opmode_oneshot
-        self._set_visitor_op_mode = vrep.simx_opmode_blocking
+        self._set_visitor_op_mode = vrep.simx_opmode_oneshot
         
         # To get sensor data
         #   vrep.simx_opmode_buffer: does not work, don't know why?
@@ -168,6 +168,7 @@ class LivingArchitectureEnv(gym.Env):
         jointNames = np.array(jointNames)
         visitorHandles = np.array(visitorHandles)
         visitorNames = np.array(visitorNames)
+        # All objects handels and names
         self.proxSensorHandles = proxSensorHandles[proxSensorIndex]
         self.proxSensorNames = proxSensorNames[proxSensorIndex]
         self.lightHandles = lightHandles[lightIndex]
@@ -245,8 +246,6 @@ class LivingArchitectureEnv(gym.Env):
     
     def _set_single_visitor_position(self, name, position):
         visitorIndex = np.where(self.visitorNames == name)
-        #print("visitorNames: {}".format(visitorNames))
-        print("visitorIndex: {}".format(visitorIndex))
         if len(visitorIndex[0]) == 0:
             print("Not found visitor: {}".format(name))
         else:
@@ -363,18 +362,11 @@ class LivingArchitectureEnv(gym.Env):
         vrep.simxStopSimulation(self.clientID, self._def_op_mode)
         vrep.simxFinish(self.clientID)
 
-# Multiprocessing parallelizes multiple LAS-agents 
-def multiprocessing_LAS_agent(Env, observation, reward, done, LASAgent):
-    while not done:
-        action = LASAgent.perceive_and_act(observation, reward, done)
-        observation, reward, done, info = Env.step_LAS(action)
-# Multiprocessing parallelizes multiple visitor-agents
-def multiprocessing_Visitor_agent(Env, observation, reward, done, VisitorAgent):
-    while not done:
-        action = VisitorAgent.perceive_and_act(observation, reward, done)
-        observation, reward, done, info = Env.step_visitor(action)
 
 class LASAgent():
+    """
+    Single LAS agent contorl all actuators i.e. non-distributed
+    """
     def __init__(self):
         self._smas_num = 3*13   # 13 nodes, each has 3 smas
         self._light_num = 3*13  # 13 nodes, each has 3 lights
@@ -396,6 +388,9 @@ class LASAgent():
         return action
     
 class VisitorsControlledByOneAgent():
+    """
+    Single visitor agent control all visitors i.e. non-distributed
+    """
     def __init__(self):
         self._visitor_num = 4
         
@@ -410,8 +405,11 @@ class VisitorsControlledByOneAgent():
     def _act(self):
         position = np.random.uniform(-7,7,self._visitor_num * 2) # 2: (x, y)
         return position
-    
+
 class VisitorAgent():
+    """
+    One agent only control one visitor i.e. distributed visitor control
+    """
     def __init__(self, name):
         self._visitorName = name
         
@@ -427,19 +425,78 @@ class VisitorAgent():
         position = np.random.uniform(-7,7, 2) # 2: (x, y)
         return self._visitorName, position
 
+# Multiprocessing parallelizes multiple LAS-agents 
+def multiprocessing_LAS_agent(Env, observation, reward, done, LASAgent):
+    """
+    Parallel processing handles interaction of LAS
+    Input:
+       Env, observation, reward, done, LASAgent
+    """
+    i = 1
+    while not done:
+        action = LASAgent.perceive_and_act(observation, reward, done)
+        observation, reward, done, info = Env.step_LAS(action)
+        print(observation[:3])
+        print("LAS Step: {}, reward: {}".format(i, reward))
+        i = i+1
+        time.sleep(0.5)
+        
+# Multiprocessing parallelizes multiple visitor-agents
+def multiprocessing_Visitor_agent(Env, observation, reward, done, VisitorAgent):
+    """
+    Parallel processing handles interaction of visitor
+    Input:
+       Env, observation, reward, done, VisitorAgent
+    """
+    i = 1
+    while not done:
+        action = VisitorAgent.perceive_and_act(observation, reward, done)
+        observation, reward, done, info = Env.step_visitor(action)
+        print("Visitor Step: {}, reward: {}".format(i, reward))
+        i = i+1
+        time.sleep(3)
+
 if __name__ == '__main__':
     
-    # instantiate LAS-agent
+    # Iinstantiate LAS-agent
     LASAgent1 = LASAgent()
-    # instantiate
+    # Instantiate
     VisitorsAgent = VisitorsControlledByOneAgent()
     # instantiate a single visitor
+    visitorAgent0 = VisitorAgent("TargetPosition_Visitor#0")
     visitorAgent1 = VisitorAgent("TargetPosition_Visitor#1")
-    # instantiate environment object
+    visitorAgent2 = VisitorAgent("TargetPosition_Visitor#2")
+    visitorAgent3 = VisitorAgent("TargetPosition_Visitor#3")
+    # Instantiate environment object
     env = LivingArchitectureEnv()
     observation, rewardLAS, rewardVisitor, done = env.reset()
-    # trival agent
+    
+    # Step counter
     i = 1
+    
+    """
+    Test parallel
+    """
+    pool = mp.Pool(processes = 2)
+    pool.apply_async(multiprocessing_LAS_agent, args = (env, 
+                                                       observation, 
+                                                       rewardLAS,
+                                                       done,
+                                                       LASAgent1))
+    
+    pool.apply_async(multiprocessing_Visitor_agent, args = (env,
+                                                           observation,
+                                                           rewardVisitor,
+                                                           done,
+                                                           VisitorsAgent))
+    pool.close()
+    pool.join()
+    
+    """
+    ***************************************************************************
+    All actuators are controlled by a single agent i.e. non-distributed LAS-agent
+    ***************************************************************************
+    """
 #    while not done:
 #        # simple LAS-agent takes random actions
 #        action = LASAgent1.perceive_and_act(observation, rewardLAS, done)
@@ -447,22 +504,49 @@ if __name__ == '__main__':
 #        print("Step: {}, reward: {}".format(i, rewardLAS))
 #        i = i+1
 #        time.sleep(0.1)
-
+    """
+    ***************************************************************************
+    All visitors is controlled by a single agent i.e. non-distributed visitors-agent
+    ***************************************************************************
+    """
 #    while not done:
 #        # All visitors are controlled by one agent, and actions are randomly picked
 #        visitorAction = VisitorsAgent.perceive_and_act(observation,rewardVisitor, done)
 #        observation, rewardVisitor, done, info = env.step_visitor(visitorAction)
 #        print("Visitor Step: {}, rewardVisitor: {}".format(i, rewardVisitor))
 #        i = i+1
-#        time.sleep(0.1)
-    
-    while not done:
-        # All visitors are controlled by one agent, and actions are randomly picked
-        name, visitorAction = visitorAgent1.perceive_and_act(observation,rewardVisitor, done)
-        observation, rewardVisitor, done, info = env.step_single_visitor(name, visitorAction)
-        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name, i, rewardVisitor))
-        i = i+1
-        time.sleep(3) # should find a way to delete the sleep and let an angent finishes its movement before setting another target
+#        time.sleep(3)
+    """
+    ***************************************************************************
+    Each visitor is controlled by a independent agent i.e. distributed visitor-agents
+    ***************************************************************************
+    """
+#    while not done:
+#        # All visitors are controlled by one agent, and actions are randomly picked
+#        name0, visitorAction0 = visitorAgent0.perceive_and_act(observation,rewardVisitor, done)
+#        observation, rewardVisitor, done, info = env.step_single_visitor(name0, visitorAction0)
+#        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name0, i, rewardVisitor))
+#        
+##        name1, visitorAction1 = visitorAgent1.perceive_and_act(observation,rewardVisitor, done)
+##        observation, rewardVisitor, done, info = env.step_single_visitor(name1, visitorAction1)
+##        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name1, i, rewardVisitor))        
+##        
+##        name2, visitorAction2 = visitorAgent2.perceive_and_act(observation,rewardVisitor, done)
+##        observation, rewardVisitor, done, info = env.step_single_visitor(name2, visitorAction2)
+##        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name2, i, rewardVisitor))
+##
+##        name3, visitorAction3 = visitorAgent3.perceive_and_act(observation,rewardVisitor, done)
+##        observation, rewardVisitor, done, info = env.step_single_visitor(name3, visitorAction3)
+##        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name3, i, rewardVisitor))
+#
+#        i = i+1
+#        time.sleep(3) # should find a way to delete the sleep and let an angent finishes its movement before setting another target
+
+    """
+    ***************************************************************************
+    Randon actions: not encapsulted in agent
+    ***************************************************************************
+    """
 
 #    for step in range(10):
 #        # random actions
@@ -488,7 +572,7 @@ if __name__ == '__main__':
 #        i = i+1
 #        time.sleep(0.1)
     
-    
+    # Relase occupuied port
     env.destroy()
 
 def stop_unstoped_simulation():
