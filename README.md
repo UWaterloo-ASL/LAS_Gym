@@ -15,3 +15,5 @@ Living Architecture System simulated environment with OpenAi Gym APIs
 ## Features
 Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
 
+## Dependency
+1. OpenAi gym package: `pip install gym`
