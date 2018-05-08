@@ -39,9 +39,9 @@ class RedLightExcitedVisitorAgent():
         
         Returns
         -------
-        targetPositionName: string "targetPositionName"
+        targetPositionName: string
             The name of visitor's target object.
-        bodayName: string "bodayName"
+        bodayName: string
             The name of visitor's body object
         action: ndarray [moveFlag, x, y, z]
             The action based on current observation. 
@@ -63,6 +63,19 @@ class RedLightExcitedVisitorAgent():
         return self._targetPositionName, self._bodayName, self._actionNew
     
     def _act(self):
+        """
+        Calculate visitor's action. The action depends on three conditions:
+            1. red light num > 0
+            2. visitor is very close to his/her previous target position
+            3. the number of steps having no movement has exceeded a threshold.
+        If these three conditions are satisfied, the visitor will randomly pick
+        a red light, and set the red light's position as next target position.
+        
+        Returns
+        -------
+        action: ndarray [moveFlag, x, y, z]
+                
+        """
         # for first step there is no lastDestination
         if self._firstStep:
             distance = 0
@@ -93,11 +106,20 @@ class RedLightExcitedVisitorAgent():
         return action
     
     def _distance_lastDestination_currLocation(self, lastDestination, currLocation):
+        """
+        Calculate the distance from the visitor's current position to his/her
+        target position.
+        """
         return np.sqrt(np.sum((np.array(lastDestination) - np.array(currLocation))**2))
     
     def _red_light_position(self):
         """
-        Function find where are red lights:
+        Abstract red lights' position from current observation.
+        
+        If the RGB color of a light within the following thresholds, we regard
+        it as a red light.
+        
+        Threshould for red lights:
             Red:    0.70 - 1.00
             Green:  0.00 - 0.30
             Blue:   0.00 - 0.30
