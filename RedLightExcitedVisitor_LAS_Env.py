@@ -26,6 +26,19 @@ import warnings
 import multiprocessing as mp
 
 class LivingArchitectureEnv(gym.Env):
+    """
+    Currently this environment class is pretty versatile i.e. both visitor and
+    LAS interact with VREP through this class. Therefore, many customized functions
+    and interfaces only for visitor mixe with customized functions and interfaces
+    for LAS. 
+    
+    This might not a good idea, because this could bottleneck communication if 
+    both visitor and LAS interact with VREP through the same port.
+    
+    Therefore, I believe we should separate environment class for visitor and 
+    LAS. But we still can keep some basic common functions in a parant environment
+    class to make our code easier to understand and reuse.
+    """
     def __init__(self):
         print ('Program started')
         # connect to V-REP server
