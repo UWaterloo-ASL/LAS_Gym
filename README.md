@@ -10,7 +10,7 @@ Living Architecture System simulated environment with OpenAi Gym APIs
 
 1. Environment class: `RedLightExcitedVisitor_LAS_Env.py`
 2. LAS Agent class: `LASAgent.py`
-3. Visitor Agent class; `RedLightExcitedVisitorAgent.py`
+3. Visitor Agent class: `RedLightExcitedVisitorAgent.py`
 
 ## Features
 Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
