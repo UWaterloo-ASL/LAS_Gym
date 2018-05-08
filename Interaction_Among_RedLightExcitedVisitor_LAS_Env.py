@@ -9,7 +9,7 @@ Created on Wed May  2 17:46:02 2018
 import time
 
 from RedLightExcitedVisitorAgent import RedLightExcitedVisitorAgent
-from LivingArchitectureEnv import LivingArchitectureEnv
+from RedLightExcitedVisitor_LAS_Env import LivingArchitectureEnv
 from LASAgent import LASAgent
 
 if __name__ == '__main__':
