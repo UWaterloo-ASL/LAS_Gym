@@ -90,23 +90,23 @@ class LivingArchitectureEnv(gym.Env):
         print("Initialization of visitor done!")
         
         self.reward = 0
-        
+    
     
     def _get_object_name_and_handle(self):
         """
-        # objectType:
-            #       joint: sim_object_joint_type
-            #       proximity sensor: sim_object_proximitysensor_type
-            #       light: sim_object_light_type
+        # When call vrep.simxGetObjectGroupData to abstract object name and handle
+        # choose appropriate objectType parameter:
+            #                   joint:  vrep.sim_object_joint_type
+            #        proximity sensor:  vrep.sim_object_proximitysensor_type
+            #                   light:  vrep.sim_object_light_type
+            # visitor target position:  vrep.sim_object_dummy_type
+            #            visitor body:  vrep.sim_object_shape_type
         """
         dataType = 0    # 0: retrieves the object names (in stringData.)
         print("Get objects' names and handles ...")
-        proxSensorIndex = []
-        lightIndex = []
-        jointIndex = []
-        visitorIndex = []
-        visitorBodyIndex = []
+
         # proximity sensor
+        proxSensorIndex = []
         rc = vrep.simx_return_initialize_error_flag
         while rc != vrep.simx_return_ok:
             rc, proxSensorHandles, intData, floatData, proxSensorNames = vrep.simxGetObjectGroupData(self.clientID,vrep.sim_object_proximitysensor_type, dataType, self._def_op_mode)
@@ -119,7 +119,8 @@ class LivingArchitectureEnv(gym.Env):
                 break
             else:
                 print ('Fail to get proximity sensors!!!')
-        # light 
+        # light
+        lightIndex = []
         rc = vrep.simx_return_initialize_error_flag
         while rc != vrep.simx_return_ok:
             rc, lightHandles, intData, floatData, lightNames = vrep.simxGetObjectGroupData(self.clientID,vrep.sim_object_light_type, dataType, self._def_op_mode)
@@ -133,6 +134,7 @@ class LivingArchitectureEnv(gym.Env):
             else:
                 print ('Fail to get lights!!!')
         # joint
+        jointIndex = []
         rc = vrep.simx_return_initialize_error_flag
         while rc != vrep.simx_return_ok:
             rc, jointHandles, intData, floatData, jointNames = vrep.simxGetObjectGroupData(self.clientID,vrep.sim_object_joint_type, dataType, self._def_op_mode)
@@ -147,6 +149,7 @@ class LivingArchitectureEnv(gym.Env):
                 print ('Fail to get joints!!!')
         
         # visitor targetPosition
+        visitorIndex = []
         rc = vrep.simx_return_initialize_error_flag
         while rc != vrep.simx_return_ok:
             rc, visitorHandles, intData, floatData, visitorNames = vrep.simxGetObjectGroupData(self.clientID,vrep.sim_object_dummy_type, dataType, self._def_op_mode)
@@ -160,6 +163,7 @@ class LivingArchitectureEnv(gym.Env):
             else:
                 print ('Fail to get visitors!!!')
         # visitor body
+        visitorBodyIndex = []
         rc = vrep.simx_return_initialize_error_flag
         while rc != vrep.simx_return_ok:
             rc, visitorBodyHandles, intData, floatData, visitorBodyNames = vrep.simxGetObjectGroupData(self.clientID,vrep.sim_object_shape_type, dataType, self._def_op_mode)
@@ -392,7 +396,9 @@ class LivingArchitectureEnv(gym.Env):
     
     def _get_all_light_data(self):
         """
-        Get all light data
+        Get all light data:
+            return:
+                lightStates, lightDiffsePart, lightSpecularPart
         """
         lightNum = len(self.lightHandles)
         #print("lightNum:{}".format(lightNum))
@@ -427,7 +433,9 @@ class LivingArchitectureEnv(gym.Env):
     
     def _get_all_light_position(self):
         """
-        Get all lights position
+        Get all lights position:
+            return:
+                lightPositions
         """
         lightNum = self.lights_num
         #print("_get_all_light_position lightNum:{}".format(lightNum))
@@ -458,6 +466,9 @@ class LivingArchitectureEnv(gym.Env):
         return self.observation, self.reward, self.reward_visitor, done
         
     def destroy(self):
+        """
+        Finish simulation and release connection to server.
+        """
         vrep.simxStopSimulation(self.clientID, self._def_op_mode)
         vrep.simxFinish(self.clientID)
 
@@ -569,100 +580,7 @@ def multiprocessing_single_visitor_agent(Env, observation, reward, done, visitor
         i = i+1
         time.sleep(3)
 
-class RedLightExcitedVisitorAgent():
-    """
-    Visitor who is only excited about red light.
-        Return:
-            name: visitor name
-            action: [move, x, y, z] if move = 0, don't move, else move.
-    """
-    def __init__(self, name):
-        self._targetPositionName = "TargetPosition_"+name
-        self._bodayName = "Body_"+name
-        self.red_light_num = 0
-        # threshold distance between last destination and current location
-        self._distanceThreshold = np.sqrt((0.1**2) + (0.1**2))
-        self._lastTargetPositionMaintainThreshold = 1000 # at least maintain 25 steps
-        
-        self._lastTargetPositionMaintainCounter = 0 # count how may step have elapsed for last target position
-        
-        self._lastDestination = []
-        self._currLocation = []
-        self._firstStep = True
-    def perceive_and_act(self, observation, reward, done):
-        self._observation = observation
-        self._currLocation = observation[-3:-1] # ignore z coordinate
-        self._reward = reward
-        self._done = done
-        
-        self._actionNew = self._act()
-        #print("_actionNew = {}".format(self._actionNew))
-        return self._targetPositionName, self._bodayName, self._actionNew
-    
-    def _act(self):
-        # for first step there is no lastDestination
-        if self._firstStep:
-            distance = 0
-        else:
-            # distance between lastDestination and current location
-            distance = self._distance_lastDestination_currLocation(self._lastDestination, self._currLocation)
-        
-        red_light_positions = self._red_light_position()
-        
-        # only when there is red light and close to target position and maintain a maximum number to approach to target
-        if self.red_light_num > 0 and \
-            distance <= self._distanceThreshold and \
-            self._lastTargetPositionMaintainCounter > self._lastTargetPositionMaintainThreshold:
-            move = 1
-            print("Red light number: {}".format(self.red_light_num))
-            random_red_light = np.random.randint(0,self.red_light_num)
-            position = red_light_positions[random_red_light,:]
-            # each time change destination, _lastDestination will be updated 
-            self._lastDestination = position[0:2] #ignore z coordinate
-            self._lastTargetPositionMaintainCounter = 1
-            print("Visitor Destination:{}".format(self._lastDestination))
-            action = np.concatenate(([move], position.flatten()))    
-        else:
-            move = 0
-            action = [move, 0, 0, 0]
-            self._lastTargetPositionMaintainCounter += 1 # increase one
-    
-        return action
-    
-    def _distance_lastDestination_currLocation(self, lastDestination, currLocation):
-        return np.sqrt(np.sum((np.array(lastDestination) - np.array(currLocation))**2))
-    
-    def _red_light_position(self):
-        """
-        Function find where are red lights:
-            Red:    0.70 - 1.00
-            Green:  0.00 - 0.30
-            Blue:   0.00 - 0.30
-        """
-        light_num = int((len(self._observation) - 3) / 7) # (length - 3visitorPosition ) / (1State + 3Color + 3Position)
-        #print("len(self._observation): {}".format(len(self._observation)))
-        #print("Light number: {}".format(light_num))
-        light_color_start_index = light_num
-        light_position_start_index = light_num + light_num * 3 # start after state & color
-        red_light_index = []
-        for i in range(light_num):
-            R = self._observation[light_color_start_index + i*3]
-            G = self._observation[light_color_start_index + i*3 + 1]
-            B = self._observation[light_color_start_index + i*3 + 2]
-            #print("Light: {}, R={}, G={}, B={}".format(i, R,G,B))
-            if 0.7<= R <=1 and 0<=G<=0.3 and 0<=B<=0.3:
-                #print("Find one red light!!")
-                red_light_index.append(i)
-        
-        self.red_light_num = len(red_light_index)
-        
-        red_light_positions = np.zeros([self.red_light_num,3])
-        
-        for i in range(self.red_light_num):
-            index = red_light_index[i]
-            red_light_positions[i,:] = self._observation[light_position_start_index + index*3:light_position_start_index + (index+1)*3]
-            #print("Red light index:{}, Position:{}".format(index, red_light_positions[i,:]))
-        return red_light_positions       
+     
 
 if __name__ == '__main__':
     
