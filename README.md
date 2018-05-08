@@ -2,17 +2,16 @@
 Living Architecture System simulated environment with OpenAi Gym APIs
 
 ## To run the simulating environment
-1. `Open scene _livingArchitecture_simple_demo_nondistributed.ttt_ in V-REP`
-2. `Run  _LAS_Env_new.py_`
+1. Clone the whole repositry
+2. `Open scene _LAS-Scenes/livingArchitecture_simple_demo_nondistributed.ttt_ in V-REP`
+3. `Run  _Interaction_Among_RedLightExcitedVisitor_LAS_Env.py_`
 
-## LAS_Env_new.py
-Dependency: 
-1. `vrep.py`
-2. `vrepConst.py`
-3. `remoteApi.dylib`(Mac) or `remoteApi.dll`(Windows) or `remoteApi.so`(Linux) (depend on your OS) 
+## Organization
 
-(Put these three files in the same folder with _LAS_Env_new.py_)
+1. Environment class: `RedLightExcitedVisitor_LAS_Env.py`
+2. LAS Agent class: `LASAgent.py`
+3. Visitor Agent class; `RedLightExcitedVisitorAgent.py`
 
 ## Features
-_LAS_Env_new.py_ is recommended, because _LAS_Env_new.py_ can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
+Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
 
