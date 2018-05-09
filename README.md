@@ -25,7 +25,7 @@ Notes:
   * Compared with **Method 1**, **Method 2** is faster. Therefore, this method is preferred when you training your learning algorithm.
 
 ## Interaction Pattern
-
+In our design, the interaction between LAS and Environment (i.e. `_Interaction_LAS_ans_Env.py_`) is parallel with the interaction between Visitor and Environment (i.e. `_Interaction_Visitor_and_Env.py_`). These two scripts can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
 
 ## Calss Organization
 
