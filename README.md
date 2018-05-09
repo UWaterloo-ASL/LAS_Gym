@@ -3,10 +3,10 @@ Living Architecture System simulated environment with OpenAi Gym APIs
 
 ## To run the simulating environment
 ### Method 1: with GUI (Only for visulizing behavior)
-  1. Clone the whole repositry
-  2. In V-REP: File -> Open scene -> choose _LAS-Scenes/livingArchitecture_simple_demo_nondistributed.ttt_ 
-  3. Run: `_Interaction_LAS_ans_Env.py_` to start interaction between LAS and Environment
-  4. Run: `_Interaction_Visitor_and_Env.py_` to start interaction between Visitor and Environment.
+    1. Clone the whole repositry
+    2. In V-REP: File -> Open scene -> choose _LAS-Scenes/livingArchitecture_simple_demo_nondistributed.ttt_ 
+    3. Run: `_Interaction_LAS_ans_Env.py_` to start interaction between LAS and Environment
+    4. Run: `_Interaction_Visitor_and_Env.py_` to start interaction between Visitor and Environment.
 
 Notes:
   * You should start running `_Interaction_LAS_ans_Env.py_` first, then start running `_Interaction_Visitor_and_Env.py_`, because Visitor intertacts with Env by a different temporary port from defualt port.
