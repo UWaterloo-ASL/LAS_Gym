@@ -96,7 +96,8 @@ class RedLightExcitedVisitorAgent():
             newTargetPosition = position[0:2]
             # if new target position is very close to last target location, do
             # not move.
-            distanceBetweenOldAndNewTargetPosition = self._distance_lastDestination_currLocation(newTargetPosition,self._lastDestination)
+            if not self._firstStep:
+                distanceBetweenOldAndNewTargetPosition = self._distance_lastDestination_currLocation(newTargetPosition,self._lastDestination)
             if (not self._firstStep) and (distanceBetweenOldAndNewTargetPosition < self._distanceThreshold):
                 move = 0
                 action = [move, 0, 0, 0]

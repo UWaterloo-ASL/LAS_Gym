@@ -483,5 +483,8 @@ class LivingArchitectureEnv(gym.Env):
     def destroy(self):
         vrep.simxStopSimulation(self.clientID, self._def_op_mode)
         vrep.simxFinish(self.clientID)
+        
+    def close_connection(self):
+        vrep.simxFinish(self.clientID)
 
 
