@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
         actionLAS = LASAgent1.perceive_and_act(observationForLAS, rewardLAS, done)
         observationForLAS, rewardLAS, done, info = envLAS.step_LAS(actionLAS)
-        print("Step: {}, reward: {}".format(i, rewardLAS))
+        print("LAS Step: {}, reward: {}".format(i, rewardLAS))
         i += 1
             
         

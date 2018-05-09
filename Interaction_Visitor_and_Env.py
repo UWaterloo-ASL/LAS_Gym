@@ -38,7 +38,7 @@ if __name__ == '__main__':
             
         targetPositionName, bodyName, action_visitor = visitor.perceive_and_act(observationForVisitor,rewardVisitor,done)
         observationForVisitor, reward, done, [] = envVisitor.step_red_light_excited_visitor(targetPositionName, bodyName, action_visitor)
-        print("Step: {}".format(i))
+        print("Visitor Step: {}".format(i))
         i += 1
         
     envVisitor.close_connection()
