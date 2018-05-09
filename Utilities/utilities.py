@@ -6,7 +6,7 @@ Created on Tue May  8 22:25:09 2018
 @author: jack.lingheng.meng
 """
 try:
-    from VrepRemoteApiBindings import vrep
+    from .VrepRemoteApiBindings import vrep
 except:
     print ('--------------------------------------------------------------')
     print ('"vrep.py" could not be imported. This means very probably that')
