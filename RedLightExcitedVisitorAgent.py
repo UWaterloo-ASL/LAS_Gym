@@ -89,18 +89,20 @@ class RedLightExcitedVisitorAgent():
         if self.red_light_num > 0 and \
             distance <= self._distanceThreshold and \
             self._lastTargetPositionMaintainCounter > self._lastTargetPositionMaintainThreshold:
-            move = 1
+            
             #print("Red light number: {}".format(self.red_light_num))
             random_red_light = np.random.randint(0,self.red_light_num)
             position = red_light_positions[random_red_light,:]
             newTargetPosition = position[0:2]
             # if new target position is very close to last target location, do
             # not move.
-            if self._distance_lastDestination_currLocation(newTargetPosition,self._lastDestination) < self._distanceThreshold:
+            distanceBetweenOldAndNewTargetPosition = self._distance_lastDestination_currLocation(newTargetPosition,self._lastDestination)
+            if (not self._firstStep) and (distanceBetweenOldAndNewTargetPosition < self._distanceThreshold):
                 move = 0
                 action = [move, 0, 0, 0]
                 self._lastTargetPositionMaintainCounter += 1 # increase one
             else:
+                move = 1
                 # each time change destination, _lastDestination will be updated 
                 self._lastDestination = position[0:2] #ignore z coordinate
                 self._lastTargetPositionMaintainCounter = 1

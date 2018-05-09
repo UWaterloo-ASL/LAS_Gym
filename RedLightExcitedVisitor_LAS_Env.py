@@ -39,7 +39,7 @@ class LivingArchitectureEnv(gym.Env):
     LAS. But we still can keep some basic common functions in a parant environment
     class to make our code easier to understand and reuse.
     """
-    def __init__(self, IP = '127.0.0.1', Port = 1997):
+    def __init__(self, IP = '127.0.0.1', Port = 19997):
         """
         Initialize environment
         
@@ -47,7 +47,7 @@ class LivingArchitectureEnv(gym.Env):
         ----------
         IP: string default = '127.0.0.1'
         
-        Port: int  default = 1997
+        Port: int  default = 19997
         
         """
         print ('Program started')

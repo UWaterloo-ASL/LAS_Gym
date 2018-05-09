@@ -34,8 +34,6 @@ if __name__ == '__main__':
             observationForLAS, rewardLAS, done, info = env.step_LAS(action_LAS)
             #print("Step: {}, reward: {}".format(i, rewardLAS))
             
-    
-            last_time = time.time()
             targetPositionName, bodyName, action_visitor = visitor.perceive_and_act(observationForVisitor,rewardVisitor,done)
             observationForVisitor, reward, done, [] = env.step_red_light_excited_visitor(targetPositionName, bodyName, action_visitor)
         except KeyboardInterrupt: # Ctrl-C stop interaction
