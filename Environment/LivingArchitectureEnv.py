@@ -38,11 +38,11 @@ class LivingArchitectureEnv(gym.Env):
     LAS. But we still can keep some basic common functions in a parant environment
     class to make our code easier to understand and reuse.
     """
-    def __init__(self, IP = '127.0.0.1', port = 1997):
+    def __init__(self, IP = '127.0.0.1', Port = 19997):
         print ('Program started')
         # connect to V-REP server
         vrep.simxFinish(-1) # just in case, close all opened connections
-        self.clientID = vrep.simxStart(IP,port,True,True,5000,5) # Connect to V-REP
+        self.clientID = vrep.simxStart(IP,Port,True,True,5000,5) # Connect to V-REP
         if self.clientID!=-1:
             print ('Connected to remote API server')
         else:

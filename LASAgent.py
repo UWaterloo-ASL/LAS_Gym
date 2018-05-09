@@ -10,6 +10,7 @@ import numpy as np
 class LASAgent():
     """
     Single LAS agent contorl all actuators i.e. non-distributed
+    
     """
     def __init__(self):
         self._smas_num = 3*13   # 13 nodes, each has 3 smas
