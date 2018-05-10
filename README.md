@@ -5,11 +5,11 @@ Living Architecture System simulated environment with OpenAi Gym APIs
 ### Method 1: with GUI (Only for visulizing behavior)
    1. Clone the whole repositry
    2. In V-REP: File -> Open scene -> choose _LAS-Scenes/livingArchitecture_singleVisitor_nondistributed.ttt_ 
-   3. Run: `_Interaction_LAS_and_Env.py_` to start interaction between LAS and Environment
-   4. Run: `_Interaction_Visitor_and_Env.py_` to start interaction between Visitor and Environment.
+   3. Run: `Interaction_LAS_and_Env.py` to start interaction between LAS and Environment
+   4. Run: `Interaction_Visitor_and_Env.py` to start interaction between Visitor and Environment.
 
 Notes:
-  * You should start with running `_Interaction_LAS_and_Env.py_` first, then start running `_Interaction_Visitor_and_Env.py_`, because Visitor intertacts with Env by a different [temporary port in chiled-script](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) from defualt port.
+  * You should start with running `Interaction_LAS_and_Env.py` first, then start running `Interaction_Visitor_and_Env.py`, because Visitor intertacts with Env by a different [temporary port in chiled-script](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) from defualt port.
   * In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction dramatically due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases, please use **Method 2**. 
 
 ### Method 2: without any GUI (Recommended)
@@ -24,7 +24,7 @@ Notes:
   * Compared with **Method 1**, **Method 2** is faster. Therefore, this method is preferred when you training your learning algorithm.
 
 ## Interaction Pattern
-In our design, the interaction between LAS and Environment (i.e. `_Interaction_LAS_and_Env.py_`) is parallel with the interaction between Visitor and Environment (i.e. `_Interaction_Visitor_and_Env.py_`). These two scripts can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
+In our design, the interaction between LAS and Environment (i.e. `Interaction_LAS_and_Env.py`) is parallel with the interaction between Visitor and Environment (i.e. `Interaction_Visitor_and_Env.py`). These two scripts can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
 
 ## Organization
 ### Interaction scripts
