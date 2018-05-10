@@ -37,7 +37,8 @@ In our design, the interaction between LAS and Environment (i.e. `_Interaction_L
    3. Visitor Agent class: `RedLightExcitedVisitorAgent.py`
 ### Interaction paradigm
 Interaction paradigm of our design.
-![alt text](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png "Interaction paradigm")<!-- .element height="50%" width="50%" -->
+![alt text](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png==100x20"Interaction paradigm")
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="200" height="200" />
 
 ## Features
   1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
