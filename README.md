@@ -35,7 +35,9 @@ In our design, the interaction between LAS and Environment (i.e. `_Interaction_L
    2. LAS Agent class: `LASAgent.py`
    3. Environment class for Visitor Agent: `VisitorEnv.py`
    3. Visitor Agent class: `RedLightExcitedVisitorAgent.py`
-### Interaction paradiam
+### Interaction paradigm
+
+![interaction paradigm](./InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png =100x20)
 
 ## Features
   1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
