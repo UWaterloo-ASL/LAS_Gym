@@ -9,7 +9,8 @@ Living Architecture System simulated environment with OpenAi Gym APIs
    4. Run: `Interaction_Visitor_and_Env.py` to start interaction between Visitor and Environment.
 
 Notes:
-  * You should start with running `Interaction_LAS_and_Env.py` first, then start running `Interaction_Visitor_and_Env.py`, because Visitor intertacts with Env by a different [temporary port in chiled-script](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) from defualt port.
+  
+  * You should start with running `Interaction_LAS_and_Env.py` first, then start running `Interaction_Visitor_and_Env.py`, because Visitor intertacts with Env by a different [temporary port in chiled-script](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) from defualt port.
   * In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction dramatically due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases, please use **Method 2**. 
 
 ### Method 2: without any GUI (Recommended)
@@ -19,6 +20,7 @@ Notes:
    4. start V-REP via the command line: `vrep -h -s C:\LAS_Gym\LAS-Scenes\livingArchitecture_singleVisitor_nondistributed.ttt`
 
 Notes:
+  
   * For details on starting V-REP via the command line, please visit [here](http://www.coppeliarobotics.com/helpFiles/en/commandLine.htm).
   * You can also add path of vrep.exe to environment variable. If there is error to load scene, please firmly follow **Method 2**.
   * Compared with **Method 1**, **Method 2** is faster. Therefore, this method is preferred when you training your learning algorithm.
