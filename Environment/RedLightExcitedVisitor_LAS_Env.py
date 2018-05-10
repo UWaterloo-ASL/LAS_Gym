@@ -7,7 +7,7 @@ Created on Wed May  2 17:46:02 2018
 """
 
 try:
-    from VrepRemoteApiBindings import vrep
+    from .VrepRemoteApiBindings import vrep
 except:
     print ('--------------------------------------------------------------')
     print ('"vrep.py" could not be imported. This means very probably that')
@@ -26,11 +26,34 @@ import warnings
 import multiprocessing as mp
 
 class LivingArchitectureEnv(gym.Env):
-    def __init__(self):
+    """
+    Currently this environment class is pretty versatile i.e. both visitor and
+    LAS interact with VREP through this class. Therefore, many customized functions
+    and interfaces only for visitor mixe with customized functions and interfaces
+    for LAS. 
+    
+    This might not a good idea, because this could bottleneck communication if 
+    both visitor and LAS interact with VREP through the same port.
+    
+    Therefore, I believe we should separate environment class for visitor and 
+    LAS. But we still can keep some basic common functions in a parant environment
+    class to make our code easier to understand and reuse.
+    """
+    def __init__(self, IP = '127.0.0.1', Port = 19997):
+        """
+        Initialize environment
+        
+        Parameters
+        ----------
+        IP: string default = '127.0.0.1'
+        
+        Port: int  default = 19997
+        
+        """
         print ('Program started')
         # connect to V-REP server
         vrep.simxFinish(-1) # just in case, close all opened connections
-        self.clientID = vrep.simxStart('127.0.0.1',19997,True,True,5000,5) # Connect to V-REP
+        self.clientID = vrep.simxStart(IP,Port,True,True,5000,5) # Connect to V-REP
         if self.clientID!=-1:
             print ('Connected to remote API server')
         else:
@@ -460,349 +483,8 @@ class LivingArchitectureEnv(gym.Env):
     def destroy(self):
         vrep.simxStopSimulation(self.clientID, self._def_op_mode)
         vrep.simxFinish(self.clientID)
+        
+    def close_connection(self):
+        vrep.simxFinish(self.clientID)
 
 
-class LASAgent():
-    """
-    Single LAS agent contorl all actuators i.e. non-distributed
-    """
-    def __init__(self):
-        self._smas_num = 3*13   # 13 nodes, each has 3 smas
-        self._light_num = 3*13  # 13 nodes, each has 3 lights
-        
-    def perceive_and_act(self, observation, reward, done):
-        self._observation = observation
-        self._reward = reward
-        self._done = done
-        
-        self._actionNew = self._act()
-        return self._actionNew
-    
-    def _act(self):
-        smas = np.random.randn(self._smas_num)
-        #lights_state = np.random.randint(2,size = 39)
-        lights_state = np.ones(self._light_num)
-        lights_color = np.random.uniform(0,1,self._light_num*3)
-        #lights_color = np.array([1,0,0]*self._light_num)
-        action = np.concatenate((smas, lights_state, lights_color))
-        return action
-    
-class VisitorsControlledByOneAgent():
-    """
-    Single visitor agent control all visitors i.e. non-distributed
-    """
-    def __init__(self):
-        self._visitor_num = 4
-        
-    def perceive_and_act(self, observation, reward, done):
-        self._observation = observation
-        self._reward = reward
-        self._done = done
-        
-        self._actionNew = self._act()
-        return self._actionNew
-    
-    def _act(self):
-        position = np.random.uniform(-7,7,self._visitor_num * 2) # 2: (x, y)
-        return position
-
-class VisitorAgent():
-    """
-    One agent only control one visitor i.e. distributed visitor control
-    """
-    def __init__(self, name):
-        self._visitorName = name
-        
-    def perceive_and_act(self, observation, reward, done):
-        self._observation = observation
-        self._reward = reward
-        self._done = done
-        
-        self._actionNew = self._act()
-        return self._actionNew
-    
-    def _act(self):
-        position = np.random.uniform(-7,7, 2) # 2: (x, y)
-        return self._visitorName, position
-
-# Multiprocessing parallelizes multiple LAS-agents 
-def multiprocessing_LAS_agent(Env, observation, reward, done, LASAgent):
-    """
-    Parallel processing handles interaction of LAS
-    Input:
-       Env, observation, reward, done, LASAgent
-    """
-    i = 1
-    while not done:
-        action = LASAgent.perceive_and_act(observation, reward, done)
-        observation, reward, done, info = Env.step_LAS(action)
-        print(observation[:3])
-        print("LAS Step: {}, reward: {}".format(i, reward))
-        i = i+1
-        time.sleep(3)
-        
-# Multiprocessing parallelizes multiple visitor-agents
-def multiprocessing_Visitor_agent(Env, observation, reward, done, VisitorAgent):
-    """
-    Parallel processing handles interaction of visitor
-    Input:
-       Env, observation, reward, done, VisitorAgent
-    """
-    i = 1
-    while not done:
-        action = VisitorAgent.perceive_and_act(observation, reward, done)
-        observation, reward, done, info = Env.step_visitor(action)
-        print("Visitor Step: {}, reward: {}".format(i, reward))
-        i = i+1
-        time.sleep(3)
-
-# Multiprocessing parallelizes multiple visitor
-def multiprocessing_single_visitor_agent(Env, observation, reward, done, visitorAgent):
-    """
-    Each processing handles one single visitor
-    """
-    i = 1
-    while not done:
-        name, visitorAction = visitorAgent.perceive_and_act(observation,reward, done)
-        observation, rewardVisitor, done, info = env.step_single_visitor(name, visitorAction)
-        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name, i, rewardVisitor))
-        i = i+1
-        time.sleep(3)
-
-class RedLightExcitedVisitorAgent():
-    """
-    Visitor who is only excited about red light.
-        Return:
-            name: visitor name
-            action: [move, x, y, z] if move = 0, don't move, else move.
-    """
-    def __init__(self, name):
-        self._targetPositionName = "TargetPosition_"+name
-        self._bodayName = "Body_"+name
-        self.red_light_num = 0
-        # threshold distance between last destination and current location
-        self._distanceThreshold = np.sqrt((0.1**2) + (0.1**2))
-        self._lastTargetPositionMaintainThreshold = 1000 # at least maintain 25 steps
-        
-        self._lastTargetPositionMaintainCounter = 0 # count how may step have elapsed for last target position
-        
-        self._lastDestination = []
-        self._currLocation = []
-        self._firstStep = True
-    def perceive_and_act(self, observation, reward, done):
-        self._observation = observation
-        self._currLocation = observation[-3:-1] # ignore z coordinate
-        self._reward = reward
-        self._done = done
-        
-        self._actionNew = self._act()
-        #print("_actionNew = {}".format(self._actionNew))
-        return self._targetPositionName, self._bodayName, self._actionNew
-    
-    def _act(self):
-        # for first step there is no lastDestination
-        if self._firstStep:
-            distance = 0
-        else:
-            # distance between lastDestination and current location
-            distance = self._distance_lastDestination_currLocation(self._lastDestination, self._currLocation)
-        
-        red_light_positions = self._red_light_position()
-        
-        # only when there is red light and close to target position and maintain a maximum number to approach to target
-        if self.red_light_num > 0 and \
-            distance <= self._distanceThreshold and \
-            self._lastTargetPositionMaintainCounter > self._lastTargetPositionMaintainThreshold:
-            move = 1
-            print("Red light number: {}".format(self.red_light_num))
-            random_red_light = np.random.randint(0,self.red_light_num)
-            position = red_light_positions[random_red_light,:]
-            # each time change destination, _lastDestination will be updated 
-            self._lastDestination = position[0:2] #ignore z coordinate
-            self._lastTargetPositionMaintainCounter = 1
-            print("Visitor Destination:{}".format(self._lastDestination))
-            action = np.concatenate(([move], position.flatten()))    
-        else:
-            move = 0
-            action = [move, 0, 0, 0]
-            self._lastTargetPositionMaintainCounter += 1 # increase one
-    
-        return action
-    
-    def _distance_lastDestination_currLocation(self, lastDestination, currLocation):
-        return np.sqrt(np.sum((np.array(lastDestination) - np.array(currLocation))**2))
-    
-    def _red_light_position(self):
-        """
-        Function find where are red lights:
-            Red:    0.70 - 1.00
-            Green:  0.00 - 0.30
-            Blue:   0.00 - 0.30
-        """
-        light_num = int((len(self._observation) - 3) / 7) # (length - 3visitorPosition ) / (1State + 3Color + 3Position)
-        #print("len(self._observation): {}".format(len(self._observation)))
-        #print("Light number: {}".format(light_num))
-        light_color_start_index = light_num
-        light_position_start_index = light_num + light_num * 3 # start after state & color
-        red_light_index = []
-        for i in range(light_num):
-            R = self._observation[light_color_start_index + i*3]
-            G = self._observation[light_color_start_index + i*3 + 1]
-            B = self._observation[light_color_start_index + i*3 + 2]
-            #print("Light: {}, R={}, G={}, B={}".format(i, R,G,B))
-            if 0.7<= R <=1 and 0<=G<=0.3 and 0<=B<=0.3:
-                #print("Find one red light!!")
-                red_light_index.append(i)
-        
-        self.red_light_num = len(red_light_index)
-        
-        red_light_positions = np.zeros([self.red_light_num,3])
-        
-        for i in range(self.red_light_num):
-            index = red_light_index[i]
-            red_light_positions[i,:] = self._observation[light_position_start_index + index*3:light_position_start_index + (index+1)*3]
-            #print("Red light index:{}, Position:{}".format(index, red_light_positions[i,:]))
-        return red_light_positions       
-
-if __name__ == '__main__':
-    
-    # Iinstantiate LAS-agent
-    LASAgent1 = LASAgent()
-    # Instantiate
-    VisitorsAgent = VisitorsControlledByOneAgent()
-    # instantiate a single visitor
-    visitor = RedLightExcitedVisitorAgent("Visitor#0")
-    # Instantiate environment object
-    env = LivingArchitectureEnv()
-    observationForLAS, observationForVisitor, rewardLAS, rewardVisitor, done, [] = env.reset_env_for_LAS_red_light_excited_visitor(visitor._bodayName)
-    
-    # Step counter
-    i = 1
-    last_time = time.time()
-    while not done:
-        action_LAS = LASAgent1.perceive_and_act(observationForLAS, rewardLAS, done)
-        observationForLAS, rewardLAS, done, info = env.step_LAS(action_LAS)
-        #print("Step: {}, reward: {}".format(i, rewardLAS))
-        
-
-        last_time = time.time()
-        targetPositionName, bodyName, action_visitor = visitor.perceive_and_act(observationForVisitor,rewardVisitor,done)
-        observationForVisitor, reward, done, [] = env.step_red_light_excited_visitor(targetPositionName, bodyName, action_visitor)
-
-
-
-
-    """
-    Test parallel
-    """
-#    pool = mp.Pool(processes = 2)
-#    pool.apply_async(multiprocessing_LAS_agent, args = (env, 
-#                                                       observation, 
-#                                                       rewardLAS,
-#                                                       done,
-#                                                       LASAgent1))
-#    
-#    pool.apply_async(multiprocessing_single_visitor_agent, args = (env,
-#                                                                   observation,
-#                                                                   rewardVisitor,
-#                                                                   done,
-#                                                                   visitorAgent0))
-##    pool.apply_async(multiprocessing_Visitor_agent, args = (env,
-##                                                           observation,
-##                                                           rewardVisitor,
-##                                                           done,
-##                                                           VisitorsAgent))
-#    pool.close()
-#    pool.join()
-    
-    """
-    ***************************************************************************
-    All actuators are controlled by a single agent i.e. non-distributed LAS-agent
-    ***************************************************************************
-    """
-#    while not done:
-#        # simple LAS-agent takes random actions
-#        action = LASAgent1.perceive_and_act(observation, rewardLAS, done)
-#        observation, rewardLAS, done, info = env.step_LAS(action)
-#        print("Step: {}, reward: {}".format(i, rewardLAS))
-#        i = i+1
-#        time.sleep(0.1)
-    """
-    ***************************************************************************
-    All visitors is controlled by a single agent i.e. non-distributed visitors-agent
-    ***************************************************************************
-    """
-#    while not done:
-#        # All visitors are controlled by one agent, and actions are randomly picked
-#        visitorAction = VisitorsAgent.perceive_and_act(observation,rewardVisitor, done)
-#        observation, rewardVisitor, done, info = env.step_visitor(visitorAction)
-#        print("Visitor Step: {}, rewardVisitor: {}".format(i, rewardVisitor))
-#        i = i+1
-#        time.sleep(3)
-    """
-    ***************************************************************************
-    Each visitor is controlled by a independent agent i.e. distributed visitor-agents
-    ***************************************************************************
-    """
-#    while not done:
-#        # All visitors are controlled by one agent, and actions are randomly picked
-#        name0, visitorAction0 = visitorAgent0.perceive_and_act(observation,rewardVisitor, done)
-#        observation, rewardVisitor, done, info = env.step_single_visitor(name0, visitorAction0)
-#        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name0, i, rewardVisitor))
-#        
-##        name1, visitorAction1 = visitorAgent1.perceive_and_act(observation,rewardVisitor, done)
-##        observation, rewardVisitor, done, info = env.step_single_visitor(name1, visitorAction1)
-##        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name1, i, rewardVisitor))        
-##        
-##        name2, visitorAction2 = visitorAgent2.perceive_and_act(observation,rewardVisitor, done)
-##        observation, rewardVisitor, done, info = env.step_single_visitor(name2, visitorAction2)
-##        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name2, i, rewardVisitor))
-##
-##        name3, visitorAction3 = visitorAgent3.perceive_and_act(observation,rewardVisitor, done)
-##        observation, rewardVisitor, done, info = env.step_single_visitor(name3, visitorAction3)
-##        print("Visitor: {} Step: {}, rewardVisitor: {}".format(name3, i, rewardVisitor))
-#
-#        i = i+1
-#        time.sleep(3) # should find a way to delete the sleep and let an angent finishes its movement before setting another target
-
-    """
-    ***************************************************************************
-    Randon actions: not encapsulted in agent
-    ***************************************************************************
-    """
-
-#    for step in range(10):
-#        # random actions
-#        smas = np.random.randn(39)
-#        #lights_state = np.random.randint(2,size = 39)
-#        lights_state = np.ones(39)
-#        lights_color = np.random.uniform(0,1,39*3)
-#        action = np.concatenate((smas, lights_state, lights_color))
-#
-#        observation, reward, done, info = env.step_LAS(action)
-#        print("Step: {}, reward: {}".format(i, reward))
-#        i = i+1
-#        time.sleep(0.1)
-        
-#    for step in range(5):
-#        # random position
-#        # the target position must be whthin a small range, if not
-#        # current script cannot plan a path, so the visitor will keep still.
-#        position = np.random.uniform(-7,7,2)
-#        observation, reward, done, info = env.step_visitor(position)
-#        
-#        print("Visitor Step: {}, reward: {}".format(step, reward))
-#        i = i+1
-#        time.sleep(0.1)
-    
-    # Relase occupuied port
-    env.destroy()
-
-def stop_unstoped_simulation():
-    """
-    If not stoped normally, call this function, or copy the following three
-    lines and run them.
-    """
-    clientID = vrep.simxStart('127.0.0.1',19997,True,True,5000,5)
-    vrep.simxStopSimulation(clientID, vrep.simx_opmode_blocking)
-    vrep.simxFinish(clientID)
