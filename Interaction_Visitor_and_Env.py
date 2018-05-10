@@ -7,27 +7,19 @@ Created on Wed May  9 08:46:49 2018
 """
 
 import time
-import multiprocessing as mp
 
-from RedLightExcitedVisitorAgent import RedLightExcitedVisitorAgent
-from RedLightExcitedVisitor_LAS_Env import LivingArchitectureEnv
-from LASAgent import LASAgent
-
-
+from VisitorAgent.RedLightExcitedVisitorAgent import RedLightExcitedVisitorAgent
+from Environment.VisitorEnv import VisitorEnv
 
 if __name__ == '__main__':
     
-    # Iinstantiate LAS-agent
-    LASAgent1 = LASAgent()
-
     # Instantiate a red light excited visitor
     visitor = RedLightExcitedVisitorAgent("Visitor#0")
     
-    # Instantiate environment object
-    #envLAS = LivingArchitectureEnv('127.0.0.1', 19997)
-    envVisitor = LivingArchitectureEnv('127.0.0.1', 19999)
+    # Instantiate visitor environment object
+    envVisitor = VisitorEnv('127.0.0.1', 19999)
     
-    observationForVisitor = envVisitor._self_observe_for_red_excited_visitor(visitor._bodayName)
+    observationForVisitor = envVisitor._self_observe(visitor._bodayName)
     done = False
     rewardVisitor = 0
     
@@ -36,8 +28,8 @@ if __name__ == '__main__':
     last_time = time.time()
     while not done:
             
-        targetPositionName, bodyName, action_visitor = visitor.perceive_and_act(observationForVisitor,rewardVisitor,done)
-        observationForVisitor, reward, done, [] = envVisitor.step_red_light_excited_visitor(targetPositionName, bodyName, action_visitor)
+        targetPositionName, bodyName, action = visitor.perceive_and_act(observationForVisitor,rewardVisitor,done)
+        observationForVisitor, reward, done, [] = envVisitor.step(targetPositionName, bodyName, action)
         print("Visitor Step: {}".format(i))
         i += 1
         
