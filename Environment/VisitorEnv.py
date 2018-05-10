@@ -153,11 +153,11 @@ class VisitorEnv(gym.Env):
         return self.observation, self.reward, self.done, self.info
     
     def _set_single_visitor_position(self, targetPositionName, position):
-        visitorIndex = np.where(self.visitorNames == targetPositionName)
+        visitorIndex = np.where(self.visitorTargetNames == targetPositionName)
         if len(visitorIndex[0]) == 0:
             print("Not found visitor: {}".format(targetPositionName))
         else:
-            vrep.simxSetObjectPosition(self.clientID, self.visitorHandles[visitorIndex], -1, [position[0],position[1],0], self._set_visitor_op_mode)
+            vrep.simxSetObjectPosition(self.clientID, self.visitorTargetHandles[visitorIndex], -1, [position[0],position[1],0], self._set_visitor_op_mode)
     
     def _get_single_visitor_body_position(self, bodyName):
         """
