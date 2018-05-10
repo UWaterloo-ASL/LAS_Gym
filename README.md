@@ -48,5 +48,5 @@ Interaction paradigm of our design.
 
 ## Dependency
    1. OpenAi gym package: `pip install gym`
-   2. Tensorflow
-   3. numpy
+   2. keras
+   3. Tensorflow
