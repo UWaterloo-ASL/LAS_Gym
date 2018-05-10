@@ -10,8 +10,8 @@ try:
     from .VrepRemoteApiBindings import vrep
 except:
     print ('--------------------------------------------------------------')
-    print ('"vrep.py" could not be imported. This means very probably that')
-    print ('either "vrep.py" or the remoteApi library could not be found.')
+    print ('"vrep.py" could not be imported. This means it is very likely')
+    print ('that either "vrep.py" or the remoteApi library could not be found.')
     print ('Make sure both are in the same folder as this file,')
     print ('or appropriately adjust the file "vrep.py"')
     print ('--------------------------------------------------------------')
@@ -102,7 +102,8 @@ class LASEnv(gym.Env):
         print("Initialization of LAS done!")
         # ========================================================================= #
         #                       Initialize other variables                          #
-        # ========================================================================= #         
+        # ========================================================================= #
+        self.time_reward = np.array([0]*self.prox_sensor_num) # Reward for each proximity sensor
         self.reward = 0
         self.done = False
         self.info = []
@@ -168,8 +169,18 @@ class LASEnv(gym.Env):
         return observation
 
     def _reward(self):
-        """ calculate reward based on observation of prximity sensor"""
-        self.reward = np.mean(self.observation[:self.prox_sensor_num])
+        """
+        Calculate reward based on observation of proximity sensor.
+        The longer the proximity sensor is triggered, the higher the reward.
+        """
+        prox_obs = self.observation[:self.prox_sensor_num]
+        self.time_reward = (prox_obs + self.time_reward)*prox_obs
+        # Use adjusted sigmoid function f to map the time reward from R to [0,1]
+        # f(t) = 2*sigmoid(t/ratio) -1
+        # Then average all f(t) to obtain final reward
+        ratio = 1000
+        self.reward = np.mean(-1 + 2/(1+np.exp(-self.time_reward/ratio)))
+
         return self.reward
 
     def reset(self):
