@@ -39,7 +39,7 @@ In our design, the interaction between LAS and Environment (i.e. `_Interaction_L
 Interaction paradigm of our design.
 
 <center><img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" /></center>
-
+<center><img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" alt="what image shows" height="150" width="200"></center>
 ## Features
   1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
   2. The interactions among Environment, LAS and Visitor can run in parallel.
