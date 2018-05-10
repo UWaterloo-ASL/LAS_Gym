@@ -40,8 +40,6 @@ Interaction paradigm of our design.
 
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />
 
-![test image size](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png){:height="50%" width="50%"}
-
 ## Features
   1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
   2. The interactions among Environment, LAS and Visitor can run in parallel.
