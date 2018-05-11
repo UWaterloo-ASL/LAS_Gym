@@ -12,10 +12,13 @@ class RandomLASAgent():
     Single LAS agent contorl all actuators i.e. non-distributed
     
     """
-    def __init__(self):
+    def __init__(self, env):
         self._smas_num = 3*13   # 13 nodes, each has 3 smas
         self._light_num = 3*13  # 13 nodes, each has 3 lights
         
+        self.env = env
+        self.actionSpace = env.actionSpace             # gym.spaces.Box object
+        self.observationSpace = env.observationSpace   # gym.spaces.Box object
     def perceive_and_act(self, observation, reward, done):
         self._observation = observation
         self._reward = reward
@@ -25,10 +28,10 @@ class RandomLASAgent():
         return self._actionNew
     
     def _act(self):
-        smas = np.random.randn(self._smas_num)
-        lights_state = np.random.randint(2,size = 39)
-        #lights_state = np.ones(self._light_num)
-        lights_color = np.random.uniform(0,1,self._light_num*3)
-        #lights_color = np.array([1,0,0]*self._light_num)
-        action = np.concatenate((smas, lights_state, lights_color))
-        return action
+#        smas = np.random.randn(self._smas_num)
+#        lights_state = np.random.randint(2,size = 39)
+#        #lights_state = np.ones(self._light_num)
+#        lights_color = np.random.uniform(0,1,self._light_num*3)
+#        #lights_color = np.array([1,0,0]*self._light_num)
+#        action = np.concatenate((smas, lights_state, lights_color))
+        return self.actionSpace.sample()
