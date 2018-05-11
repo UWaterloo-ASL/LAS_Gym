@@ -24,6 +24,8 @@ import warnings
 
 from .UtilitiesForEnv import get_all_object_name_and_handle
 
+from IPython.core.debugger import Tracer
+
 class LASEnv(gym.Env):
     def __init__(self, IP = '127.0.0.1',Port = 19997):
         """
@@ -116,6 +118,7 @@ class LASEnv(gym.Env):
         Parameters
         ----------
         action: ndarray
+            We interpret light state value >=0.01 as turn on light.
         
         Returns
         -------
@@ -132,8 +135,8 @@ class LASEnv(gym.Env):
         action = np.clip(action, self.act_min, self.act_max)
         # Split action for light and sma
         action_smas = action[:self.smas_num]
-        action_lights_state = action[self.smas_num:self.smas_num+self.lights_num]
-        action_lights_state = action_lights_state.astype(int)
+        # We interpret light state value >=0.01 as turn on light
+        action_lights_state = (action[self.smas_num:self.smas_num+self.lights_num] >= 0.01).astype(int)
         action_lights_color = action[self.smas_num+self.lights_num:]
         # Taking action
         vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
@@ -190,9 +193,13 @@ class LASEnv(gym.Env):
         Returns
         -------
         observation:
+            
         reward:
+            
         done:
+            
         info:
+            
         """
         #vrep.simxStopSimulation(self.clientID, self._def_op_mode)
         vrep.simxStartSimulation(self.clientID, self._def_op_mode)
@@ -226,7 +233,10 @@ class LASEnv(gym.Env):
         targetPosition: ndarray
         target position of each joint
         """
-        jointNum = len(self.jointHandles)
+        jointNum = self.smas_num
+        if jointNum != len(targetPosition):
+            raise ValueError('Joint targetPosition is error!!!')
+
         for i in range(jointNum):
             vrep.simxSetJointTargetPosition(self.clientID, self.jointHandles[i], targetPosition[i], self._set_joint_op_mode)
 
@@ -244,7 +254,7 @@ class LASEnv(gym.Env):
         """
         lightNum = self.lights_num
         if len(targetState) != lightNum:
-            print("len(targetState) != lightNum")
+            raise ValueError('len(targetState) != lightNum')
         
         # Inner function: remote function call to set light state
         def _set_light_state_and_color(clientID, name, handle, targetState, targetColor, opMode):
