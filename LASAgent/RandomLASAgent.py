@@ -6,6 +6,7 @@ Created on Tue May  8 16:15:42 2018
 @author: jack.lingheng.meng
 """
 import numpy as np
+from collections import deque
 
 class RandomLASAgent():
     """
@@ -19,10 +20,29 @@ class RandomLASAgent():
         self.env = env
         self.actionSpace = env.actionSpace             # gym.spaces.Box object
         self.observationSpace = env.observationSpace   # gym.spaces.Box object
+        
+        # ========================================================================= #
+        #                 Initialize Temprary Memory                                #
+        # ========================================================================= # 
+        # Temporary hard memory: storing every experience
+        self._memory = deque(maxlen = 10000)
+        # Temporary memory: variables about last single experience
+        self._firstExperience = True
+        self._observationOld = []   # observation at time t
+        self._observationNew = []   # observation at time t+1
+        self._actionOld = []        # action at time t
+        self._actionNew = []        # action at time t+1
+        # Cumulative reward
+        self._cumulativeReward = 0
+        self._cumulativeRewardMemory = deque(maxlen = 10000)
+        
     def perceive_and_act(self, observation, reward, done):
         self._observation = observation
         self._reward = reward
         self._done = done
+        
+        self._cumulativeReward += reward
+        self._cumulativeRewardMemory.append([self._cumulativeReward])
         
         self._actionNew = self._act()
         return self._actionNew
