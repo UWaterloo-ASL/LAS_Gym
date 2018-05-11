@@ -32,11 +32,16 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
 ### Interaction scripts
    1. Interaction between LAS and Environment: `Interaction_LAS_and_Env.py`
    2. Interaction between Visitor and Environment: `Interaction_Visitor_and_Env.py`
+   3. Interaction between **Extrinscially Motivated LASAgent** and Environment: `Interaction_ExtrinsicallyMotivatedLASAgent_and_Env.py`
+   
 ### Class
    1. Environment class for LAS Agent: `LASEnv.py`
-   2. LAS Agent class: `LASAgent.py`
+   2. LAS Agent class: 
+      * `LASAgent.py`: random action
+      * `ExtrinsicallyMotivatedLASAgent.py`: extrinsically motivated behavior
    3. Environment class for Visitor Agent: `VisitorEnv.py`
-   3. Visitor Agent class: `RedLightExcitedVisitorAgent.py`
+   4. Visitor Agent class: 
+      * `RedLightExcitedVisitorAgent.py`: red light excited visitor
 ### Interaction paradigm
 Interaction paradigm of our design.
 
