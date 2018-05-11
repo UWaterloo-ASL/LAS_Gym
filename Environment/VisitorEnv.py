@@ -231,7 +231,13 @@ class VisitorEnv(gym.Env):
         
         for i in range(lightNum):
            lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
-        
+           if lightStates[i] == -1:
+               lightStates[i] = 0
+               lightDiffsePart[i,:] = [0, 0, 0]
+               lightSpecularPart[i,:] = [0, 0, 0]
+           elif lightStates[i] == 0:
+               lightDiffsePart[i,:] = [0, 0, 0]
+               lightSpecularPart[i,:] = [0, 0, 0]
         return lightStates, lightDiffsePart, lightSpecularPart
 
     def _get_all_light_position(self):
