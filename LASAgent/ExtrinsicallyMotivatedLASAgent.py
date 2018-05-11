@@ -14,8 +14,16 @@ import tensorflow as tf
 import random
 import numpy as np
 from collections import deque
+import matplotlib.pyplot as plt
 
 from IPython.core.debugger import Tracer
+
+def plot_cumulative_reward(cumulativeReward):
+    line, = plt.plot(cumulativeReward)
+    plt.ion()
+    #plt.ylim([0,10])
+    plt.show()
+    plt.pause(0.0001)
 
 class ExtrinsicallyMotivatedLASAgent:
     def __init__(self, env, sess, learnFromScratch = True):
@@ -48,14 +56,17 @@ class ExtrinsicallyMotivatedLASAgent:
         #                 Initialize Temprary Memory                                #
         # ========================================================================= # 
         # Temporary hard memory: storing every experience
-        self._memory = deque(maxlen = 5000)
+        self._memory = deque(maxlen = 10000)
         # Temporary memory: variables about last single experience
         self._firstExperience = True
         self._observationOld = []   # observation at time t
         self._observationNew = []   # observation at time t+1
         self._actionOld = []        # action at time t
         self._actionNew = []        # action at time t+1
-        
+        # Cumulative reward
+        self._cumulativeReward = 0
+        self._cumulativeRewardMemory = deque(maxlen = 10000)
+
         if not learnFromScratch:
             # ========================================================================= #
             #                          Load Pre-trained Model                           #
@@ -175,6 +186,11 @@ class ExtrinsicallyMotivatedLASAgent:
         self._observationNew = observation
         self._reward = reward
         self._done = done
+        
+        self._cumulativeReward += reward
+        self._cumulativeRewardMemory.append([self._cumulativeReward])
+        if len(self._memory) %50 == 0:
+            plot_cumulative_reward(self._cumulativeRewardMemory)
         # Store experience: (observationOld, actionOld, observationNew, reward, done)
         # 
         if self._firstExperience == True:
