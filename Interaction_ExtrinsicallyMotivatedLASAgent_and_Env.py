@@ -31,7 +31,9 @@ if __name__ == '__main__':
     envLAS = LASEnv('127.0.0.1', 19997)
     
     # Instantiate LAS-agent
-    Ext_Mot_LASAgent = ExtrinsicallyMotivatedLASAgent(envLAS, sess)
+    Ext_Mot_LASAgent = ExtrinsicallyMotivatedLASAgent(envLAS, 
+                                                      sess, 
+                                                      learnFromScratch = True)
     
     # Step counter
     i = 1

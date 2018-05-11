@@ -18,7 +18,7 @@ from collections import deque
 from IPython.core.debugger import Tracer
 
 class ExtrinsicallyMotivatedLASAgent:
-    def __init__(self, env, sess):
+    def __init__(self, env, sess, learnFromScratch = True):
         """
         Initialize extrinsically motivated LASAgent.
         
@@ -27,7 +27,9 @@ class ExtrinsicallyMotivatedLASAgent:
         env: environment object
             environment object, mainly to get "env.action_space" and "env.observation_space"
         sess: tensorflow session
-            
+        
+        learnFromScratch: bool default = True
+            If True, the agent learn from scratch; otherwise load learned models.
         """
         self.env = env
         self.sess = sess
@@ -43,9 +45,9 @@ class ExtrinsicallyMotivatedLASAgent:
         self._gamma = 0.95
         self._tau = 0.125
         # ========================================================================= #
-        #                 Initialize Memory and Environment model                   #
-        # ========================================================================= #        
-        # Long-term hard memory: storing every experience
+        #                 Initialize Temprary Memory                                #
+        # ========================================================================= # 
+        # Temporary hard memory: storing every experience
         self._memory = deque(maxlen = 5000)
         # Temporary memory: variables about last single experience
         self._firstExperience = True
@@ -53,35 +55,54 @@ class ExtrinsicallyMotivatedLASAgent:
         self._observationNew = []   # observation at time t+1
         self._actionOld = []        # action at time t
         self._actionNew = []        # action at time t+1
-        # Environment model or World model (this is different from environment,
-        # because this environment is learned from experiences)
-        #   mapping from (currentState, action) to (nextState, reward)
-        self._environmentModel = self._create_environment_model()
-        # ========================================================================= #
-        #              Initialize extrinsically motivated Actor-Critic model        #
-        #                    i.e. extrinsic policy and value function               #
-        # ========================================================================= #
-        # ************************************************************************* #
-        #                             Extrinsic Actor Model                         #
-        # ************************************************************************* #         
-        self._actorStateInput, self._actorModel = self._create_actor_model()
-        _, self._targetActorModel = self._create_actor_model()
-        self._actorCriticGrad = tf.placeholder(tf.float32, [None, self.actionSpace.shape[0]])
         
-        actorModelWeights = self._actorModel.trainable_weights
-        # why the initial gradient in ys is negative of gradient from actor-critic??
-        self._actorGrad = tf.gradients(self._actorModel.output, actorModelWeights, -self._actorCriticGrad) 
-        grads = zip(self._actorGrad, actorModelWeights)
-        self.optimize = tf.train.AdamOptimizer(self._learningRate).apply_gradients(grads)
-        # ************************************************************************* #
-        #                            Extrinsic Critic Model                         #
-        # ************************************************************************* #
-        self._criticStateInput, self._criticActionInput, self._criticModel = self._create_critic_model()
-        _, _, self._targetCriticModel = self._create_critic_model()
-        self._criticGrads = tf.gradients(self._criticModel.output, self._criticActionInput) 
-        
-        # Initialize for later gradient calculations
-        self.sess.run(tf.global_variables_initializer())
+        if not learnFromScratch:
+            # ========================================================================= #
+            #                          Load Pre-trained Model                           #
+            #                                                                           #
+            # We need to load some pre-trained model here, if we don't want learn from  #
+            # scratch every time we start our learning agent.                           #
+            # ========================================================================= # 
+            # Even load pretrained models, we still need to define how to calculate
+            # gradients.
+            raise ValueError("Not learn from scratch not implememted!")
+        else:
+            # ========================================================================= #
+            #                       Initialize  Environment model                       #
+            # ========================================================================= #        
+            # Environment model or World model (this is different from environment,
+            # because this environment is learned from experiences)
+            #   mapping from (currentState, action) to (nextState, reward)
+            self._environmentModel = self._create_environment_model()
+            # ========================================================================= #
+            #              Initialize extrinsically motivated Actor-Critic model        #
+            #                    i.e. extrinsic policy and value function               #
+            # ========================================================================= #
+            # ************************************************************************* #
+            #                             Extrinsic Actor Model                         #
+            # ************************************************************************* #         
+            self._actorStateInput, self._actorModel = self._create_actor_model()
+            _, self._targetActorModel = self._create_actor_model()
+            self._actorCriticGrad = tf.placeholder(tf.float32, [None, self.actionSpace.shape[0]])
+            
+            actorModelWeights = self._actorModel.trainable_weights
+            # why the initial gradient in ys is negative of gradient from actor-critic??
+            self._actorGrad = tf.gradients(self._actorModel.output, actorModelWeights, -self._actorCriticGrad) 
+            grads = zip(self._actorGrad, actorModelWeights)
+            self.optimize = tf.train.AdamOptimizer(self._learningRate).apply_gradients(grads)
+            # ************************************************************************* #
+            #                            Extrinsic Critic Model                         #
+            # ************************************************************************* #
+            self._criticStateInput, self._criticActionInput, self._criticModel = self._create_critic_model()
+            _, _, self._targetCriticModel = self._create_critic_model()
+            self._criticGrads = tf.gradients(self._criticModel.output, self._criticActionInput) 
+            
+            # Initialize for later gradient calculations
+            self.sess.run(tf.global_variables_initializer())
+
+
+
+
 
     # ========================================================================= #
     #                   Components or Model Definitions                         #
