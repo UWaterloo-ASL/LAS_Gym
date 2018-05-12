@@ -8,15 +8,20 @@ Created on Tue May  8 16:15:42 2018
 import numpy as np
 from collections import deque
 
+import matplotlib.pyplot as plt
+def plot_cumulative_reward(cumulativeReward):
+    line, = plt.plot(cumulativeReward, '-+')
+    plt.ion()
+    #plt.ylim([0,10])
+    plt.show()
+    plt.pause(0.0001)
+
 class RandomLASAgent():
     """
     Single LAS agent contorl all actuators i.e. non-distributed
     
     """
     def __init__(self, env):
-        self._smas_num = 3*13   # 13 nodes, each has 3 smas
-        self._light_num = 3*13  # 13 nodes, each has 3 lights
-        
         self.env = env
         self.actionSpace = env.actionSpace             # gym.spaces.Box object
         self.observationSpace = env.observationSpace   # gym.spaces.Box object
@@ -43,15 +48,12 @@ class RandomLASAgent():
         
         self._cumulativeReward += reward
         self._cumulativeRewardMemory.append([self._cumulativeReward])
+        # plot in real time
+        if len(self._memory) %200 == 0:
+            plot_cumulative_reward(self._cumulativeRewardMemory)
         
         self._actionNew = self._act()
         return self._actionNew
     
     def _act(self):
-#        smas = np.random.randn(self._smas_num)
-#        lights_state = np.random.randint(2,size = 39)
-#        #lights_state = np.ones(self._light_num)
-#        lights_color = np.random.uniform(0,1,self._light_num*3)
-#        #lights_color = np.array([1,0,0]*self._light_num)
-#        action = np.concatenate((smas, lights_state, lights_color))
         return self.actionSpace.sample()
