@@ -150,8 +150,13 @@ class LASEnv(gym.Env):
         # Observe current state
         self.observation = self._self_observe()
 
-        # Caculate reward
-        self.reward = self._reward()
+#        # Caculate reward
+#        self.reward = self._reward(self.observation)
+        
+        # This reward is non-interactive reward i.e. it's not affected by visitor.
+        # Therefore, it's only used for tunning hyper-parameters of LASAgent
+        self.reward = self._reward_red_light(self.observation)
+        
         
         done = False
         info = []
@@ -174,12 +179,12 @@ class LASEnv(gym.Env):
         observation = np.concatenate((proxStates, lightStates, lightDiffsePart.flatten()))
         return observation
 
-    def _reward(self):
+    def _reward(self, observation):
         """
         Calculate reward based on observation of proximity sensor.
         The longer the proximity sensor is triggered, the higher the reward.
         """
-        prox_obs = self.observation[:self.prox_sensor_num]
+        prox_obs = observation[:self.prox_sensor_num]
         self.time_reward = (prox_obs + self.time_reward)*prox_obs
         # Use adjusted sigmoid function f to map the time reward from R to [0,1]
         # f(t) = 2*sigmoid(t/ratio) -1
@@ -188,6 +193,37 @@ class LASEnv(gym.Env):
         self.reward = np.mean(-1 + 2/(1+np.exp(-self.time_reward/ratio)))
 
         return self.reward
+
+    def _reward_red_light(self, observation):
+        """
+        This reward function is used in non-interactive model and only for testing and tuning hyper-parameters of LASAgent. Whenever this is a red light 
+        the agent will receive a reward, and the more the red lights are, the 
+        higher the reward will be.
+        
+        If the RGB color of a light within the following thresholds, we regard
+        it as a red light.
+        
+        Threshould for red lights:
+            Red:    0.70 - 1.00
+            Green:  0.00 - 0.30
+            Blue:   0.00 - 0.30
+        
+        """
+        light_color_start_index = self.lights_num
+        light_position_start_index = self.lights_num * (1+3) # start after state & color
+        red_light_index = []
+        for i in range(self.lights_num):
+            R = observation[light_color_start_index + i*3]
+            G = observation[light_color_start_index + i*3 + 1]
+            B = observation[light_color_start_index + i*3 + 2]
+            #print("Light: {}, R={}, G={}, B={}".format(i, R,G,B))
+            if 0.7<= R <=1 and 0<=G<=0.3 and 0<=B<=0.3:
+                #print("Find one red light!!")
+                red_light_index.append(i)
+        
+        red_light_num = len(red_light_index)
+        reward = red_light_num / self.lights_num
+        return reward
 
     def reset(self):
         """
@@ -208,7 +244,7 @@ class LASEnv(gym.Env):
         vrep.simxStartSimulation(self.clientID, self._def_op_mode)
         
         self.observation = self._self_observe()
-        self.reward = self._reward()
+        self.reward = self._reward(self.observation)
         
         done = False
         info =[]
