@@ -30,7 +30,7 @@ if __name__ == '__main__':
             
         targetPositionName, bodyName, action = visitor.perceive_and_act(observationForVisitor,rewardVisitor,done)
         observationForVisitor, reward, done, [] = envVisitor.step(targetPositionName, bodyName, action)
-        print("Visitor Step: {}".format(i))
+        print("Visitor Step: {}, Red light number: {}".format(i, visitor.red_light_num))
         i += 1
-        
+
     envVisitor.close_connection()
