@@ -85,19 +85,16 @@ class LASEnv(gym.Env):
         self.prox_sensor_num = len(self.proxSensorHandles)
         self.smas_num = len(self.jointHandles)
         self.lights_num = len(self.lightHandles)
-        
-        self.sensors_dim = self.prox_sensor_num + self.lights_num * (1+3)
-        self.actuators_dim = self.smas_num + self.lights_num * (1+3) # light state & color
         # Sensor range:
         #   prox sensor: 0 or 1 
-        #   light state: 0 or 1
         #   light color: [0, 1] * 3
+        self.sensors_dim = self.prox_sensor_num + self.lights_num * (3)
         self.obs_max = np.array([1.]*self.sensors_dim)      
         self.obs_min = np.array([0.]*self.sensors_dim)
         # Actuator range:
         #   sma: not sure ??
-        #   light state: 0 or 1
         #   light color: [0, 1] * 3
+        self.actuators_dim = self.smas_num + self.lights_num * (3) # light state & color
         self.act_max = np.array([1]*self.actuators_dim)
         self.act_min = np.array([0]*self.actuators_dim)
         # Agent should be informed about observationSpace and actionSpace to initialize
@@ -121,7 +118,8 @@ class LASEnv(gym.Env):
         Parameters
         ----------
         action: ndarray
-            We interpret light state value >=0.01 as turn on light.
+            action[0: smas_num] are action corresponding to sma
+            action[smas_num: end] are action corresponding to light color
         
         Returns
         -------
@@ -138,14 +136,13 @@ class LASEnv(gym.Env):
         action = np.clip(action, self.act_min, self.act_max)
         # Split action for light and sma
         action_smas = action[:self.smas_num]
-        # We interpret light state value >=0.01 as turn on light
-        action_lights_state = (action[self.smas_num:self.smas_num+self.lights_num] >= 0.01).astype(int)
-        action_lights_color = action[self.smas_num+self.lights_num:]
+        action_lights_color = action[self.smas_num:]
         # Taking action
-        vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
+        #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
         self._set_all_joint_position(action_smas)
-        self._set_all_light_state_and_color(action_lights_state,action_lights_color)
-        vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
+        # Actually only set light color
+        self._set_all_light_state_and_color(action_lights_color)
+        #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
 
         # Observe current state
         self.observation = self._self_observe()
@@ -166,7 +163,6 @@ class LASEnv(gym.Env):
         """
         This observe function is for LAS:
             proximity sensors
-            light state
             light color
             
         Returns
@@ -176,7 +172,7 @@ class LASEnv(gym.Env):
         # Currently we only use proxStates, maby in the future we will need proxPosition
         proxStates, proxPosition = self._get_all_prox_data()
         lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
-        observation = np.concatenate((proxStates, lightStates, lightDiffsePart.flatten()))
+        observation = np.concatenate((proxStates, lightDiffsePart.flatten()))
         return observation
 
     def _reward(self, observation):
@@ -209,8 +205,7 @@ class LASEnv(gym.Env):
             Blue:   0.00 - 0.30
         
         """
-        light_color_start_index = self.lights_num
-        light_position_start_index = self.lights_num * (1+3) # start after state & color
+        light_color_start_index = self.prox_sensor_num
         red_light_index = []
         for i in range(self.lights_num):
             R = observation[light_color_start_index + i*3]
@@ -222,7 +217,15 @@ class LASEnv(gym.Env):
                 red_light_index.append(i)
         
         red_light_num = len(red_light_index)
-        reward = red_light_num / self.lights_num
+        if (self.lights_num * 0.8) <= red_light_num:
+            reward = 1
+        elif (self.lights_num * 0.5) <= red_light_num :
+            reward = 0.3
+        elif (self.lights_num * 0.1) <= red_light_num:
+            reward = 0.1
+        else:
+            reward = 0
+        #reward = red_light_num / self.lights_num
         return reward
 
     def reset(self):
@@ -279,23 +282,22 @@ class LASEnv(gym.Env):
         for i in range(jointNum):
             vrep.simxSetJointTargetPosition(self.clientID, self.jointHandles[i], targetPosition[i], self._set_joint_op_mode)
 
-    def _set_all_light_state_and_color(self, targetState, targetColor):
+    def _set_all_light_state_and_color(self, targetColor):
         
         """
         Set all light sate and color
         
         Parameters
         ----------
-        targetState: ndarray
-            target state of each light
         targetColor ndarray
             target color of each light
         """
         lightNum = self.lights_num
-        if len(targetState) != lightNum:
-            raise ValueError('len(targetState) != lightNum')
+        if len(targetColor) != (lightNum*3):
+            raise ValueError('len(targetColor) != lightNum*3')
         
         # Inner function: remote function call to set light state
+        targetState = np.ones(self.lights_num, dtype = int)
         def _set_light_state_and_color(clientID, name, handle, targetState, targetColor, opMode):
 
             emptyBuff = bytearray()
@@ -358,19 +360,11 @@ class LASEnv(gym.Env):
                 return lightState, diffusePart, specularPart
             else:
                 warnings.warn("Remote function call: getLightStateAndColor fail in Class AnyLight.")
-                return -1, [0,0,0], [0,0,0]
+                return 0, [0,0,0], [0,0,0]
         # inner function end
         
         for i in range(lightNum):
            lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
-           
-           if lightStates[i] == -1:
-               lightStates[i] = 0
-               lightDiffsePart[i,:] = [0, 0, 0]
-               lightSpecularPart[i,:] = [0, 0, 0]
-           elif lightStates[i] == 0:
-               lightDiffsePart[i,:] = [0, 0, 0]
-               lightSpecularPart[i,:] = [0, 0, 0]
         
         return lightStates, lightDiffsePart, lightSpecularPart    
     
