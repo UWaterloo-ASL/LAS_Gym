@@ -189,9 +189,9 @@ class ExtrinsicallyMotivatedLASAgent:
         
         self._cumulativeReward += reward
         self._cumulativeRewardMemory.append([self._cumulativeReward])
-#        # plot in real time
-#        if len(self._memory) %50 == 0:
-#            plot_cumulative_reward(self._cumulativeRewardMemory)
+        # plot in real time
+        if len(self._memory) %200 == 0:
+            plot_cumulative_reward(self._cumulativeRewardMemory)
         # Store experience: (observationOld, actionOld, observationNew, reward, done)
         # 
         if self._firstExperience == True:
