@@ -198,8 +198,9 @@ class LASEnv(gym.Env):
         Final reward = avg(all sensors reward r(t)_i)
         """
         individual_action_summary = np.array([0]*self.lights_num)
-        for step_action in self.action_history:
-            individual_action_summary = individual_action_summary | step_action
+        if len(self.action_history) > 0:
+            for step_action in self.action_history:
+                individual_action_summary = individual_action_summary | step_action
 
         group_action_summary = np.array([0]*self.group_num)
         for j in range(0, self.lights_num):
