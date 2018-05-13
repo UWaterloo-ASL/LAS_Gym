@@ -21,12 +21,11 @@ import gym
 from gym import spaces
 import numpy as np
 import warnings
-<<<<<<< HEAD
+
 import time
-=======
-import re
+
 from collections import deque
->>>>>>> 40f05424e2e1b7934ce61f45ccb855dc8cb711fe
+import re
 
 from .UtilitiesForEnv import get_all_object_name_and_handle
 
@@ -152,22 +151,16 @@ class LASEnv(gym.Env):
         action_smas = action[:self.smas_num]
         action_lights_color = action[self.smas_num:]
         # Taking action
-<<<<<<< HEAD
-        try:
-            #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
-            self._set_all_joint_position(action_smas)
-            # Actually only set light color
-            self._set_all_light_state_and_color(action_lights_color)
-            #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
-        except RuntimeError:
-            #Tracer()()
-            self._actionFailFlag = 1
-            print("Set action in V-REP fail.")
-            pass
+
+        #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
+        self._set_all_joint_position(action_smas)
+        # Actually only set light color
+        self._set_all_light_state_and_color(action_lights_color)
+        #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
+
         # Set a small sleep time to avoid getting nan sensor data
         time.sleep(0.01)
-        
-=======
+
         #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
         self._set_all_joint_position(action_smas)
         # Actually only set light color
@@ -175,7 +168,6 @@ class LASEnv(gym.Env):
         #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
         #self.action_history.append(action_lights_state)  # Only consider light actions for now
 
->>>>>>> 40f05424e2e1b7934ce61f45ccb855dc8cb711fe
         # Observe current state
         try:
             self.observation = self._self_observe()
@@ -353,7 +345,11 @@ class LASEnv(gym.Env):
         Release connnection, but not stop simulation on server.
         """
         vrep.simxFinish(self.clientID)
-    
+    # ========================================================================= #
+    #                                                                           # 
+    #                           Set Sma and Light Color                         #
+    #                                                                           # 
+    # ========================================================================= #     
     def _set_all_joint_position(self, targetPosition):
         """
         Set all joint position.
@@ -369,8 +365,6 @@ class LASEnv(gym.Env):
 
         for i in range(jointNum):
             res = vrep.simxSetJointTargetPosition(self.clientID, self.jointHandles[i], targetPosition[i], self._set_joint_op_mode)
-            if res != vrep.simx_return_ok:
-                raise RuntimeError("Remote function call: _set_all_joint_position fail.")
 
     def _set_all_light_state_and_color(self, targetColor):
         
@@ -401,9 +395,11 @@ class LASEnv(gym.Env):
         # inner function end
         for i in range(lightNum):
            res = _set_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], targetState[i], targetColor[i*3:(i+1)*3], self._set_light_op_mode)
-           if res != vrep.simx_return_ok:
-               raise RuntimeError("Remote function call: _set_light_state_and_color fail.")
-
+    # ========================================================================= #
+    #                                                                           #         
+    #                    Get Proximity Sensor and Light Data                    #
+    #                                                                           #
+    # ========================================================================= # 
     def _get_all_prox_data(self):
         """
         Get all proximity sensory data
@@ -416,7 +412,7 @@ class LASEnv(gym.Env):
             if np.sum(np.isnan(proxStates[i])) != 0:
                 raise ValueError("Find nan value in proximity sensor data!")
         return proxStates, proxPosition
-
+  
     def _get_all_light_data(self):
         """
         Get all light data.
@@ -457,11 +453,7 @@ class LASEnv(gym.Env):
         # inner function end
         
         for i in range(lightNum):
-            lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
-            # If miss getting value, repeat until get valid value.
-            
-#            while np.sum(np.isnan(lightDiffsePart[i,:])) != 0:
-#                lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
+            lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)            
             if np.sum(np.isnan(lightDiffsePart[i,:])) != 0:
                 raise ValueError("Find nan value in light color!")
         return lightStates, lightDiffsePart, lightSpecularPart    
