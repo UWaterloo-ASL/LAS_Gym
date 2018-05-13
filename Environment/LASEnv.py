@@ -21,6 +21,7 @@ import gym
 from gym import spaces
 import numpy as np
 import warnings
+import time
 
 from .UtilitiesForEnv import get_all_object_name_and_handle
 
@@ -97,10 +98,10 @@ class LASEnv(gym.Env):
         self.actuators_dim = self.smas_num + self.lights_num * (3) # light state & color
         self.act_max = np.array([1]*self.actuators_dim)
         self.act_min = np.array([0]*self.actuators_dim)
-        # Agent should be informed about observationSpace and actionSpace to initialize
+        # Agent should be informed about observation_space and action_space to initialize
         # agent's observation and action dimension and value limitation.
-        self.observationSpace = spaces.Box(self.obs_min, self.obs_max)
-        self.actionSpace = spaces.Box(self.act_min, self.act_max)
+        self.observation_space = spaces.Box(self.obs_min, self.obs_max)
+        self.action_space = spaces.Box(self.act_min, self.act_max)
         print("Initialization of LAS done!")
         # ========================================================================= #
         #                       Initialize other variables                          #
@@ -143,7 +144,8 @@ class LASEnv(gym.Env):
         # Actually only set light color
         self._set_all_light_state_and_color(action_lights_color)
         #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
-
+        
+        #time.sleep(0.001)
         # Observe current state
         self.observation = self._self_observe()
 
@@ -170,8 +172,17 @@ class LASEnv(gym.Env):
         observation: ndarray (proxStates, lightStates, lightDiffsePart.flatten())
         """
         # Currently we only use proxStates, maby in the future we will need proxPosition
-        proxStates, proxPosition = self._get_all_prox_data()
-        lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
+        
+        try:
+            proxStates, proxPosition = self._get_all_prox_data()
+            lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
+        except ValueError:
+            self._nanObervationFlag = 1
+            lightDiffsePart = np.zeros([self.lights_num,3]) 
+            Tracer()()
+            print("Handle NAN value problem.")
+            pass
+
         observation = np.concatenate((proxStates, lightDiffsePart.flatten()))
         return observation
 
@@ -251,7 +262,7 @@ class LASEnv(gym.Env):
         
         done = False
         info =[]
-        return self.observation, self.reward, done, info
+        return self.observation, self.reward, done
         
     def destroy(self):
         """
@@ -322,6 +333,8 @@ class LASEnv(gym.Env):
         proxPosition = np.zeros([proxSensorNum, 3])
         for i in range(proxSensorNum):
             code, proxStates[i], proxPosition[i,:], handle, snv = vrep.simxReadProximitySensor(self.clientID, self.proxSensorHandles[i], self._get_prox_op_mode)
+            if np.sum(np.isnan(proxStates[i])) != 0:
+                raise ValueError("Find nan value in proximity sensor data!")
         return proxStates, proxPosition
 
     def _get_all_light_data(self):
@@ -364,7 +377,12 @@ class LASEnv(gym.Env):
         # inner function end
         
         for i in range(lightNum):
-           lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
-        
+            lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
+            # If miss getting value, repeat until get valid value.
+            while np.sum(np.isnan(lightDiffsePart[i,:])) != 0:
+                lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
+            if np.sum(np.isnan(lightDiffsePart[i,:])) != 0:
+                Tracer()()
+                raise ValueError("Find nan value in light color!")
         return lightStates, lightDiffsePart, lightSpecularPart    
     
