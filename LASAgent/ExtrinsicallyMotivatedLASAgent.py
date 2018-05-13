@@ -153,10 +153,8 @@ class ExtrinsicallyMotivatedLASAgent:
 #        h2 = Dense(64, activation = 'relu')(h1)
 #        h3 = Dense(48, activation = 'relu')(h2)
 #        actionOutput = Dense(self.action_space.shape[0], activation = 'relu')(h3)
-        h1 = Dense(24, activation = 'relu')(stateInput)
-        h2 = Dense(48, activation = 'relu')(h1)
-        h3 = Dense(24, activation = 'relu')(h2)
-        actionOutput = Dense(self.action_space.shape[0], activation = 'relu')(h3)
+        h1 = Dense(48, activation = 'relu')(stateInput)
+        actionOutput = Dense(self.action_space.shape[0], activation = 'sigmoid')(h1)
         
         model = Model(inputs = stateInput, outputs = actionOutput)
         adam = Adam(lr = 0.001)
@@ -186,13 +184,12 @@ class ExtrinsicallyMotivatedLASAgent:
 #        valueOutput = Dense(1, activation = 'relu')(mergedH2)
 
         stateInput = Input(shape = self.observation_space.shape)
-        stateH1 = Dense(24, activation = 'relu')(stateInput)
-        stateH2 = Dense(48, activation = 'relu')(stateH1)
-
+        stateH1 = Dense(48, activation = 'relu')(stateInput)
+        # Here the actionInput is the output of actor model
         actionInput = Input(shape = self.action_space.shape)
         actionH1 = Dense(48, activation = 'relu')(actionInput)
 
-        mergedStateAction = Add()([stateH2, actionH1])
+        mergedStateAction = Add()([stateH1, actionH1])
         mergedH1 = Dense(24, activation = 'relu')(mergedStateAction)
         # Since our reward is non-negative, we can use 'relu'. Otherwise, we need
         # to use 'linear'.
@@ -444,7 +441,7 @@ class ExtrinsicallyMotivatedLASAgent:
         #         the learning needs more exploration to get a reward.
         if self._epsilon > 0.1:
             self._epsilon *= self._epsilonDecay
-        print("self._epsilon is: {}".format(self._epsilon))
+        #print("self._epsilon is: {}".format(self._epsilon))
         #****************************************#
         #              Random action             #
         #****************************************#
