@@ -133,22 +133,37 @@ class LASEnv(gym.Env):
         info:
             some information for debugging
         """
+        # To imporove system's robustness, we need to just ignore this action
+        # rather than throw an exception.
+        if np.sum(np.isnan(action)) != 0:
+            Tracer()()
+            raise ValueError("Find nan value in action!")
         # Clip action to avoid improer action command
         action = np.clip(action, self.act_min, self.act_max)
         # Split action for light and sma
         action_smas = action[:self.smas_num]
         action_lights_color = action[self.smas_num:]
         # Taking action
-        #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
-        self._set_all_joint_position(action_smas)
-        # Actually only set light color
-        self._set_all_light_state_and_color(action_lights_color)
-        #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
+        try:
+            #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
+            self._set_all_joint_position(action_smas)
+            # Actually only set light color
+            self._set_all_light_state_and_color(action_lights_color)
+            #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
+        except RuntimeError:
+            #Tracer()()
+            self._actionFailFlag = 1
+            print("Set action in V-REP fail.")
+            pass
+        # Set a small sleep time to avoid getting nan sensor data
+        time.sleep(0.01)
         
-        #time.sleep(0.001)
         # Observe current state
-        self.observation = self._self_observe()
-
+        try:
+            self.observation = self._self_observe()
+        except ValueError:
+            self._nanObervationFlag = 1
+            print("Observation has NAN value.")
 #        # Caculate reward
 #        self.reward = self._reward(self.observation)
         
@@ -172,16 +187,9 @@ class LASEnv(gym.Env):
         observation: ndarray (proxStates, lightStates, lightDiffsePart.flatten())
         """
         # Currently we only use proxStates, maby in the future we will need proxPosition
-        
-        try:
-            proxStates, proxPosition = self._get_all_prox_data()
-            lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
-        except ValueError:
-            self._nanObervationFlag = 1
-            lightDiffsePart = np.zeros([self.lights_num,3]) 
-            Tracer()()
-            print("Handle NAN value problem.")
-            pass
+
+        proxStates, proxPosition = self._get_all_prox_data()
+        lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
 
         observation = np.concatenate((proxStates, lightDiffsePart.flatten()))
         return observation
@@ -261,7 +269,6 @@ class LASEnv(gym.Env):
         self.reward = self._reward(self.observation)
         
         done = False
-        info =[]
         return self.observation, self.reward, done
         
     def destroy(self):
@@ -291,7 +298,9 @@ class LASEnv(gym.Env):
             raise ValueError('Joint targetPosition is error!!!')
 
         for i in range(jointNum):
-            vrep.simxSetJointTargetPosition(self.clientID, self.jointHandles[i], targetPosition[i], self._set_joint_op_mode)
+            res = vrep.simxSetJointTargetPosition(self.clientID, self.jointHandles[i], targetPosition[i], self._set_joint_op_mode)
+            if res != vrep.simx_return_ok:
+                raise RuntimeError("Remote function call: _set_all_joint_position fail.")
 
     def _set_all_light_state_and_color(self, targetColor):
         
@@ -318,11 +327,12 @@ class LASEnv(gym.Env):
                                                                            'setLightStateAndColor',
                                                                            [handle, targetState],targetColor,[],emptyBuff,
                                                                            opMode)
-            if res != vrep.simx_return_ok:
-                warnings.warn("Remote function call: setLightStateAndColor fail in Class AnyLight.")
+            return res
         # inner function end
         for i in range(lightNum):
-           _set_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], targetState[i], targetColor[i*3:(i+1)*3], self._set_light_op_mode)
+           res = _set_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], targetState[i], targetColor[i*3:(i+1)*3], self._set_light_op_mode)
+           if res != vrep.simx_return_ok:
+               raise RuntimeError("Remote function call: _set_light_state_and_color fail.")
 
     def _get_all_prox_data(self):
         """
@@ -379,10 +389,10 @@ class LASEnv(gym.Env):
         for i in range(lightNum):
             lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
             # If miss getting value, repeat until get valid value.
-            while np.sum(np.isnan(lightDiffsePart[i,:])) != 0:
-                lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
+            
+#            while np.sum(np.isnan(lightDiffsePart[i,:])) != 0:
+#                lightStates[i], lightDiffsePart[i,:], lightSpecularPart[i,:] = _get_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], self._get_light_op_mode)
             if np.sum(np.isnan(lightDiffsePart[i,:])) != 0:
-                Tracer()()
                 raise ValueError("Find nan value in light color!")
         return lightStates, lightDiffsePart, lightSpecularPart    
     
