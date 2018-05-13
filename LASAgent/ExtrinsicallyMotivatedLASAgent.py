@@ -149,12 +149,10 @@ class ExtrinsicallyMotivatedLASAgent:
         Actor model corresponds to a policy that maps from currentState to action.
         """
         stateInput = Input(shape=self.observation_space.shape)
-#        h1 = Dense(48, activation = 'relu')(stateInput)
-#        h2 = Dense(64, activation = 'relu')(h1)
-#        h3 = Dense(48, activation = 'relu')(h2)
-#        actionOutput = Dense(self.action_space.shape[0], activation = 'relu')(h3)
         h1 = Dense(48, activation = 'relu')(stateInput)
-        actionOutput = Dense(self.action_space.shape[0], activation = 'sigmoid')(h1)
+        h2 = Dense(32, activation = 'relu')(h1)
+        h3 = Dense(48, activation = 'relu')(h2)
+        actionOutput = Dense(self.action_space.shape[0], activation = 'sigmoid')(h3)
         
         model = Model(inputs = stateInput, outputs = actionOutput)
         adam = Adam(lr = 0.001)
@@ -168,32 +166,21 @@ class ExtrinsicallyMotivatedLASAgent:
         Critic model corresponds to a Q-value function that maps from 
         (currentState, action) to Q-value.
         """
-#        stateInput = Input(shape = self.observation_space.shape)
-#        stateH1 = Dense(48, activation = 'relu')(stateInput)
-#        stateH2 = Dense(64, activation = 'relu')(stateH1)
-#        
-#        actionInput = Input(shape = self.action_space.shape)
-#        actionH1 = Dense(48, activation = 'relu')(actionInput)
-#        actionH2 = Dense(64, activation = 'relu')(actionH1)
-#        
-#        mergedStateAction = Add()([stateH2, actionH2])
-#        mergedH1 = Dense(48, activation = 'relu')(mergedStateAction)
-#        mergedH2 = Dense(24, activation = 'relu')(mergedH1)
-#        # Since our reward is non-negative, we can use 'relu'. Otherwise, we need
-#        # to use 'linear'.
-#        valueOutput = Dense(1, activation = 'relu')(mergedH2)
-
         stateInput = Input(shape = self.observation_space.shape)
         stateH1 = Dense(48, activation = 'relu')(stateInput)
-        # Here the actionInput is the output of actor model
+        stateH2 = Dense(32, activation = 'relu')(stateH1)
+        
         actionInput = Input(shape = self.action_space.shape)
         actionH1 = Dense(48, activation = 'relu')(actionInput)
-
-        mergedStateAction = Add()([stateH1, actionH1])
-        mergedH1 = Dense(24, activation = 'relu')(mergedStateAction)
+        actionH2 = Dense(32, activation = 'relu')(actionH1)
+        
+        mergedStateAction = Add()([stateH2, actionH2])
+        mergedH1 = Dense(32, activation = 'relu')(mergedStateAction)
+        mergedH2 = Dense(24, activation = 'relu')(mergedH1)
         # Since our reward is non-negative, we can use 'relu'. Otherwise, we need
         # to use 'linear'.
-        valueOutput = Dense(1, activation = 'relu')(mergedH1)
+        valueOutput = Dense(1, activation = 'relu')(mergedH2)
+
         
         model = Model(inputs = [stateInput, actionInput], outputs = valueOutput)
         adam = Adam(lr = 0.001)
