@@ -37,7 +37,7 @@ if __name__ == '__main__':
     
     # Step counter
     i = 1
-    observationForLAS, rewardLAS, done, info = envLAS.reset()
+    observationForLAS, rewardLAS, done = envLAS.reset()
     while not done:
     #for temp in range(10000):
 

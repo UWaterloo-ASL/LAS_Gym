@@ -14,7 +14,7 @@ if __name__ == '__main__':
     # Instantiate environment object
     envLAS = LASEnv('127.0.0.1', 19997)
     
-    observationForLAS, rewardLAS, done, info = envLAS.reset()
+    observationForLAS, rewardLAS, done = envLAS.reset()
 
     # Iinstantiate LAS-agent
     LASAgent1 = RandomLASAgent(envLAS)
