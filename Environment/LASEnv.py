@@ -21,6 +21,8 @@ import gym
 from gym import spaces
 import numpy as np
 import warnings
+import re
+from collections import deque
 
 from .UtilitiesForEnv import get_all_object_name_and_handle
 
@@ -106,6 +108,9 @@ class LASEnv(gym.Env):
         #                       Initialize other variables                          #
         # ========================================================================= #
         self.time_reward = np.array([0]*self.prox_sensor_num) # Reward for each proximity sensor
+        self.action_history = deque(maxlen=500)
+        self.group_id, self.group_num = self._create_group()
+        self._create_group()
         self.reward = 0
         self.done = False
         self.info = []
@@ -143,6 +148,7 @@ class LASEnv(gym.Env):
         # Actually only set light color
         self._set_all_light_state_and_color(action_lights_color)
         #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
+        #self.action_history.append(action_lights_state)  # Only consider light actions for now
 
         # Observe current state
         self.observation = self._self_observe()
@@ -178,17 +184,68 @@ class LASEnv(gym.Env):
     def _reward(self, observation):
         """
         Calculate reward based on observation of proximity sensor.
-        The longer the proximity sensor is triggered, the higher the reward.
+
+        All sensors have accumulated time rewards. The longer it has been triggered, the greater
+        the reward will be. The reward function also uses memories of actions. For sensors with
+        zero accumulated rewards, if it detects a new trigger but an action belonging to its own
+        group CANNOT be found in the history, then this signal is ignored.
+
+        Use adjusted sigmoid function to calculate the individual reward r(t)_i based on accumulated
+        time reward (t)
+
+        r(t)_i = 2*sigmoid(t/ratio) -1
+
+        Final reward = avg(all sensors reward r(t)_i)
         """
+        individual_action_summary = np.array([0]*self.lights_num)
+        for step_action in self.action_history:
+            individual_action_summary = individual_action_summary | step_action
+
+        group_action_summary = np.array([0]*self.group_num)
+        for j in range(0, self.lights_num):
+            # Notice here the group id (node number) starts from 1
+            group_action_summary[self.group_id[j]-1] = group_action_summary[self.group_id[j]-1] | \
+                                                       individual_action_summary[self.group_id[j]-1]
+
         prox_obs = observation[:self.prox_sensor_num]
-        self.time_reward = (prox_obs + self.time_reward)*prox_obs
-        # Use adjusted sigmoid function f to map the time reward from R to [0,1]
-        # f(t) = 2*sigmoid(t/ratio) -1
-        # Then average all f(t) to obtain final reward
+        is_newly_triggered = prox_obs - self.time_reward > 0
+
+        for i in range(0, self.lights_num):
+            if prox_obs[i] == 1:
+                obs = 1
+                if is_newly_triggered[i] and group_action_summary[self.group_id[j]-1] == 0:
+                    obs = 0
+                self.time_reward[i] = self.time_reward[i] + obs
+            else:
+                self.time_reward[i] = 0
+
+        # prox_obs = observation[:self.prox_sensor_num]
+        # self.time_reward = (prox_obs + self.time_reward) * prox_obs
+
         ratio = 1000
         self.reward = np.mean(-1 + 2/(1+np.exp(-self.time_reward/ratio)))
 
         return self.reward
+
+    def _create_group(self):
+        """
+        Create a list that maps actuator/sensor to its corresponding node number
+        Group number starts from 1
+        Return
+        ------
+        group_id: a group id list. e.x, a list = [1,4,3,2,1,2] means the first sensor belongs to node#1,
+        the second belongs to node#4, etc.
+
+        group_num: the total number of groups
+        """
+        group_id = np.array([0] * self.prox_sensor_num)
+        for i in range(0, self.prox_sensor_num):
+            node_num = re.search(r'\d+', self.proxSensorNames[i]).group()
+            group_id[i] = int(node_num)
+
+        group_num = group_id.max()
+
+        return group_id, group_num
 
     def _reward_red_light(self, observation):
         """
