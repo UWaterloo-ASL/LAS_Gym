@@ -23,8 +23,8 @@ class RandomLASAgent():
     """
     def __init__(self, env):
         self.env = env
-        self.actionSpace = env.actionSpace             # gym.spaces.Box object
-        self.observationSpace = env.observationSpace   # gym.spaces.Box object
+        self.action_space = env.action_space             # gym.spaces.Box object
+        self.observation_space = env.observation_space   # gym.spaces.Box object
         
         # ========================================================================= #
         #                 Initialize Temprary Memory                                #
@@ -40,20 +40,30 @@ class RandomLASAgent():
         # Cumulative reward
         self._cumulativeReward = 0
         self._cumulativeRewardMemory = deque(maxlen = 10000)
+        self._rewardMemory = deque(maxlen = 10000)
         
     def perceive_and_act(self, observation, reward, done):
         self._observation = observation
         self._reward = reward
         self._done = done
         
+        self._rewardMemory.append([self._reward])
         self._cumulativeReward += reward
         self._cumulativeRewardMemory.append([self._cumulativeReward])
         # plot in real time
         if len(self._memory) %200 == 0:
-            plot_cumulative_reward(self._cumulativeRewardMemory)
+            #plot_cumulative_reward(self._cumulativeRewardMemory)
+            plot_cumulative_reward(self._rewardMemory)
         
         self._actionNew = self._act()
         return self._actionNew
     
     def _act(self):
-        return self.actionSpace.sample()
+        # Sample function provided by gym.spaces.Box is much slower, so use our
+        # own sample action is a better choice.
+        #action = self.action_space.sample()
+        smas = np.random.randn(self.env.smas_num)
+        lights_color = np.random.uniform(0,1,self.env.lights_num*3)
+        action = np.concatenate((smas, lights_color))
+
+        return action

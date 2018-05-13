@@ -9,6 +9,9 @@ from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Input
 from keras.layers.merge import Add, Multiply
 from keras.optimizers import Adam
+from keras.utils import plot_model
+from keras.callbacks import ModelCheckpoint, RemoteMonitor, CSVLogger
+
 
 import tensorflow as tf
 import random
@@ -42,16 +45,20 @@ class ExtrinsicallyMotivatedLASAgent:
         self.env = env
         self.sess = sess
         # 
-        self.actionSpace = env.actionSpace             # gym.spaces.Box object
-        self.observationSpace = env.observationSpace   # gym.spaces.Box object
+        self.action_space = env.action_space#env.action_space             # gym.spaces.Box object
+        self.observation_space = env.observation_space#env.observation_space   # gym.spaces.Box object
         # ========================================================================= #
         #            Initialize hyper-parameters for learning model                 #
         # ========================================================================= # 
         self._learningRate = 0.001
-        self._epsilon = 1.0         # epsilon for epsilon-greedy
-        self._epsilonDecay = 0.005  # epsilon decay for epsilon-greedy
+        self._epsilon = 1.0             # epsilon for epsilon-greedy
+        self._epsilonDecay = 0.9995       # epsilon decay for epsilon-greedy
         self._gamma = 0.95
+        
+        # For update target models
         self._tau = 0.125
+        self._stepsNotUpdateTarget = 0   # count how many steps has pass after last update
+        self._updateTargetThreshold = 10 # every 50 steps update target model
         # ========================================================================= #
         #                 Initialize Temprary Memory                                #
         # ========================================================================= # 
@@ -66,6 +73,7 @@ class ExtrinsicallyMotivatedLASAgent:
         # Cumulative reward
         self._cumulativeReward = 0
         self._cumulativeRewardMemory = deque(maxlen = 10000)
+        self._rewardMemory = deque(maxlen = 10000)
 
         if not learnFromScratch:
             # ========================================================================= #
@@ -94,11 +102,11 @@ class ExtrinsicallyMotivatedLASAgent:
             # ************************************************************************* #         
             self._actorStateInput, self._actorModel = self._create_actor_model()
             _, self._targetActorModel = self._create_actor_model()
-            self._actorCriticGrad = tf.placeholder(tf.float32, [None, self.actionSpace.shape[0]])
+            self._actorCriticGrad = tf.placeholder(tf.float32, [None, self.action_space.shape[0]])
             
             actorModelWeights = self._actorModel.trainable_weights
             # why the initial gradient in ys is negative of gradient from actor-critic??
-            self._actorGrad = tf.gradients(self._actorModel.output, actorModelWeights, -self._actorCriticGrad) 
+            self._actorGrad = tf.gradients(self._actorModel.output, actorModelWeights, -self._actorCriticGrad) #-self._actorCriticGrad
             grads = zip(self._actorGrad, actorModelWeights)
             self.optimize = tf.train.AdamOptimizer(self._learningRate).apply_gradients(grads)
             # ************************************************************************* #
@@ -140,15 +148,21 @@ class ExtrinsicallyMotivatedLASAgent:
         """
         Actor model corresponds to a policy that maps from currentState to action.
         """
-        stateInput = Input(shape=self.observationSpace.shape)
-        h1 = Dense(48, activation = 'relu')(stateInput)
-        h2 = Dense(64, activation = 'relu')(h1)
-        h3 = Dense(48, activation = 'relu')(h2)
-        actionOutput = Dense(self.actionSpace.shape[0], activation = 'relu')(h3)
+        stateInput = Input(shape=self.observation_space.shape)
+#        h1 = Dense(48, activation = 'relu')(stateInput)
+#        h2 = Dense(64, activation = 'relu')(h1)
+#        h3 = Dense(48, activation = 'relu')(h2)
+#        actionOutput = Dense(self.action_space.shape[0], activation = 'relu')(h3)
+        h1 = Dense(24, activation = 'relu')(stateInput)
+        h2 = Dense(48, activation = 'relu')(h1)
+        h3 = Dense(24, activation = 'relu')(h2)
+        actionOutput = Dense(self.action_space.shape[0], activation = 'relu')(h3)
         
         model = Model(inputs = stateInput, outputs = actionOutput)
         adam = Adam(lr = 0.001)
         model.compile(optimizer = adam, loss = 'mse')
+        
+        plot_model(model, to_file = 'actor_model.png',show_shapes=True, show_layer_names=True)
         return stateInput, model
     
     def _create_critic_model(self):
@@ -156,23 +170,39 @@ class ExtrinsicallyMotivatedLASAgent:
         Critic model corresponds to a Q-value function that maps from 
         (currentState, action) to Q-value.
         """
-        stateInput = Input(shape = self.observationSpace.shape)
-        stateH1 = Dense(48, activation = 'relu')(stateInput)
-        stateH2 = Dense(64, activation = 'relu')(stateH1)
-        
-        actionInput = Input(shape = self.actionSpace.shape)
+#        stateInput = Input(shape = self.observation_space.shape)
+#        stateH1 = Dense(48, activation = 'relu')(stateInput)
+#        stateH2 = Dense(64, activation = 'relu')(stateH1)
+#        
+#        actionInput = Input(shape = self.action_space.shape)
+#        actionH1 = Dense(48, activation = 'relu')(actionInput)
+#        actionH2 = Dense(64, activation = 'relu')(actionH1)
+#        
+#        mergedStateAction = Add()([stateH2, actionH2])
+#        mergedH1 = Dense(48, activation = 'relu')(mergedStateAction)
+#        mergedH2 = Dense(24, activation = 'relu')(mergedH1)
+#        # Since our reward is non-negative, we can use 'relu'. Otherwise, we need
+#        # to use 'linear'.
+#        valueOutput = Dense(1, activation = 'relu')(mergedH2)
+
+        stateInput = Input(shape = self.observation_space.shape)
+        stateH1 = Dense(24, activation = 'relu')(stateInput)
+        stateH2 = Dense(48, activation = 'relu')(stateH1)
+
+        actionInput = Input(shape = self.action_space.shape)
         actionH1 = Dense(48, activation = 'relu')(actionInput)
-        actionH2 = Dense(64, activation = 'relu')(actionH1)
-        
-        mergedStateAction = Add()([stateH2, actionH2])
-        mergedH1 = Dense(48, activation = 'relu')(mergedStateAction)
-        mergedH2 = Dense(24, activation = 'relu')(mergedH1)
+
+        mergedStateAction = Add()([stateH2, actionH1])
+        mergedH1 = Dense(24, activation = 'relu')(mergedStateAction)
         # Since our reward is non-negative, we can use 'relu'. Otherwise, we need
         # to use 'linear'.
-        valueOutput = Dense(1, activation = 'relu')(mergedH2)
+        valueOutput = Dense(1, activation = 'relu')(mergedH1)
+        
         model = Model(inputs = [stateInput, actionInput], outputs = valueOutput)
         adam = Adam(lr = 0.001)
         model.compile(optimizer = adam, loss = 'mse')
+        
+        plot_model(model, to_file = 'critic_model.png',show_shapes=True, show_layer_names=True)
         return stateInput, actionInput, model
 
     # ========================================================================= #
@@ -187,11 +217,13 @@ class ExtrinsicallyMotivatedLASAgent:
         self._reward = reward
         self._done = done
         
+        self._rewardMemory.append([self._reward])
         self._cumulativeReward += reward
         self._cumulativeRewardMemory.append([self._cumulativeReward])
         # plot in real time
         if len(self._memory) %200 == 0:
-            plot_cumulative_reward(self._cumulativeRewardMemory)
+            #plot_cumulative_reward(self._cumulativeRewardMemory)
+            plot_cumulative_reward(self._rewardMemory)
         # Store experience: (observationOld, actionOld, observationNew, reward, done)
         # 
         if self._firstExperience == True:
@@ -244,8 +276,19 @@ class ExtrinsicallyMotivatedLASAgent:
         
         # Other training should be added here later
         
-        # Update target actor-critic model to newly trained model
-        #   
+        # Update target actor-critic model to newly trained model its not 
+        # necessary to update too frequently, because if update too requently 
+        # the converge will be very unstable.
+        # To do:
+        #   Later we can find another way to choose when to update target models.
+        #   For example, if the weight differencen between newly trained model 
+        #   and target model is very small, we don't update, while if the difference
+        #   is very large for several steps, we will change target model.
+#        if self._stepsNotUpdateTarget >= self._updateTargetThreshold:
+#            self._update_target_actor_critic_model()
+#            self._stepsNotUpdateTarget = 0
+#            print("Update target models!")
+        # Because we have tau, we might don't need delay update
         self._update_target_actor_critic_model()
 
     def _batch_samples(self, samples):
@@ -269,9 +312,9 @@ class ExtrinsicallyMotivatedLASAgent:
         done: ndarray (batchSize, 1)
         """
         batchSize = len(samples)
-        batch_observationOld = np.zeros((batchSize,self.observationSpace.shape[0]))
-        batch_actionOld = np.zeros((batchSize,self.actionSpace.shape[0]))
-        batch_observationNew = np.zeros((batchSize,self.observationSpace.shape[0]))
+        batch_observationOld = np.zeros((batchSize,self.observation_space.shape[0]))
+        batch_actionOld = np.zeros((batchSize,self.action_space.shape[0]))
+        batch_observationNew = np.zeros((batchSize,self.observation_space.shape[0]))
         batch_reward = np.zeros((batchSize,1))
         batch_done = np.zeros((batchSize,1))
         
@@ -304,8 +347,12 @@ class ExtrinsicallyMotivatedLASAgent:
         batch_futureQValue = self._targetCriticModel.predict([batch_observationNew, batch_targetAction])
         # Calculate (reward + gamma * predicted next sttep Q-value) as target Q-value of (old observation, old action)
         batch_targetQValue = batch_reward + self._gamma * batch_futureQValue
-        
-        self._criticModel.fit(x = [batch_observationOld, batch_actionOld], y = batch_targetQValue, verbose  = 0)
+        #Tracer()()
+        critic_model_csv_logger = CSVLogger('training_critic_model.csv',append=True)
+        self._criticModel.fit(x = [batch_observationOld, batch_actionOld], 
+                              y = batch_targetQValue, 
+                              epochs = 10,
+                              verbose  = 0, callbacks = [critic_model_csv_logger])
         
     def _train_actor_model(self, samples):
         """
@@ -324,7 +371,7 @@ class ExtrinsicallyMotivatedLASAgent:
         # with respect to (output of actor model)
         batch_grads = self.sess.run(self._criticGrads, feed_dict = {self._criticStateInput: batch_observationOld,
                                                                     self._criticActionInput: batch_predictedAction})
-        batch_grads = np.reshape(batch_grads,(batchSize,self.actionSpace.shape[0]))     # placeholder size [None, self.actionSpace.shape[0]]
+        batch_grads = np.reshape(batch_grads,(batchSize,self.action_space.shape[0]))     # placeholder size [None, self.action_space.shape[0]]
         # Continue back-propagage gradients of Q-value with respect to (output of actor model) to actor model's weights
         self.sess.run(self.optimize, feed_dict = {self._actorStateInput: batch_observationOld,
                                                   self._actorCriticGrad: batch_grads})
@@ -395,14 +442,15 @@ class ExtrinsicallyMotivatedLASAgent:
         # Reduce exploration rate gradually
         #   Note: this hyper-parameter mgiht need more tunning, since in our case
         #         the learning needs more exploration to get a reward.
-        self._epsilon *= self._epsilonDecay
-        
+        if self._epsilon > 0.1:
+            self._epsilon *= self._epsilonDecay
+        print("self._epsilon is: {}".format(self._epsilon))
         #****************************************#
         #              Random action             #
         #****************************************#
-        if np.random.random() <= 0.3:   # self._epsilon: seems epsilon need 
-            print("LASAgent produces a random action!")
-            return self.actionSpace.sample()
+        if np.random.random() <= self._epsilon:   # self._epsilon: seems epsilon need 
+            #print("LASAgent produces a random action!")
+            return self.action_space.sample()
         #****************************************#
         #     Extrinsically Motivated Action     #
         #****************************************#       
@@ -410,10 +458,10 @@ class ExtrinsicallyMotivatedLASAgent:
         # prediction we need transform input and output into batch-based style:
         #   Input: (sampleIndex, observation)
         #   Output:(sampleIndex, prediction) 
-        observation = observation.reshape(1,self.observationSpace.shape[0])
+        observation = observation.reshape(1,self.observation_space.shape[0])
         action = self._targetActorModel.predict(observation)
         action = action[0]
-        print("LASAgent produces an extrinsically motivated action!")
+        #print("LASAgent produces an extrinsically motivated action!")
         
         return action
     
