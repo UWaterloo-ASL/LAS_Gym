@@ -287,7 +287,7 @@ class LASAgent_Actor_Critic():
         # Training Hyper-parameters and initialization
         self.max_episodes = 50000
         self.max_episode_len = 1000
-        self.render_env = True
+        self.render_env = False
         
         self.sess.run(tf.global_variables_initializer())
         self.actor_model.update_target_network()
