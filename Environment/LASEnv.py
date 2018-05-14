@@ -100,8 +100,10 @@ class LASEnv(gym.Env):
         #   sma: not sure ??
         #   light color: [0, 1] * 3
         self.actuators_dim = self.smas_num + self.lights_num * (3) # light state & color
+        # Set action range to [-1, 1], when send command to V-REP useing 
+        # (action + 1) / 2 to transform action to range [0,1]
         self.act_max = np.array([1]*self.actuators_dim)
-        self.act_min = np.array([0]*self.actuators_dim)
+        self.act_min = np.array([-1]*self.actuators_dim)
         # Agent should be informed about observation_space and action_space to initialize
         # agent's observation and action dimension and value limitation.
         self.observation_space = spaces.Box(self.obs_min, self.obs_max)
@@ -119,7 +121,7 @@ class LASEnv(gym.Env):
         self.info = []
         self.observation = []
     
-    def step_LAS(self, action):
+    def step(self, action):
         """
         Take one step of interaction.
         
@@ -147,6 +149,7 @@ class LASEnv(gym.Env):
             raise ValueError("Find nan value in action!")
         # Clip action to avoid improer action command
         action = np.clip(action, self.act_min, self.act_max)
+        action = (action + 1) / 2.0
         # Split action for light and sma
         action_smas = action[:self.smas_num]
         action_lights_color = action[self.smas_num:]
@@ -331,7 +334,7 @@ class LASEnv(gym.Env):
         self.reward = self._reward(self.observation)
         
         done = False
-        return self.observation, self.reward, done
+        return self.observation#, self.reward, done
         
     def destroy(self):
         """
