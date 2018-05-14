@@ -260,6 +260,18 @@ class LASAgent_Actor_Critic():
         self.action_space = env.action_space
         self.observation_space = env.observation_space 
         
+        # Temporary Memory
+        self.first_experience = True
+        self.observation_old = []
+        self.action_old = []
+        self.reward_new = []
+        self.observation_new = []
+        
+        # Reply buffer or Hard Memory
+        self.buffer_size = 1000000
+        self.random_seed = 1234
+        self.replay_buffer = ReplayBuffer(self.buffer_size, self.random_seed)
+        
         # Actor
         self.minibatch_size = 64
         self.actor_lr = 0.0001
@@ -281,7 +293,8 @@ class LASAgent_Actor_Critic():
                                           self.critic_tau,
                                           self.gamma,
                                           self.actor_model.get_num_trainable_vars())
-        # Actor noise to maintain exploration
+        # Exploration Strategies
+        # 1. Actor noise to maintain exploration
         self.actor_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(self.action_space.shape[0]))
         
         # Training Hyper-parameters and initialization
@@ -293,89 +306,76 @@ class LASAgent_Actor_Critic():
         self.actor_model.update_target_network()
         self.critic_model.update_target_network()
         
-        # Reply buffer
-        self.buffer_size = 1000000
-        self.random_seed = 1234
-        self.replay_buffer = ReplayBuffer(self.buffer_size, self.random_seed)
-        
-        # Episod reward memory
-        self.episod_reward_memory = deque(maxlen = 10000)
         
     # ===========================
     #   Agent Training
     # ===========================
     
-    def train(self):
-        # Needed to enable BatchNorm. 
-        # This hurts the performance on Pendulum but could be useful
-        # in other environments.
-        # tflearn.is_training(True)
-    
-        for i in range(self.max_episodes):
-    
-            s = self.env.reset()
-    
-            ep_reward = 0
-            ep_ave_max_q = 0
-    
-            for j in range(self.max_episode_len):
-    
-                if self.render_env:
-                    self.env.render()
-    
-                # Added exploration noise
-                a = self.actor_model.predict(np.reshape(s, (1, self.actor_model.s_dim))) + self.actor_noise()
-    
-                s2, r, terminal, info = self.env.step(a[0])
-                #print("Episod:{}, Step: {}, reward: {}".format(i, j, r))
-                
-                self.replay_buffer.add(np.reshape(s, (self.actor_model.s_dim,)), 
-                                       np.reshape(a, (self.actor_model.a_dim,)), 
-                                       r,
-                                       terminal,
-                                       np.reshape(s2, (self.actor_model.s_dim,)))
-    
-                # Keep adding experience to the memory until
-                # there are at least minibatch size samples
-                if self.replay_buffer.size() > self.minibatch_size:
-                    s_batch, a_batch, r_batch, t_batch, s2_batch = \
-                        self.replay_buffer.sample_batch(int(self.minibatch_size))
-    
-                    # Calculate targets
-                    target_q = self.critic_model.predict_target(
-                        s2_batch, self.actor_model.predict_target(s2_batch))
-    
-                    y_i = []
-                    for k in range(int(self.minibatch_size)):
-                        if t_batch[k]:
-                            y_i.append(r_batch[k])
-                        else:
-                            y_i.append(r_batch[k] + self.critic_model.gamma * target_q[k])
-    
-                    # Update the critic given the targets
-                    predicted_q_value, _ = self.critic_model.train(
-                        s_batch, a_batch, np.reshape(y_i, (int(self.minibatch_size), 1)))
-    
-                    ep_ave_max_q += np.amax(predicted_q_value)
-    
-                    # Update the actor policy using the sampled gradient
-                    a_outs = self.actor_model.predict(s_batch)
-                    grads = self.critic_model.action_gradients(s_batch, a_outs)
-                    self.actor_model.train(s_batch, grads[0])
-    
-                    # Update target networks
-                    self.actor_model.update_target_network()
-                    self.critic_model.update_target_network()
-    
-                s = s2
-                ep_reward += r
-    
-                if terminal or j == (self.max_episode_len-1):
-                    print('| Reward: {:d} | Episode: {:d} | Qmax: {:.4f}'.format(int(ep_reward), \
-                            i, (ep_ave_max_q / float(j))))
-                    self.episod_reward_memory.append(ep_reward)
-                    plot_cumulative_reward(self.episod_reward_memory)
-                    break
+    def perceive_and_act(self, observation, reward, done):
+        """
+        
+        """
+        self.observation_new = observation
+        self.reward_new = reward
+        self.done = done
+        # If this is the first action, no one single complete experience to remember
+        if self.first_experience:
+            action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim))) + self.actor_noise()
+            
+            self.action_old = action
+            self.observation_old = self.observation_new
+            self.first_experience = False
+            
+            return action
+        
+        # Remember experience
+        self.replay_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
+                               np.reshape(self.action_old, (self.actor_model.a_dim,)),
+                               self.reward_new,
+                               self.done,
+                               np.reshape(self.observation_new, (self.actor_model.s_dim,)))
+        # Action, added exploration noise
+        action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim))) + self.actor_noise()
+        # Train
+        self._train()
+        # Before return, set observation and action as old.
+        self.observation_old = self.observation_new
+        self.action_old = action
+        
+        return action
+    # ===========================
+    #   Agent Training
+    # ===========================    
+    def _train(self):
+        """
+        """
+        # Keep adding experience to the memory until
+        # there are at least minibatch size samples
+        if self.replay_buffer.size() > self.minibatch_size:
+            s_batch, a_batch, r_batch, t_batch, s2_batch = \
+                self.replay_buffer.sample_batch(int(self.minibatch_size))
+
+            # Calculate targets
+            target_q = self.critic_model.predict_target(
+                s2_batch, self.actor_model.predict_target(s2_batch))
+
+            y_i = []
+            for k in range(int(self.minibatch_size)):
+                if t_batch[k]:
+                    y_i.append(r_batch[k])
+                else:
+                    y_i.append(r_batch[k] + self.critic_model.gamma * target_q[k])
+
+            
+            # Update the actor policy using the sampled gradient
+            a_outs = self.actor_model.predict(s_batch)
+            grads = self.critic_model.action_gradients(s_batch, a_outs)
+            self.actor_model.train(s_batch, grads[0])
+
+            # Update target networks
+            self.actor_model.update_target_network()
+            self.critic_model.update_target_network()
+
 
 if __name__ == '__main__':
 
@@ -387,6 +387,34 @@ if __name__ == '__main__':
         
         LASAgent = LASAgent_Actor_Critic(sess, env)
 
-        LASAgent.train()
+        #LASAgent.train()
+        
+        # Learning records
+        episod_reward_memory = deque(maxlen = 10000)
+        
+        # Train parameters
+        max_episodes = 50000
+        max_episode_len = 1000
+        render_env = False
+        reward = 0
+        done = False
+        for i in range(max_episodes):
+            observation = env.reset()   
+            ep_reward = 0    
+            for j in range(max_episode_len):
+    
+                if render_env == True:
+                    env.render()
+    
+                # Added exploration noise
+                action = LASAgent.perceive_and_act(observation,reward,done)
+    
+                observation, reward, done, info = env.step(action[0])
+                ep_reward += reward
+                if done or j == (max_episode_len-1):
+                    print('| Reward: {:d} | Episode: {:d} '.format(int(ep_reward),i))
+                    episod_reward_memory.append(ep_reward)
+                    plot_cumulative_reward(episod_reward_memory)
+                    break
         
         #env.destroy()
