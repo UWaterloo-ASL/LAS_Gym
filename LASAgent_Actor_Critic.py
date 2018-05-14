@@ -24,12 +24,20 @@ from gym import wrappers
 import tflearn
 import argparse
 import pprint as pp
+from collections import deque
 
 from IPython.core.debugger import Tracer
 
 from Environment.LASEnv import LASEnv
 
 from replay_buffer import ReplayBuffer
+
+import matplotlib.pyplot as plt
+def plot_cumulative_reward(cumulativeReward):
+    line, = plt.plot(cumulativeReward)
+    plt.ion()
+    plt.show()
+    plt.pause(0.0001)
 
 # ===========================
 #   Actor and Critic DNNs
@@ -245,22 +253,6 @@ class OrnsteinUhlenbeckActionNoise:
     def __repr__(self):
         return 'OrnsteinUhlenbeckActionNoise(mu={}, sigma={})'.format(self.mu, self.sigma)
 
-# ===========================
-#   Tensorflow Summary Ops
-# ===========================
-
-def build_summaries():
-    episode_reward = tf.Variable(0.)
-    tf.summary.scalar("Reward", episode_reward)
-    episode_ave_max_q = tf.Variable(0.)
-    tf.summary.scalar("Qmax Value", episode_ave_max_q)
-
-    summary_vars = [episode_reward, episode_ave_max_q]
-    summary_ops = tf.summary.merge_all()
-
-    return summary_ops, summary_vars
-
-
 class LASAgent_Actor_Critic():
     def __init__(self, sess, env):
         self.sess = sess
@@ -293,24 +285,27 @@ class LASAgent_Actor_Critic():
         self.actor_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(self.action_space.shape[0]))
         
         # Training Hyper-parameters and initialization
-        self.buffer_size = 1000000
-        self.random_seed = 1234
         self.max_episodes = 50000
         self.max_episode_len = 1000
-        self.render_env = False
+        self.render_env = True
         
         self.sess.run(tf.global_variables_initializer())
         self.actor_model.update_target_network()
         self.critic_model.update_target_network()
+        
+        # Reply buffer
+        self.buffer_size = 1000000
+        self.random_seed = 1234
         self.replay_buffer = ReplayBuffer(self.buffer_size, self.random_seed)
+        
+        # Episod reward memory
+        self.episod_reward_memory = deque(maxlen = 10000)
         
     # ===========================
     #   Agent Training
     # ===========================
     
     def train(self):
-    
-        
         # Needed to enable BatchNorm. 
         # This hurts the performance on Pendulum but could be useful
         # in other environments.
@@ -332,7 +327,7 @@ class LASAgent_Actor_Critic():
                 a = self.actor_model.predict(np.reshape(s, (1, self.actor_model.s_dim))) + self.actor_noise()
     
                 s2, r, terminal, info = self.env.step(a[0])
-                #print("Episod:{}, Step: {}, reward: {}".format(i, j, r))
+                print("Episod:{}, Step: {}, reward: {}".format(i, j, r))
                 
                 self.replay_buffer.add(np.reshape(s, (self.actor_model.s_dim,)), 
                                        np.reshape(a, (self.actor_model.a_dim,)), 
@@ -375,18 +370,23 @@ class LASAgent_Actor_Critic():
                 s = s2
                 ep_reward += r
     
-                if terminal:
+                if terminal or j == (self.max_episode_len-1):
                     print('| Reward: {:d} | Episode: {:d} | Qmax: {:.4f}'.format(int(ep_reward), \
                             i, (ep_ave_max_q / float(j))))
+                    self.episod_reward_memory.append(ep_reward)
+                    plot_cumulative_reward(self.episod_reward_memory)
                     break
 
 if __name__ == '__main__':
 
     with tf.Session() as sess:
 
-        env = gym.make('Pendulum-v0')
+        #env = gym.make('Pendulum-v0')
+        env = gym.make('MountainCarContinuous-v0')
         #env = LASEnv('127.0.0.1', 19997)
         
         LASAgent = LASAgent_Actor_Critic(sess, env)
 
         LASAgent.train()
+        
+        #env.destroy()
