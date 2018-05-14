@@ -327,7 +327,7 @@ class LASAgent_Actor_Critic():
                 a = self.actor_model.predict(np.reshape(s, (1, self.actor_model.s_dim))) + self.actor_noise()
     
                 s2, r, terminal, info = self.env.step(a[0])
-                print("Episod:{}, Step: {}, reward: {}".format(i, j, r))
+                #print("Episod:{}, Step: {}, reward: {}".format(i, j, r))
                 
                 self.replay_buffer.add(np.reshape(s, (self.actor_model.s_dim,)), 
                                        np.reshape(a, (self.actor_model.a_dim,)), 
@@ -382,8 +382,8 @@ if __name__ == '__main__':
     with tf.Session() as sess:
 
         #env = gym.make('Pendulum-v0')
-        env = gym.make('MountainCarContinuous-v0')
-        #env = LASEnv('127.0.0.1', 19997)
+        #env = gym.make('MountainCarContinuous-v0')
+        env = LASEnv('127.0.0.1', 19997)
         
         LASAgent = LASAgent_Actor_Critic(sess, env)
 
