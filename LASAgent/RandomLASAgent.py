@@ -61,9 +61,9 @@ class RandomLASAgent():
     def _act(self):
         # Sample function provided by gym.spaces.Box is much slower, so use our
         # own sample action is a better choice.
-        #action = self.action_space.sample()
-        smas = np.random.randn(self.env.smas_num)
-        lights_color = np.random.uniform(0,1,self.env.lights_num*3)
-        action = np.concatenate((smas, lights_color))
+        action = self.action_space.sample()
+#        smas = np.random.randn(self.env.smas_num)
+#        lights_color = np.random.uniform(0,1,self.env.lights_num*3)
+#        action = np.concatenate((smas, lights_color))
 
         return action

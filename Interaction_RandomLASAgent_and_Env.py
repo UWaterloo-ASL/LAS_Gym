@@ -14,17 +14,19 @@ if __name__ == '__main__':
     # Instantiate environment object
     envLAS = LASEnv('127.0.0.1', 19997)
     
-    observationForLAS, rewardLAS, done = envLAS.reset()
+    observationForLAS= envLAS.reset()
 
     # Iinstantiate LAS-agent
     LASAgent1 = RandomLASAgent(envLAS)
     
     # Step counter
     i = 1
+    done = False
+    rewardLAS = 0
     while not done:
 
         actionLAS = LASAgent1.perceive_and_act(observationForLAS, rewardLAS, done)
-        observationForLAS, rewardLAS, done, info = envLAS.step_LAS(actionLAS)
+        observationForLAS, rewardLAS, done, info = envLAS.step(actionLAS)
         print("LAS Step: {}, reward: {}".format(i, rewardLAS))
         i += 1
     
