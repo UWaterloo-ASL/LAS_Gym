@@ -254,7 +254,9 @@ class OrnsteinUhlenbeckActionNoise:
         return 'OrnsteinUhlenbeckActionNoise(mu={}, sigma={})'.format(self.mu, self.sigma)
 
 class LASAgent_Actor_Critic():
-    def __init__(self, sess, env):
+    def __init__(self, sess, env,
+                 actor_lr = 0.0001, critic_lr = 0.0001,
+                 actor_tau = 0.001, critic_tau = 0.001):
         self.sess = sess
         self.env = env
         self.action_space = env.action_space
@@ -274,8 +276,8 @@ class LASAgent_Actor_Critic():
         
         # Actor
         self.minibatch_size = 64
-        self.actor_lr = 0.0001
-        self.actor_tau = 0.001
+        self.actor_lr = actor_lr
+        self.actor_tau = actor_tau
         self.actor_model = ActorNetwork(sess, 
                                         self.observation_space, 
                                         self.action_space,
@@ -283,8 +285,8 @@ class LASAgent_Actor_Critic():
                                         self.actor_tau,
                                         self.minibatch_size)
         # Critic
-        self.critic_lr = 0.0001
-        self.critic_tau = 0.001
+        self.critic_lr = critic_lr
+        self.critic_tau = critic_tau
         self.gamma = 0.99
         self.critic_model = CriticNetwork(sess,
                                           self.observation_space,
