@@ -10,7 +10,6 @@
 **Scene Image and Results**
 
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="400" height="250">
-
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS_results.png" alt="Results" width="400" height="250">
 
 
@@ -22,5 +21,4 @@
 **Scene Image and Results**
 
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS.png" alt="Scene Image" width="400" height="250">
-
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS_results.png" alt="Results" width="400" height="250">
