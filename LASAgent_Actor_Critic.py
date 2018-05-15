@@ -369,7 +369,7 @@ class LASAgent_Actor_Critic():
                     y_i.append(r_batch[k] + self.critic_model.gamma * target_q[k])
 
             # Update the critic given the targets
-            predicted_q_value, _ = critic.train(
+            predicted_q_value, _ = self.critic.train(
                 s_batch, a_batch, np.reshape(y_i, (int(self.minibatch_size), 1)))
             
             # Update the actor policy using the sampled gradient
