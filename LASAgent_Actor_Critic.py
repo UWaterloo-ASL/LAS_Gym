@@ -366,6 +366,9 @@ class LASAgent_Actor_Critic():
                 else:
                     y_i.append(r_batch[k] + self.critic_model.gamma * target_q[k])
 
+            # Update the critic given the targets
+            predicted_q_value, _ = critic.train(
+                s_batch, a_batch, np.reshape(y_i, (int(self.minibatch_size), 1)))
             
             # Update the actor policy using the sampled gradient
             a_outs = self.actor_model.predict(s_batch)
@@ -375,7 +378,7 @@ class LASAgent_Actor_Critic():
             # Update target networks
             self.actor_model.update_target_network()
             self.critic_model.update_target_network()
-
+        
 
 if __name__ == '__main__':
 
