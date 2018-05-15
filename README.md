@@ -5,12 +5,12 @@ Living Architecture System simulated environment with OpenAi Gym APIs
 ### Method 1: with GUI (Only for visulizing behavior)
    1. Clone the whole repositry
    2. In V-REP: File -> Open scene -> choose _LAS-Scenes/livingArchitecture_singleVisitor_nondistributed.ttt_ 
-   3. Run: `Interaction_LAS_and_Env.py` to start interaction between LAS and Environment
+   3. Run: `Interaction_LASAgentActorCritic_and_Env.py` to start interaction between LAS and Environment
    4. Run: `Interaction_Visitor_and_Env.py` to start interaction between Visitor and Environment.
 
 Notes:
   
-  * You should start with running `Interaction_LAS_and_Env.py` first, then start running `Interaction_Visitor_and_Env.py`, because Visitor intertacts with Env by a different [temporary port in chiled-script](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) from defualt port.
+  * You should start with running `Interaction_LASAgentActorCritic_and_Env.py` first, then start running `Interaction_Visitor_and_Env.py`, because Visitor intertacts with Env by a different [temporary port in chiled-script](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) from defualt port.
   * In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction dramatically due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases, please use **Method 2**. 
 
 ### Method 2: without any GUI (Recommended)
@@ -30,15 +30,15 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
 
 ## Organization
 ### Interaction scripts
-   1. Interaction between LAS and Environment: `Interaction_LAS_and_Env.py`
+   1. Interaction between LAS and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
    2. Interaction between Visitor and Environment: `Interaction_Visitor_and_Env.py`
-   3. Interaction between **Extrinscially Motivated LASAgent** and Environment: `Interaction_ExtrinsicallyMotivatedLASAgent_and_Env.py`
+   3. Interaction between **Extrinscially Motivated LASAgent** and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
    
 ### Class
    1. Environment class for LAS Agent: `LASEnv.py`
    2. LAS Agent class: 
-      * `LASAgent.py`: random action
-      * `ExtrinsicallyMotivatedLASAgent.py`: extrinsically motivated behavior
+      * `RandomLASAgent.py`: random action
+      * `LASAgent_Actor_Critic.py`: extrinsically motivated behavior
    3. Environment class for Visitor Agent: `VisitorEnv.py`
    4. Visitor Agent class: 
       * `RedLightExcitedVisitorAgent.py`: red light excited visitor
@@ -55,3 +55,4 @@ Interaction paradigm of our design.
    1. OpenAi gym package: `pip install gym`
    2. keras
    3. Tensorflow
+   4. tflearn
