@@ -9,9 +9,9 @@
 
 **Quick Look:**
 
-![Scene Image](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png)
+**Scene Image**
 
-<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="250" height="250">
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="500" height="250">
 
 ### Small State and Action Space
 **Scene:** `LAS-Scenes/livingArchitecture_singleVisitor_nondistributed_small_size.ttt`
@@ -20,4 +20,6 @@
 
 **Quick Look:**
 
-![Scene Image](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS.png)
+**Scene Image**
+
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS.png" alt="Scene Image" width="500" height="250">
