@@ -42,10 +42,9 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
    3. Environment class for Visitor Agent: `VisitorEnv.py`
    4. Visitor Agent class: 
       * `RedLightExcitedVisitorAgent.py`: red light excited visitor
-### Interaction paradigm
-Interaction paradigm of our design.
+### Interaction paradigm and Simulator
 
-<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" /> <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/LAS_Simulator.png" width="400" height="400" /> 
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/LAS_Simulator.png" width="400" height="400" /> 
 
 
 ## Features
