@@ -7,19 +7,20 @@
 
 [**Experiment note**](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic.ipynb)
 
-**Quick Look:**
+**Scene Image and Results**
 
-**Scene Image**
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="400" height="250">
 
-<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="500" height="250">
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS_results.png" alt="Results" width="400" height="250">
+
 
 ### Small State and Action Space
 **Scene:** `LAS-Scenes/livingArchitecture_singleVisitor_nondistributed_small_size.ttt`
 
 [**Experiment note**](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic_SamllSize_System.ipynb)
 
-**Quick Look:**
+**Scene Image and Results**
 
-**Scene Image**
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS.png" alt="Scene Image" width="400" height="250">
 
-<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS.png" alt="Scene Image" width="500" height="250">
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS_results.png" alt="Results" width="400" height="250">
