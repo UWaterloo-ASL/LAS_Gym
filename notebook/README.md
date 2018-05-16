@@ -4,6 +4,7 @@
 
 ### Large State and Action Space
 **Scene:**`LAS-Scenes/livingArchitecture_singleVisitor_nondistributed_large_size.ttt`
+
 This is run on scene with large state and action space. Specifially,
 
 **Observation**: 
@@ -14,7 +15,7 @@ This is run on scene with large state and action space. Specifially,
 * sma: 39 * 1, range: (0,1)
 * light color: 39 * 3, range: (0,1)
 
-## Exploration method
+**Exploration method**
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic.ipynb)** 
 
@@ -24,9 +25,17 @@ This is run on scene with large state and action space. Specifially,
 ### Small State and Action Space
 **Scene:** `LAS-Scenes/livingArchitecture_singleVisitor_nondistributed_small_size.ttt`
 
-[**Experiment note**](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic_SamllSize_System.ipynb)
+**Observation**: 
+*  proximity sensor: 15 * 1, range: 0 or 1
+* light color: 15 * 3, range: (0,1)
 
-**Scene Image and Results**
+**Action**: 
+* sma: 15 * 1, range: (0,1)
+* light color: 15 * 3, range: (0,1)
+
+**Exploration method**
+
+**Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic_SamllSize_System.ipynb)**
 
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS.png" alt="Scene Image" width="400" height="250"> <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS_results_3000episodes.png" alt="Results" width="400" height="250"> 
 [<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS_results_3000episodes_video_image.png" alt="Results" width="400" height="250">](https://youtu.be/NEdSqGTIL5U)
