@@ -6,12 +6,12 @@ Created on Thu May 10 09:08:07 2018
 @author: jack.lingheng.meng
 """
 from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Input
+from keras.layers import Dense, Dropout, Input, BatchNormalization, Lambda
 from keras.layers.merge import Add, Multiply
 from keras.optimizers import Adam
 from keras.utils import plot_model
 from keras.callbacks import ModelCheckpoint, RemoteMonitor, CSVLogger
-
+from keras import initializers
 
 import tensorflow as tf
 import random
@@ -53,12 +53,15 @@ class ExtrinsicallyMotivatedLASAgent:
         self._learningRate = 0.001
         self._epsilon = 1.0             # epsilon for epsilon-greedy
         self._epsilonDecay = 0.9995       # epsilon decay for epsilon-greedy
-        self._gamma = 0.95
+        self._gamma = 0.99
         
         # For update target models
-        self._tau = 0.125
+        self._tau = 0.001
         self._stepsNotUpdateTarget = 0   # count how many steps has pass after last update
         self._updateTargetThreshold = 10 # every 50 steps update target model
+        
+        self.batch_size = 64
+        
         # ========================================================================= #
         #                 Initialize Temprary Memory                                #
         # ========================================================================= # 
@@ -106,7 +109,10 @@ class ExtrinsicallyMotivatedLASAgent:
             
             actorModelWeights = self._actorModel.trainable_weights
             # why the initial gradient in ys is negative of gradient from actor-critic??
-            self._actorGrad = tf.gradients(self._actorModel.output, actorModelWeights, -self._actorCriticGrad) #-self._actorCriticGrad
+            self.unnormalized_actor_gradients = tf.gradients(self._actorModel.output, actorModelWeights, -self._actorCriticGrad)
+            # Normalize
+            self._actorGrad = list(map(lambda x: tf.div(x, self.batch_size), self.unnormalized_actor_gradients))
+            
             grads = zip(self._actorGrad, actorModelWeights)
             self.optimize = tf.train.AdamOptimizer(self._learningRate).apply_gradients(grads)
             # ************************************************************************* #
@@ -148,13 +154,27 @@ class ExtrinsicallyMotivatedLASAgent:
         """
         Actor model corresponds to a policy that maps from currentState to action.
         """
-        stateInput = Input(shape=self.observation_space.shape)
-        h1 = Dense(48, activation = 'relu')(stateInput)
-        h2 = Dense(32, activation = 'relu')(h1)
-        h3 = Dense(48, activation = 'relu')(h2)
-        actionOutput = Dense(self.action_space.shape[0], activation = 'sigmoid')(h3)
+        # Tested model one
+#        stateInput = Input(shape=self.observation_space.shape)
+#        h1 = Dense(48, activation = 'relu')(stateInput)
+#        h2 = Dense(32, activation = 'relu')(h1)
+#        h3 = Dense(48, activation = 'relu')(h2)
+#        actionOutput = Dense(self.action_space.shape[0], activation = 'sigmoid')(h3)
         
-        model = Model(inputs = stateInput, outputs = actionOutput)
+        # Tested model two
+        stateInput = Input(shape=self.observation_space.shape)
+        stateInputNorm = BatchNormalization()(stateInput)
+        h1 = Dense(400, activation = 'relu')(stateInputNorm)
+        h1Norm = BatchNormalization()(h1)
+        h2 = Dense(300, activation = 'relu')(h1Norm)
+        
+        actionOutput = Dense(self.action_space.shape[0], 
+                             activation = 'tanh',
+                             kernel_initializer = initializers.RandomUniform(minval=-0.003, maxval=0.003))(h2)
+        # This is very important
+        scaled_actionOutput = Lambda(lambda x: x * self.action_space.high)(actionOutput)
+        
+        model = Model(inputs = stateInput, outputs = scaled_actionOutput)
         adam = Adam(lr = 0.001)
         model.compile(optimizer = adam, loss = 'mse')
         
@@ -166,24 +186,41 @@ class ExtrinsicallyMotivatedLASAgent:
         Critic model corresponds to a Q-value function that maps from 
         (currentState, action) to Q-value.
         """
+        # Tested model 1
+#        stateInput = Input(shape = self.observation_space.shape)
+#        stateH1 = Dense(48, activation = 'relu')(stateInput)
+#        stateH2 = Dense(32, activation = 'relu')(stateH1)
+#        
+#        actionInput = Input(shape = self.action_space.shape)
+#        actionH1 = Dense(48, activation = 'relu')(actionInput)
+#        actionH2 = Dense(32, activation = 'relu')(actionH1)
+#        
+#        mergedStateAction = Add()([stateH2, actionH2])
+#        mergedH1 = Dense(32, activation = 'relu')(mergedStateAction)
+#        mergedH2 = Dense(24, activation = 'relu')(mergedH1)
+#        # Since our reward is non-negative, we can use 'relu'. Otherwise, we need
+#        # to use 'linear'.
+#        valueOutput = Dense(1, activation = 'relu')(mergedH2)
+
+        # Tested model 2
         stateInput = Input(shape = self.observation_space.shape)
-        stateH1 = Dense(48, activation = 'relu')(stateInput)
-        stateH2 = Dense(32, activation = 'relu')(stateH1)
+        stateInputNorm = BatchNormalization()(stateInput)
+        stateH1 = Dense(400, activation = 'relu')(stateInputNorm)
+        stateH1Norm = BatchNormalization()(stateH1)
+        stateH2 = Dense(300, activation = 'relu')(stateH1Norm)
         
         actionInput = Input(shape = self.action_space.shape)
-        actionH1 = Dense(48, activation = 'relu')(actionInput)
-        actionH2 = Dense(32, activation = 'relu')(actionH1)
+        actionInputNorm = BatchNormalization()(actionInput)
+        actionH1 = Dense(300, activation = 'relu')(actionInputNorm)
         
-        mergedStateAction = Add()([stateH2, actionH2])
-        mergedH1 = Dense(32, activation = 'relu')(mergedStateAction)
-        mergedH2 = Dense(24, activation = 'relu')(mergedH1)
+        mergedStateAction = Add()([stateH2, actionH1])
+        mergedStateActionNorm = BatchNormalization()(mergedStateAction)
         # Since our reward is non-negative, we can use 'relu'. Otherwise, we need
         # to use 'linear'.
-        valueOutput = Dense(1, activation = 'relu')(mergedH2)
-
+        valueOutput = Dense(1, activation = 'relu',kernel_initializer = initializers.RandomUniform(minval=-0.003, maxval=0.003))(mergedStateActionNorm)
         
         model = Model(inputs = [stateInput, actionInput], outputs = valueOutput)
-        adam = Adam(lr = 0.001)
+        adam = Adam(lr = 0.0001)
         model.compile(optimizer = adam, loss = 'mse')
         
         plot_model(model, to_file = 'critic_model.png',show_shapes=True, show_layer_names=True)
@@ -205,9 +242,9 @@ class ExtrinsicallyMotivatedLASAgent:
         self._cumulativeReward += reward
         self._cumulativeRewardMemory.append([self._cumulativeReward])
         # plot in real time
-        if len(self._memory) %200 == 0:
-            #plot_cumulative_reward(self._cumulativeRewardMemory)
-            plot_cumulative_reward(self._rewardMemory)
+#        if len(self._memory) %200 == 0:
+#            #plot_cumulative_reward(self._cumulativeRewardMemory)
+#            plot_cumulative_reward(self._rewardMemory)
         # Store experience: (observationOld, actionOld, observationNew, reward, done)
         # 
         if self._firstExperience == True:
@@ -247,7 +284,7 @@ class ExtrinsicallyMotivatedLASAgent:
         -----
         Let training of different model run in parallel.
         """
-        batchSize = 32
+        batchSize = self.batch_size
         if len(self._memory) < batchSize:
             return
         
@@ -335,7 +372,7 @@ class ExtrinsicallyMotivatedLASAgent:
         critic_model_csv_logger = CSVLogger('training_critic_model.csv',append=True)
         self._criticModel.fit(x = [batch_observationOld, batch_actionOld], 
                               y = batch_targetQValue, 
-                              epochs = 10,
+                              epochs = 1,
                               verbose  = 0, callbacks = [critic_model_csv_logger])
         
     def _train_actor_model(self, samples):
@@ -426,15 +463,15 @@ class ExtrinsicallyMotivatedLASAgent:
         # Reduce exploration rate gradually
         #   Note: this hyper-parameter mgiht need more tunning, since in our case
         #         the learning needs more exploration to get a reward.
-        if self._epsilon > 0.1:
-            self._epsilon *= self._epsilonDecay
-        #print("self._epsilon is: {}".format(self._epsilon))
-        #****************************************#
-        #              Random action             #
-        #****************************************#
-        if np.random.random() <= self._epsilon:   # self._epsilon: seems epsilon need 
-            #print("LASAgent produces a random action!")
-            return self.action_space.sample()
+#        if self._epsilon > 0.1:
+#            self._epsilon *= self._epsilonDecay
+#        #print("self._epsilon is: {}".format(self._epsilon))
+#        #****************************************#
+#        #              Random action             #
+#        #****************************************#
+#        if np.random.random() <= self._epsilon:   # self._epsilon: seems epsilon need 
+#            #print("LASAgent produces a random action!")
+#            return self.action_space.sample()
         #****************************************#
         #     Extrinsically Motivated Action     #
         #****************************************#       
@@ -446,6 +483,7 @@ class ExtrinsicallyMotivatedLASAgent:
         action = self._targetActorModel.predict(observation)
         action = action[0]
         #print("LASAgent produces an extrinsically motivated action!")
+        
         
         return action
     
