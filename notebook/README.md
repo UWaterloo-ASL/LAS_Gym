@@ -21,4 +21,6 @@
 
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS.png" alt="Scene Image" width="400" height="250"> <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS_results_3000episodes.png" alt="Results" width="400" height="250">
 
+[<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS_results_3000episodes_video_image.png" alt="Results" width="400" height="250">](https://youtu.be/NEdSqGTIL5U)
+
 [![small_LAS_results_3000episodes](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/small_LAS_results_3000episodes_video_image.png)](https://youtu.be/NEdSqGTIL5U)
