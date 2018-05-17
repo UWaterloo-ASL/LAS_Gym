@@ -13,7 +13,7 @@ This is run on scene with large state and action space. Specifially,
 
 **Action**: 
 * sma: 39 * 1, range: (0,1)
-* light color: 39 * 3, range: (0,1)
+* light color: 39 * 3, range: (0,1)</br>
 **Learning rate**
 actor lr : 0.0001
 critic lr: 0.0001
@@ -33,7 +33,7 @@ critic lr: 0.0001
 
 **Action**: 
 * sma: 15 * 1, range: (0,1)
-* light color: 15 * 3, range: (0,1)
+* light color: 15 * 3, range: (0,1)</br>
 **Learning rate**
 actor lr : 0.0001
 critic lr: 0.0001
