@@ -20,6 +20,11 @@ This is run on scene with large state and action space. Specifially,
 * critic lr: 0.0001
 
 **Exploration method**
+* random action noise
+* epsilon-greedy
+* ~~Boltzmann Approach~~(only for discrete action)
+* Bayesian Approach
+* Intrinsic Motivation
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic.ipynb)** 
 
@@ -41,7 +46,12 @@ This is run on scene with large state and action space. Specifially,
 * actor lr : 0.0001
 * critic lr: 0.0001
 
-**Exploration method**
+**[Exploration method](https://medium.com/emergent-future/simple-reinforcement-learning-with-tensorflow-part-7-action-selection-strategies-for-exploration-d3a97b7cceaf)**
+* random action noise
+* epsilon-greedy
+* ~~Boltzmann Approach~~(only for discrete action)
+* Bayesian Approach
+* Intrinsic Motivation
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic_SamllSize_System.ipynb)**
 
