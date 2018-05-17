@@ -42,6 +42,9 @@ This is run on scene with large state and action space. Specifially,
 * critic lr: 0.0001
 
 **Exploration method**
+* random action noise
+* $epsilon$-greedy
+* Boltzmann Approach
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic_SamllSize_System.ipynb)**
 
