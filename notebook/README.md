@@ -13,10 +13,12 @@ This is run on scene with large state and action space. Specifially,
 
 **Action**: 
 * sma: 39 * 1, range: (0,1)
-* light color: 39 * 3, range: (0,1)</br>
+* light color: 39 * 3, range: (0,1)
+
 **Learning rate**
 actor lr : 0.0001
 critic lr: 0.0001
+
 **Exploration method**
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic.ipynb)** 
@@ -33,10 +35,12 @@ critic lr: 0.0001
 
 **Action**: 
 * sma: 15 * 1, range: (0,1)
-* light color: 15 * 3, range: (0,1)</br>
+* light color: 15 * 3, range: (0,1)
+
 **Learning rate**
 actor lr : 0.0001
 critic lr: 0.0001
+
 **Exploration method**
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic_SamllSize_System.ipynb)**
