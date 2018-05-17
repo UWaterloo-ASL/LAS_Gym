@@ -16,8 +16,8 @@ This is run on scene with large state and action space. Specifially,
 * light color: 39 * 3, range: (0,1)
 
 **Learning rate**
-actor lr : 0.0001
-critic lr: 0.0001
+* actor lr : 0.0001
+* critic lr: 0.0001
 
 **Exploration method**
 
@@ -38,8 +38,8 @@ critic lr: 0.0001
 * light color: 15 * 3, range: (0,1)
 
 **Learning rate**
-actor lr : 0.0001
-critic lr: 0.0001
+* actor lr : 0.0001
+* critic lr: 0.0001
 
 **Exploration method**
 
