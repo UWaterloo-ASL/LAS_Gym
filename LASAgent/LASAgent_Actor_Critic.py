@@ -331,7 +331,7 @@ class LASAgent_Actor_Critic():
         return action
     
     def _act(self):
-        if np.random.randn <= self.epsilon:
+        if np.random.rand(1) <= self.epsilon:
             action = self.action_space.sample()
             if self.epsilon > 0.05:
                 self.epsilon *= self.epsilon_decay
