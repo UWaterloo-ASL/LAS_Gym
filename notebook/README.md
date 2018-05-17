@@ -43,7 +43,7 @@ This is run on scene with large state and action space. Specifially,
 
 **Exploration method**
 * random action noise
-* $\epsilon$-greedy
+* epsilon-greedy
 * Boltzmann Approach
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic_SamllSize_System.ipynb)**
