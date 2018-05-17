@@ -281,7 +281,7 @@ class LASAgent_Actor_Critic():
         self.actor_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(self.action_space.shape[0]))
         # 2. epsilon-greedy
         self.epsilon = 1
-        self.epsilon_decay = 0.999
+        self.epsilon_decay = 0.99999
         
         # Training Hyper-parameters and initialization
         self.max_episodes = 50000
@@ -335,7 +335,7 @@ class LASAgent_Actor_Critic():
             action = self.action_space.sample()
             if self.epsilon > 0.05:
                 self.epsilon *= self.epsilon_decay
-            print("epsilon:{}".format(self.epsilon))
+            #print("epsilon:{}".format(self.epsilon))
             return action
         # Action, added exploration noise
         action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim))) + self.actor_noise()
