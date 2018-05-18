@@ -28,7 +28,7 @@ This is run on scene with large state and action space. Specifially,
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic.ipynb)** 
 
-<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="400" height="250"> <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS_results.png" alt="Results" width="400" height="250">
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="400" height="250"> <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS_results_2569episodes.png" alt="Results" width="400" height="250">
 
 
 ### Small State and Action Space
