@@ -106,8 +106,8 @@ class LASEnv(gym.Env):
         self.act_min = np.array([-1]*self.actuators_dim)
         # Agent should be informed about observation_space and action_space to initialize
         # agent's observation and action dimension and value limitation.
-        self.observation_space = spaces.Box(self.obs_min, self.obs_max)
-        self.action_space = spaces.Box(self.act_min, self.act_max)
+        self.observation_space = spaces.Box(self.obs_min, self.obs_max, dtype = np.float32)
+        self.action_space = spaces.Box(self.act_min, self.act_max, dtype = np.float32)
         print("Initialization of LAS done!")
         # ========================================================================= #
         #                       Initialize other variables                          #
