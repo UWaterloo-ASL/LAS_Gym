@@ -42,7 +42,7 @@ class ActorNetwork(object):
         self.learning_rate = learning_rate
         self.tau = tau
         self.batch_size = batch_size
-
+        
         # Actor Network
         self.inputs, self.out, self.scaled_out = self.create_actor_network()
 
@@ -67,7 +67,8 @@ class ActorNetwork(object):
         # Combine the gradients here
         self.unnormalized_actor_gradients = tf.gradients(
             self.scaled_out, self.network_params, -self.action_gradient)
-        self.actor_gradients = list(map(lambda x: tf.div(x, self.batch_size), self.unnormalized_actor_gradients))
+        
+        self.actor_gradients = list(map(lambda x: tf.divide(x, self.batch_size), self.unnormalized_actor_gradients))
 
         # Optimization Op
         self.optimize = tf.train.AdamOptimizer(self.learning_rate).\
@@ -77,6 +78,9 @@ class ActorNetwork(object):
             self.network_params) + len(self.target_network_params)
 
     def create_actor_network(self):
+        """
+        
+        """
         inputs = tflearn.input_data(shape=[None, self.s_dim])
         net = tflearn.fully_connected(inputs, 400)
         net = tflearn.layers.normalization.batch_normalization(net)
@@ -129,7 +133,7 @@ class CriticNetwork(object):
         self.learning_rate = learning_rate
         self.tau = tau
         self.gamma = gamma
-
+        
         # Create the critic network
         self.inputs, self.action, self.out = self.create_critic_network()
 
@@ -236,8 +240,37 @@ class OrnsteinUhlenbeckActionNoise:
 
 class LASAgent_Actor_Critic():
     def __init__(self, sess, env,
-                 actor_lr = 0.0001, critic_lr = 0.0001,
-                 actor_tau = 0.001, critic_tau = 0.001):
+                 actor_lr = 0.0001, actor_tau = 0.001,
+                 critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
+                 minibatch_size = 64,
+                 max_episodes = 50000, max_episode_len = 1000,
+                 summary_dir = './results/LASAgent_Actor_Critic/',
+                 experiemnt_runs = 'run1'):
+        """
+        Intialize LASAgent.
+        
+        Parameters
+        ----------
+        actor_lr: float default = 0.0001
+            actor model learning rate
+        actor_tau: float default = 0.001
+            target actor model updating weight
+        critic_lr: float default = 0.0001
+            critic model learning rate
+        critic_tau: float default = 0.001
+            target critic model updating weight
+        gamma default:int = 0.99
+            future reward discounting paramter
+        minibatch_size:int default = 64
+            size of minibabtch
+        max_episodes:int default = 50000
+            maximum number of episodes
+        max_episode_len: int default = 1000
+            maximum lenght of each episode
+        summary_dir: string default='./results/LASAgent_Actor_Critic')
+            dirctory to save tensorflow summaries
+        """
+        # Init Environment Related Parameters
         self.sess = sess
         self.env = env
         self.action_space = env.action_space
@@ -255,8 +288,8 @@ class LASAgent_Actor_Critic():
         self.random_seed = 1234
         self.replay_buffer = ReplayBuffer(self.buffer_size, self.random_seed)
         
-        # Actor
         self.minibatch_size = 64
+        # Actor
         self.actor_lr = actor_lr
         self.actor_tau = actor_tau
         self.actor_model = ActorNetwork(sess, 
@@ -268,7 +301,7 @@ class LASAgent_Actor_Critic():
         # Critic
         self.critic_lr = critic_lr
         self.critic_tau = critic_tau
-        self.gamma = 0.99
+        self.gamma = gamma
         self.critic_model = CriticNetwork(sess,
                                           self.observation_space,
                                           self.action_space,
@@ -284,14 +317,34 @@ class LASAgent_Actor_Critic():
         self.epsilon_decay = 0.999
         
         # Training Hyper-parameters and initialization
-        self.max_episodes = 50000
-        self.max_episode_len = 1000
+        self.max_episodes = max_episodes
+        self.max_episode_len = max_episode_len
+        self.episode_counter = 1
+        self.steps_counter = 1  # Steps elapsed in one episode
         self.render_env = False
         
         self.sess.run(tf.global_variables_initializer())
         self.actor_model.update_target_network()
         self.critic_model.update_target_network()
         
+        # Init Summary Ops
+        self.summary_dir = summary_dir
+        self.experiemnt_runs = experiemnt_runs
+        self.episode_rewards = 0
+        self.summary_ops, self.summary_vars = self._init_build_summaries()
+        self.writer = tf.summary.FileWriter(self.summary_dir+self.experiemnt_runs, self.sess.graph)
+        
+    def _init_build_summaries(self):
+        """
+        Function used for building summaries.
+        """
+        episode_rewards = tf.Variable(0.)
+        tf.summary.scalar("Accumulated_Rewards", episode_rewards)
+    
+        summary_vars = [episode_rewards]
+        summary_ops = tf.summary.merge_all()
+    
+        return summary_ops, summary_vars
         
     # ===========================
     #   Agent Perceive and Act
@@ -314,6 +367,19 @@ class LASAgent_Actor_Critic():
             
             return action
         
+        self.episode_rewards += self.reward_new
+        # Save Summaries
+        if self.steps_counter == self.max_episode_len:
+            #Tracer()()
+            summary_str = self.sess.run(self.summary_ops, feed_dict = {self.summary_vars[0]: self.episode_rewards})
+            self.writer.add_summary(summary_str,self.episode_counter)
+            self.writer.flush()
+            # Reset Summary Data
+            self.steps_counter = 1
+            self.episode_rewards = 0
+            self.episode_counter += 1
+        else:
+            self.steps_counter += 1
         # Remember experience
         self.replay_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
                                np.reshape(self.action_old, (self.actor_model.a_dim,)),
@@ -375,3 +441,4 @@ class LASAgent_Actor_Critic():
             # Update target networks
             self.actor_model.update_target_network()
             self.critic_model.update_target_network()
+
