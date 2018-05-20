@@ -45,10 +45,14 @@ if __name__ == '__main__':
         #env = gym.make('MountainCarContinuous-v0')
         env = LASEnv('127.0.0.1', 19997)
         
-        LASAgent = LASAgent_Actor_Critic(sess, env)
+        LASAgent = LASAgent_Actor_Critic(sess, env,
+                                         actor_lr = 0.0001, actor_tau = 0.001,
+                                         critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
+                                         minibatch_size = 64,
+                                         max_episodes = 50000, max_episode_len = 1000,
+                                         summary_dir = './results/LASAgent_Actor_Critic/',
+                                         experiemnt_runs = 'run1')
 
-        #LASAgent.train()
-        
         # Learning records
         episod_reward_memory = deque(maxlen = 10000)
         
@@ -59,25 +63,29 @@ if __name__ == '__main__':
         reward = 0
         done = False
         start_time = time.time()
-        for i in range(max_episodes):
-            observation = env.reset()   
-            ep_reward = 0    
-            for j in range(max_episode_len):
-    
-                if render_env == True:
-                    env.render()
-    
-                # Added exploration noise
-                action = LASAgent.perceive_and_act(observation,reward,done)
-    
-                observation, reward, done, info = env.step(action[0])
-                ep_reward += reward
-                if done or j == (max_episode_len-1):
-                    print('| Reward: {:d} | Episode: {:d} '.format(int(ep_reward),i))
-                    episod_reward_memory.append(ep_reward)
-                    plot_cumulative_reward(episod_reward_memory)
-                    break
-                #time.sleep(0.5)
-            print("Time elapsed:{}".format(time.time()-start_time))
         
-        #env.destroy()
+        try:
+            for i in range(max_episodes):
+                observation = env.reset()   
+                ep_reward = 0    
+                for j in range(max_episode_len):
+        
+                    if render_env == True:
+                        env.render()
+        
+                    # Added exploration noise
+                    action = LASAgent.perceive_and_act(observation,reward,done)
+        
+                    observation, reward, done, info = env.step(action[0])
+                    ep_reward += reward
+                    if done or j == (max_episode_len-1):
+                        print('| Reward: {:d} | Episode: {:d} '.format(int(ep_reward),i))
+                        episod_reward_memory.append(ep_reward)
+                        plot_cumulative_reward(episod_reward_memory)
+                        break
+                    #time.sleep(0.5)
+                print("Time elapsed:{}".format(time.time()-start_time))
+        except KeyboardInterrupt:
+            sess.close()
+            env.destroy()
+            print("Shut Down.")
