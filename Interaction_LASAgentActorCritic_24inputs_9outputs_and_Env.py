@@ -43,19 +43,26 @@ if __name__ == '__main__':
 
         #env = gym.make('Pendulum-v0')
         #env = gym.make('MountainCarContinuous-v0')
-        env = LASEnv('127.0.0.1', 19997)
+        env = LASEnv(IP = '127.0.0.1',
+                     Port = 19997,
+                     reward_function_type = 'red_light_dense')
         
         LASAgent = LASAgent_Actor_Critic(sess, env,
                                          actor_lr = 0.0001, actor_tau = 0.001,
                                          critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
                                          minibatch_size = 64,
                                          max_episodes = 50000, max_episode_len = 1000,
+                                         # Exploration Strategies
+                                         exploration_action_noise_type = 'ou_0.2',
+                                         exploration_epsilon_greedy_type = 'none',
+                                         # Save Summaries
                                          summary_dir = './results/LASAgent_Actor_Critic/',
-                                         experiemnt_runs = 'run9',
-                                         restore_actor_model_flag = True,
+                                         experiemnt_runs = 'run17',
+                                         # Save and Restore Actor-Critic Model
+                                         restore_actor_model_flag = False,
                                          actor_model_save_path_and_name = 'results/models/5nodes_actor_model.ckpt',
                                          target_actor_model_save_path_and_name = 'results/models/5nodes_target_actor_model.ckpt',
-                                         restore_critic_model_flag=True,
+                                         restore_critic_model_flag = False,
                                          critic_model_save_path_and_name = 'results/models/5nodes_critic_model.ckpt',
                                          target_critic_model_save_path_and_name = 'results/models/5nodes_target_critic_model.ckpt')
 
