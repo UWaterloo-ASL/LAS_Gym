@@ -51,7 +51,13 @@ if __name__ == '__main__':
                                          minibatch_size = 64,
                                          max_episodes = 50000, max_episode_len = 1000,
                                          summary_dir = './results/LASAgent_Actor_Critic/',
-                                         experiemnt_runs = 'run1')
+                                         experiemnt_runs = 'run9',
+                                         restore_actor_model_flag = True,
+                                         actor_model_save_path_and_name = 'results/models/5nodes_actor_model.ckpt',
+                                         target_actor_model_save_path_and_name = 'results/models/5nodes_target_actor_model.ckpt',
+                                         restore_critic_model_flag=True,
+                                         critic_model_save_path_and_name = 'results/models/5nodes_critic_model.ckpt',
+                                         target_critic_model_save_path_and_name = 'results/models/5nodes_target_critic_model.ckpt')
 
         # Learning records
         episod_reward_memory = deque(maxlen = 10000)
