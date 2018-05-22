@@ -24,6 +24,7 @@ from IPython.core.debugger import Tracer
 from Environment.LASEnv import LASEnv
 
 from LASAgent.replay_buffer import ReplayBuffer
+from LASAgent.noise import AdaptiveParamNoiseSpec,NormalActionNoise,OrnsteinUhlenbeckActionNoise
 
 # ===========================
 #   Actor and Critic DNNs
@@ -271,28 +272,6 @@ class CriticNetwork(object):
     def update_target_network(self):
         self.sess.run(self.update_target_network_params)
 
-# Taken from https://github.com/openai/baselines/blob/master/baselines/ddpg/noise.py, which is
-# based on http://math.stackexchange.com/questions/1287634/implementing-ornstein-uhlenbeck-in-matlab
-class OrnsteinUhlenbeckActionNoise:
-    def __init__(self, mu, sigma=0.3, theta=.15, dt=1e-2, x0=None):
-        self.theta = theta
-        self.mu = mu
-        self.sigma = sigma
-        self.dt = dt
-        self.x0 = x0
-        self.reset()
-
-    def __call__(self):
-        x = self.x_prev + self.theta * (self.mu - self.x_prev) * self.dt + \
-                self.sigma * np.sqrt(self.dt) * np.random.normal(size=self.mu.shape)
-        self.x_prev = x
-        return x
-
-    def reset(self):
-        self.x_prev = self.x0 if self.x0 is not None else np.zeros_like(self.mu)
-
-    def __repr__(self):
-        return 'OrnsteinUhlenbeckActionNoise(mu={}, sigma={})'.format(self.mu, self.sigma)
 
 class LASAgent_Actor_Critic():
     def __init__(self, sess, env,
@@ -300,8 +279,13 @@ class LASAgent_Actor_Critic():
                  critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
                  minibatch_size = 64,
                  max_episodes = 50000, max_episode_len = 1000,
+                 # Exploration Strategies
+                 exploration_action_noise_type = 'ou_0.2',
+                 exploration_epsilon_greedy_type = 'none',
+                 # Save Summaries
                  summary_dir = './results/LASAgent_Actor_Critic/',
                  experiemnt_runs = 'run1',
+                 # Save and Restore Actor-Critic Model
                  restore_actor_model_flag = False,
                  actor_model_save_path_and_name = 'results/models/actor_model.ckpt',
                  target_actor_model_save_path_and_name = 'results/models/target_actor_model.ckpt',
@@ -329,6 +313,16 @@ class LASAgent_Actor_Critic():
             maximum number of episodes
         max_episode_len: int default = 1000
             maximum lenght of each episode
+        exploration_action_noise_type: str default = 'ou_0.2',
+            set up action noise. Options:
+                1. 'none' (no action noise)
+                2. 'adaptive-param_0.2'
+                3. 'normal_0.2'
+                4. 'ou_0.2' 
+        exploration_epsilon_greedy_type: str default = 'none',
+            set up epsilon-greedy.
+            1. If exploration_epsilon_greedy_type == 'none', no epsilon-greedy.
+            2. 'epsilon-greedy-max_1_min_0.05_decay_0.999'
         summary_dir: string default='./results/LASAgent_Actor_Critic')
             directory to save tensorflow summaries
         experiemnt_runs: str default = 'run1'
@@ -405,44 +399,46 @@ class LASAgent_Actor_Critic():
                                           self.restore_critic_model_flag,
                                           self.critic_model_save_path_and_name,
                                           self.target_critic_model_save_path_and_name)
-        # Exploration Strategies
-        # 1. Actor noise to maintain exploration
-        self.actor_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(self.action_space.shape[0]))
-        # 2. epsilon-greedy
-        self.epsilon = 1
-        self.epsilon_decay = 0.999
+        # =================================================================== #
+        #                  Initialize Exploration Strategies                  #
+        # =================================================================== #        
+        # 1. Action Noise to Maintain Exploration
+        self.exploration_action_noise_type = exploration_action_noise_type
+        self.actor_noise = self._init_action_noise(self.exploration_action_noise_type, self.action_space.shape[0])
+        # 2. Epsilon-Greedy
+        self.exploration_epsilon_greedy_type = exploration_epsilon_greedy_type # 'epsilon-greedy-max_1_min_0.05_decay_0.999'
+        self.epsilon_max, self.epsilon_min, self.epsilon_decay = self._init_epsilon_greedy(self.exploration_epsilon_greedy_type)
+        self.epsilon = self.epsilon_max
+        # 3. Intrinsic Motivation (for future implementation)
         
-        # Training Hyper-parameters and initialization
+        # =================================================================== #
+        #                Initialize Training Hyper-parameters                 #
+        # =================================================================== #        
         self.max_episodes = max_episodes
         self.max_episode_len = max_episode_len
         self.episode_counter = 1
-        self.steps_counter = 1  # Steps elapsed in one episode
+        self.steps_counter = 1      # Steps elapsed in one episode
+        self.total_step_counter = 1 # Steps elapsed in whole life
         self.render_env = False
-        
-        # Initialize Tranable Variables
-        self.sess.run(tf.global_variables_initializer())
-        self.actor_model.update_target_network()
-        self.critic_model.update_target_network()
-        
-        # Init Summary Ops
+        # =================================================================== #
+        #                       Initialize Summary Ops                        #
+        # =================================================================== #        
         self.summary_dir = summary_dir
         self.experiemnt_runs = experiemnt_runs
         self.episode_rewards = 0
-        self.summary_ops, self.summary_vars = self._init_build_summaries()
+        self.summary_ops_accu_rewards, self.summary_vars_accu_rewards = self._init_summarize_accumulated_rewards()
+        self.summary_ops_action_reward, self.summary_action, self.summary_reward = self._init_summarize_action_and_reward()
         self.writer = tf.summary.FileWriter(self.summary_dir+self.experiemnt_runs, self.sess.graph)
-        
-    def _init_build_summaries(self):
-        """
-        Function used for building summaries.
-        """
-        episode_rewards = tf.Variable(0.)
-        tf.summary.scalar("Accumulated_Rewards", episode_rewards)
-    
-        summary_vars = [episode_rewards]
-        summary_ops = tf.summary.merge_all()
-    
-        return summary_ops, summary_vars
-    
+        # =================================================================== #
+        #                    Initialize Tranable Variables                    #
+        # =================================================================== #        
+        self.sess.run(tf.global_variables_initializer()) # Make sure to initialze tensors before use
+        self.actor_model.update_target_network()
+        self.critic_model.update_target_network()
+
+# =================================================================== #
+#                       Main Interaction Functions                    #
+# =================================================================== #
     def perceive_and_act(self, observation, reward, done):
         """
         Perceive observation and reward, then return action based on current
@@ -468,21 +464,27 @@ class LASAgent_Actor_Critic():
         #Tracer()()
         # If this is the first action, no one single complete experience to remember
         if self.first_experience:
-            action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim))) + self.actor_noise()
+            action = self._act()
             
             self.action_old = action
             self.observation_old = self.observation_new
             self.first_experience = False
-            
+            self.total_step_counter += 1
             return action
         # Action, added exploration noise
         action = self._act()
         
-        self.episode_rewards += self.reward_new
+        # Save Step Summaries
+        summary_str_action_rewards = self.sess.run(self.summary_ops_action_reward,
+                                                   feed_dict = {self.summary_action: self.action_old,
+                                                                self.summary_reward: self.reward_new})
+        self.writer.add_summary(summary_str_action_rewards, self.total_step_counter)
         # Save Episode Summaries
+        self.episode_rewards += self.reward_new
         if self.steps_counter == self.max_episode_len:
             #Tracer()()
-            summary_str = self.sess.run(self.summary_ops, feed_dict = {self.summary_vars[0]: self.episode_rewards})
+            summary_str = self.sess.run(self.summary_ops_accu_rewards,
+                                        feed_dict = {self.summary_vars_accu_rewards: self.episode_rewards})
             self.writer.add_summary(summary_str,self.episode_counter)
             self.writer.flush()
             # Reset Summary Data
@@ -509,21 +511,27 @@ class LASAgent_Actor_Critic():
         # Before return, set observation and action as old.
         self.observation_old = self.observation_new
         self.action_old = action
-        
+        self.total_step_counter += 1
         return action
     
     def _act(self):
         """
         Produce action based on current observation.
         """
-#        if np.random.rand(1) <= self.epsilon:
-#            action = self.action_space.sample()
-#            if self.epsilon > 0.05:
-#                self.epsilon *= self.epsilon_decay
-#            #print("epsilon:{}".format(self.epsilon))
-#            return action
-        # Action, added exploration noise
-        action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim))) + self.actor_noise()
+        # Epsilon-Greedy
+        if self.exploration_epsilon_greedy_type != 'none':
+            if np.random.rand(1) <= self.epsilon:
+                action = np.reshape(self.action_space.sample(), [1,self.action_space.shape[0]])
+                if self.epsilon > self.epsilon_min:
+                    self.epsilon *= self.epsilon_decay
+                print("epsilon:{}".format(self.epsilon))
+                return action
+        # Action Noise
+        if self.exploration_action_noise_type != 'none':
+            action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim))) + self.actor_noise() #The noise is too huge.
+        else:
+            action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim)))
+        
         return action
  
     def _train(self):
@@ -559,7 +567,109 @@ class LASAgent_Actor_Critic():
             # Update target networks
             self.actor_model.update_target_network()
             self.critic_model.update_target_network()
-            
+
+# =================================================================== #
+#                    Initialization Helper Functions                  #
+# =================================================================== #        
+    def _init_epsilon_greedy(self, exploration_epsilon_greedy_type):
+        """
+        Initialize hyper-parameters for epsilon-greedy.
+        Parameters
+        ----------
+        exploration_epsilon_greedy_type: str default = 'epsilon-greedy-max_1_min_0.05_decay_0.999'
+            str for setting epsilon greedy. Please keep the format and just change float numbers.
+            For default 'epsilon-greedy-max_1_min_0.05_decay_0.999', it means:
+                maximum epsilon = 1
+                minimum spsilom = 0.05
+                epsilon decay = 0.999
+            If exploration_epsilon_greedy_type == 'none', no epsilon-greedy.
+        
+        Returns
+        -------
+        epsilon_max: float
+            maximum epsilon
+        epsilon_min: float
+            minimum spsilom
+        epsilon_decay: float
+            epsilon decay
+        """
+        if exploration_epsilon_greedy_type == 'none':
+            epsilon_max=0
+            epsilon_min=0
+            epsilon_decay=0
+        else:
+            _, epsilon_max, _, epsilon_min, _, epsilon_decay = exploration_epsilon_greedy_type.split('_')
+        
+        return epsilon_max, epsilon_min, epsilon_decay
+    
+    def _init_action_noise(self, action_noise_type='ou_0.2', nb_actions=1):
+        """
+        Initialize action noise object.
+        
+        Parameters
+        ----------
+        action_noise_type: str default = 'ou_0.2'
+            type of action noise:
+                1. 'none' (no action noise)
+                2. 'adaptive-param_0.2'
+                3. 'normal_0.2'
+                4. 'ou_0.2'
+        nb_actions: int default = 1
+            dimension of action space
+        
+        Returns
+        -------
+            action_noise: object of ActionNoise class.
+        """
+        if action_noise_type == 'none':
+            pass
+        elif 'adaptive-param' in action_noise_type:
+            _, stddev = action_noise_type.split('_')
+            param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(stddev), desired_action_stddev=float(stddev))
+            return param_noise
+        elif 'normal' in action_noise_type:
+            _, stddev = action_noise_type.split('_')
+            action_noise = NormalActionNoise(mu=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
+            return action_noise
+        elif 'ou' in action_noise_type:
+            _, stddev = action_noise_type.split('_')
+            action_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
+            return action_noise
+        else:
+            raise RuntimeError('unknown noise type "{}"'.format(action_noise_type))
+    
+    def _init_summarize_accumulated_rewards(self):
+        """
+        Function used for building summaries.
+        """
+        episode_rewards = tf.Variable(0.)
+        episode_rewards_sum = tf.summary.scalar("Accumulated_Rewards", episode_rewards)
+        
+        summary_ops = tf.summary.merge([episode_rewards_sum])
+    
+        return summary_ops, episode_rewards
+    
+    def _init_summarize_action_and_reward(self):
+        """
+        Histogram summaries of action and reward
+        
+        Returns
+        -------
+        summary_ops: tf.ops
+            ops to summarize action and reward
+        action: tf.placeholder
+            placeholder for feeding action
+        reward: tf.placeholder
+            placeholder for feeding reward
+        """
+        action = tf.placeholder(tf.float32, shape=[1,self.action_space.shape[0]])
+        reward = tf.placeholder(tf.float32)
+        
+        action_sum = tf.summary.histogram("action", action)
+        reward_sum = tf.summary.histogram("reward", reward)
+        
+        summary_ops = tf.summary.merge([action_sum, reward_sum])
+        return summary_ops, action, reward
             
             
 
