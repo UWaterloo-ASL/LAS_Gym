@@ -9,6 +9,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import tensorflow as tf
 import numpy as np
 import gym
@@ -283,15 +284,11 @@ class LASAgent_Actor_Critic():
                  exploration_action_noise_type = 'ou_0.2',
                  exploration_epsilon_greedy_type = 'none',
                  # Save Summaries
-                 summary_dir = './results/LASAgent_Actor_Critic/',
-                 experiemnt_runs = 'run1',
+                 save_dir = './results/LASAgentActorCritic_5NodesEnv/',
+                 experiment_runs = '/run1',
                  # Save and Restore Actor-Critic Model
                  restore_actor_model_flag = False,
-                 actor_model_save_path_and_name = 'results/models/actor_model.ckpt',
-                 target_actor_model_save_path_and_name = 'results/models/target_actor_model.ckpt',
-                 restore_critic_model_flag=False,
-                 critic_model_save_path_and_name = 'results/models/critic_model.ckpt',
-                 target_critic_model_save_path_and_name = 'results/models/target_critic_model.ckpt'):
+                 restore_critic_model_flag = False):
         """
         Intialize LASAgent.
         
@@ -323,23 +320,28 @@ class LASAgent_Actor_Critic():
             set up epsilon-greedy.
             1. If exploration_epsilon_greedy_type == 'none', no epsilon-greedy.
             2. 'epsilon-greedy-max_1_min_0.05_decay_0.999'
-        summary_dir: string default='./results/LASAgent_Actor_Critic')
-            directory to save tensorflow summaries
-        experiemnt_runs: str default = 'run1'
+        save_dir: string default='./results/LASAgent_Actor_Critic')
+            directory to save tensorflow summaries and pre-trained models
+        experiment_runs: str default = 'run1'
             directory to save summaries of a specific run 
         restore_actor_model_flag: bool default = False
             indicate whether load pre-trained actor model
-        actor_model_save_path_and_name: str default = 'results/models/actor_model.ckpt'
-            directory given where to save and load pre-trained actor model
-        target_actor_model_save_path_and_name = 'results/models/target_actor_model.ckpt'
-            directory given where to save and load pre-trained target actor model
         restore_critic_model_flag: bool default = False
             indicate whetther load pre-trained critic model
-        critic_model_save_path_and_name: str default = 'results/models/critic_model.ckpt'
-            directory given where to save and load pre-trained critic model
-        target_critic_model_save_path_and_name: str default = 'results/models/target_critic_model.ckpt')
-            directory given where to save and load pre-trained target critic model
         """
+        # Produce a string describes experiment setting
+        self.experiment_setting = ['actor_lr' + str(actor_lr) +\
+                              'actor_tau' + str(actor_tau) +\
+                              'critic_lr' + str(critic_lr) +\
+                              'critic_tau' + str(critic_tau) +\
+                              'gamma' + str(gamma) +\
+                              'minibatch_size' + str(minibatch_size) +\
+                              'max_episodes' + str(max_episodes) +\
+                              'max_episode_len' + str(max_episode_len) +\
+                              'action_noise_type' + str(exploration_action_noise_type) +\
+                              'epsilon_greedy_type' + str(exploration_epsilon_greedy_type) +\
+                              'restore_actor_model_flag' + str(restore_actor_model_flag) +\
+                              'restore_critic_model_flag' + str(restore_critic_model_flag)][0]
         # Init Environment Related Parameters
         self.sess = sess
         self.env = env
@@ -357,18 +359,28 @@ class LASAgent_Actor_Critic():
         self.buffer_size = 1000000
         self.random_seed = 1234
         self.replay_buffer = ReplayBuffer(self.buffer_size, self.random_seed)
-        
+        # =================================================================== #
+        #      Initialize Parameters for Both Actor and Critic Model          #
+        # =================================================================== #        
         self.minibatch_size = 64
+        # Common Saving Directory
+        self.models_dir = save_dir + 'models/' + self.experiment_setting + experiment_runs
+        if not os.path.exists(self.models_dir):
+            os.makedirs(self.models_dir)
+        # Restore Pre-trained Actor Modles
+        self.restore_actor_model_flag = restore_actor_model_flag
+        self.actor_model_save_path_and_name = self.models_dir + '/actor_model.ckpt'
+        self.target_actor_model_save_path_and_name = self.models_dir + '/target_actor_model.ckpt'
+        # Restore Pre-trained Critic Model
+        self.restore_critic_model_flag = restore_critic_model_flag
+        self.critic_model_save_path_and_name = self.models_dir + 'critic_model.ckpt'
+        self.target_critic_model_save_path_and_name = self.models_dir + 'target_critic_model.ckpt'
         # =================================================================== #
         #                     Initialize Actor Model                          #
         # =================================================================== #
+        # Hyper-paramter for Actor
         self.actor_lr = actor_lr
         self.actor_tau = actor_tau
-        # Restore Pre-trained Actor Modles
-        self.restore_actor_model_flag = restore_actor_model_flag
-        self.actor_model_save_path_and_name = actor_model_save_path_and_name
-        self.target_actor_model_save_path_and_name = target_actor_model_save_path_and_name
-        
         self.actor_model = ActorNetwork(self.sess, 
                                         self.observation_space, 
                                         self.action_space,
@@ -381,14 +393,10 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                     Initialize Critic Model                         #
         # =================================================================== #
+        # Hyper-paramter for Critic
         self.critic_lr = critic_lr
         self.critic_tau = critic_tau
         self.gamma = gamma
-        # Restore Pre-trained Critic Model
-        self.restore_critic_model_flag = restore_critic_model_flag,
-        self.critic_model_save_path_and_name = critic_model_save_path_and_name
-        self.target_critic_model_save_path_and_name = target_critic_model_save_path_and_name
-        
         self.critic_model = CriticNetwork(self.sess,
                                           self.observation_space,
                                           self.action_space,
@@ -423,12 +431,12 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                       Initialize Summary Ops                        #
         # =================================================================== #        
-        self.summary_dir = summary_dir
-        self.experiemnt_runs = experiemnt_runs
+        self.save_dir = save_dir
+        self.experiment_runs = experiment_runs
         self.episode_rewards = 0
         self.summary_ops_accu_rewards, self.summary_vars_accu_rewards = self._init_summarize_accumulated_rewards()
         self.summary_ops_action_reward, self.summary_action, self.summary_reward = self._init_summarize_action_and_reward()
-        self.writer = tf.summary.FileWriter(self.summary_dir+self.experiemnt_runs, self.sess.graph)
+        self.writer = tf.summary.FileWriter(self.save_dir+'summary/'+self.experiment_setting+self.experiment_runs, self.sess.graph)
         # =================================================================== #
         #                    Initialize Tranable Variables                    #
         # =================================================================== #        
@@ -481,7 +489,7 @@ class LASAgent_Actor_Critic():
         self.writer.add_summary(summary_str_action_rewards, self.total_step_counter)
         # Save Episode Summaries
         self.episode_rewards += self.reward_new
-        if self.steps_counter == self.max_episode_len:
+        if self.steps_counter == self.max_episode_len or done == True:
             #Tracer()()
             summary_str = self.sess.run(self.summary_ops_accu_rewards,
                                         feed_dict = {self.summary_vars_accu_rewards: self.episode_rewards})
@@ -570,7 +578,7 @@ class LASAgent_Actor_Critic():
 
 # =================================================================== #
 #                    Initialization Helper Functions                  #
-# =================================================================== #        
+# =================================================================== # 
     def _init_epsilon_greedy(self, exploration_epsilon_greedy_type):
         """
         Initialize hyper-parameters for epsilon-greedy.

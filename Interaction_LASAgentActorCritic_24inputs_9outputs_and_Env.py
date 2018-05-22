@@ -56,15 +56,11 @@ if __name__ == '__main__':
                                          exploration_action_noise_type = 'ou_0.2',
                                          exploration_epsilon_greedy_type = 'none',
                                          # Save Summaries
-                                         summary_dir = './results/LASAgent_Actor_Critic/',
-                                         experiemnt_runs = 'run17',
+                                         save_dir = './results/LASAgentActorCritic_5NodesEnv/',
+                                         experiment_runs = '/run1',
                                          # Save and Restore Actor-Critic Model
                                          restore_actor_model_flag = False,
-                                         actor_model_save_path_and_name = 'results/models/5nodes_actor_model.ckpt',
-                                         target_actor_model_save_path_and_name = 'results/models/5nodes_target_actor_model.ckpt',
-                                         restore_critic_model_flag = False,
-                                         critic_model_save_path_and_name = 'results/models/5nodes_critic_model.ckpt',
-                                         target_critic_model_save_path_and_name = 'results/models/5nodes_target_critic_model.ckpt')
+                                         restore_critic_model_flag = False)
 
         # Learning records
         episod_reward_memory = deque(maxlen = 10000)
