@@ -330,18 +330,22 @@ class LASAgent_Actor_Critic():
             indicate whetther load pre-trained critic model
         """
         # Produce a string describes experiment setting
-        self.experiment_setting = ['actor_lr: ' + str(actor_lr) + '<br />' +\
-                              'actor_tau: ' + str(actor_tau) + '<br />' +\
-                              'critic_lr: ' + str(critic_lr) + '<br />' +\
-                              'critic_tau: ' + str(critic_tau) + '<br />' +\
-                              'gamma: ' + str(gamma) + '<br />' +\
-                              'minibatch_size: ' + str(minibatch_size) + '<br />' +\
-                              'max_episodes: ' + str(max_episodes) + '<br />' +\
-                              'max_episode_len: ' + str(max_episode_len) + '<br />' +\
-                              'action_noise_type: ' + str(exploration_action_noise_type) + '<br />' +\
-                              'epsilon_greedy_type: ' + str(exploration_epsilon_greedy_type) + '<br />' +\
-                              'restore_actor_model_flag: ' + str(restore_actor_model_flag) + '<br />' +\
-                              'restore_critic_model_flag: ' + str(restore_critic_model_flag)][0]
+        self.experiment_setting = ['LAS Environment:' + '<br />' +\
+                                   '1. action_space: ' + str(env.action_space.shape) + '<br />' +\
+                                   '2. observation_space: ' + str(env.observation_space.shape) + '<br /><br />' +\
+                                   'LASAgent Hyper-parameters: ' + '<br />' +\
+                                   '1. actor_lr: ' + str(actor_lr) + '<br />' +\
+                                   '2. actor_tau: ' + str(actor_tau) + '<br />' +\
+                                   '3. critic_lr: ' + str(critic_lr) + '<br />' +\
+                                   '4. critic_tau: ' + str(critic_tau) + '<br />' +\
+                                   '5. gamma: ' + str(gamma) + '<br />' +\
+                                   '6. minibatch_size: ' + str(minibatch_size) + '<br />' +\
+                                   '7. max_episodes: ' + str(max_episodes) + '<br />' +\
+                                   '8. max_episode_len: ' + str(max_episode_len) + '<br />' +\
+                                   '9. action_noise_type: ' + str(exploration_action_noise_type) + '<br />' +\
+                                   '10.epsilon_greedy_type: ' + str(exploration_epsilon_greedy_type) + '<br />' +\
+                                   '11.restore_actor_model_flag: ' + str(restore_actor_model_flag) + '<br />' +\
+                                   '12.restore_critic_model_flag: ' + str(restore_critic_model_flag)][0]
         # Init Environment Related Parameters
         self.sess = sess
         self.env = env
