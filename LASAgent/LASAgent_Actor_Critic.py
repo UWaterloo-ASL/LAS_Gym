@@ -285,7 +285,7 @@ class LASAgent_Actor_Critic():
                  exploration_epsilon_greedy_type = 'none',
                  # Save Summaries
                  save_dir = './results/LASAgentActorCritic_5NodesEnv/',
-                 experiment_runs = '/run1',
+                 experiment_runs = 'run1',
                  # Save and Restore Actor-Critic Model
                  restore_actor_model_flag = False,
                  restore_critic_model_flag = False):
@@ -330,18 +330,18 @@ class LASAgent_Actor_Critic():
             indicate whetther load pre-trained critic model
         """
         # Produce a string describes experiment setting
-        self.experiment_setting = ['actor_lr' + str(actor_lr) +\
-                              'actor_tau' + str(actor_tau) +\
-                              'critic_lr' + str(critic_lr) +\
-                              'critic_tau' + str(critic_tau) +\
-                              'gamma' + str(gamma) +\
-                              'minibatch_size' + str(minibatch_size) +\
-                              'max_episodes' + str(max_episodes) +\
-                              'max_episode_len' + str(max_episode_len) +\
-                              'action_noise_type' + str(exploration_action_noise_type) +\
-                              'epsilon_greedy_type' + str(exploration_epsilon_greedy_type) +\
-                              'restore_actor_model_flag' + str(restore_actor_model_flag) +\
-                              'restore_critic_model_flag' + str(restore_critic_model_flag)][0]
+        self.experiment_setting = ['actor_lr: ' + str(actor_lr) + '<br />' +\
+                              'actor_tau: ' + str(actor_tau) + '<br />' +\
+                              'critic_lr: ' + str(critic_lr) + '<br />' +\
+                              'critic_tau: ' + str(critic_tau) + '<br />' +\
+                              'gamma: ' + str(gamma) + '<br />' +\
+                              'minibatch_size: ' + str(minibatch_size) + '<br />' +\
+                              'max_episodes: ' + str(max_episodes) + '<br />' +\
+                              'max_episode_len: ' + str(max_episode_len) + '<br />' +\
+                              'action_noise_type: ' + str(exploration_action_noise_type) + '<br />' +\
+                              'epsilon_greedy_type: ' + str(exploration_epsilon_greedy_type) + '<br />' +\
+                              'restore_actor_model_flag: ' + str(restore_actor_model_flag) + '<br />' +\
+                              'restore_critic_model_flag: ' + str(restore_critic_model_flag)][0]
         # Init Environment Related Parameters
         self.sess = sess
         self.env = env
@@ -364,7 +364,7 @@ class LASAgent_Actor_Critic():
         # =================================================================== #        
         self.minibatch_size = 64
         # Common Saving Directory
-        self.models_dir = save_dir + 'models/' + self.experiment_setting + experiment_runs
+        self.models_dir = save_dir + 'models/' + experiment_runs
         if not os.path.exists(self.models_dir):
             os.makedirs(self.models_dir)
         # Restore Pre-trained Actor Modles
@@ -436,7 +436,12 @@ class LASAgent_Actor_Critic():
         self.episode_rewards = 0
         self.summary_ops_accu_rewards, self.summary_vars_accu_rewards = self._init_summarize_accumulated_rewards()
         self.summary_ops_action_reward, self.summary_action, self.summary_reward = self._init_summarize_action_and_reward()
-        self.writer = tf.summary.FileWriter(self.save_dir+'summary/'+self.experiment_setting+self.experiment_runs, self.sess.graph)
+        self.writer = tf.summary.FileWriter(self.save_dir+'summary/'+self.experiment_runs, self.sess.graph)
+        # Summarize Experiment Setting
+        self.summary_ops_experiment_setting, self.summary_experiment_setting = self._init_summarize_experiment_setting()
+        summary_str_experiment_setting = self.sess.run(self.summary_ops_experiment_setting,
+                                                       feed_dict = {self.summary_experiment_setting: self.experiment_setting})
+        self.writer.add_summary(summary_str_experiment_setting)
         # =================================================================== #
         #                    Initialize Tranable Variables                    #
         # =================================================================== #        
@@ -678,6 +683,14 @@ class LASAgent_Actor_Critic():
         
         summary_ops = tf.summary.merge([action_sum, reward_sum])
         return summary_ops, action, reward
-            
+    
+    def _init_summarize_experiment_setting(self):
+        """
+        Summarize experiment setting
+        """
+        experiemnt_setting = tf.placeholder(tf.string)
+        experiemnt_setting_sum = tf.summary.text('Experiment_setting', experiemnt_setting)
+        summary_ops = tf.summary.merge([experiemnt_setting_sum])
+        return summary_ops, experiemnt_setting
             
 
