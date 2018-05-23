@@ -330,6 +330,7 @@ class LASAgent_Actor_Critic():
             indicate whetther load pre-trained critic model
         """
         # Produce a string describes experiment setting
+<<<<<<< HEAD
         self.experiment_setting = ['actor_lr: ' + str(actor_lr) + '<br />' +\
                               'actor_tau: ' + str(actor_tau) + '<br />' +\
                               'critic_lr: ' + str(critic_lr) + '<br />' +\
@@ -342,6 +343,20 @@ class LASAgent_Actor_Critic():
                               'epsilon_greedy_type: ' + str(exploration_epsilon_greedy_type) + '<br />' +\
                               'restore_actor_model_flag: ' + str(restore_actor_model_flag) + '<br />' +\
                               'restore_critic_model_flag: ' + str(restore_critic_model_flag)][0]
+=======
+        self.experiment_setting = ['actor_lr_tau_' + str(actor_lr) +\
+                              '_' + str(actor_tau) +\
+                              '_critic_lr_tau_gam_' + str(critic_lr) +\
+                              '_' + str(critic_tau) +\
+                              '_' + str(gamma) +\
+                              '_batch_' + str(minibatch_size) +\
+                              '_max_epi_len_' + str(max_episodes) +\
+                              '_' + str(max_episode_len) +\
+                              '_act_noise_' + str(exploration_action_noise_type) +\
+                              '_e_greedy_' + str(exploration_epsilon_greedy_type) +\
+                              '_save_' + str(restore_actor_model_flag) +\
+                              '_' + str(restore_critic_model_flag)][0]
+>>>>>>> 2b2e483b9ad17d2348127cbfcd73d95eafc72349
         # Init Environment Related Parameters
         self.sess = sess
         self.env = env
