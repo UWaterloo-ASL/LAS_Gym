@@ -169,7 +169,7 @@ class LASEnv(gym.Env):
         # Actually only set light color
         self._set_all_light_state_and_color(action_lights_color)
         #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
-        #self.action_history.append(action_lights_state)  # Only consider light actions for now
+        #self.action_history.append(action_lights_color)  # Only consider light actions for now
 
         # Observe current state
         try:

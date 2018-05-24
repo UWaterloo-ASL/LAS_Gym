@@ -164,6 +164,11 @@ class Behaviour:
             # assume ONLY ONE sensor is triggered each time
             self.active_event(trigger_ls)
 
+
+    def actuator_activity(self, position, radius):
+        # distance intensity
+
+        # exciter energy
 #
 #
 # def find_location(self, patch_map, trigger_key):
