@@ -20,10 +20,15 @@ This is run on scene with large state and action space. Specifially,
 * critic lr: 0.0001
 
 **Exploration method**
+* random action noise
+* epsilon-greedy
+* ~~Boltzmann Approach~~(only for discrete action)
+* Bayesian Approach
+* Intrinsic Motivation
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic.ipynb)** 
 
-<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="400" height="250"> <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS_results.png" alt="Results" width="400" height="250">
+<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS.png" alt="Scene Image" width="400" height="250"> <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/images/large_LAS_results_2569episodes.png" alt="Results" width="400" height="250">
 
 
 ### Small State and Action Space
@@ -41,10 +46,12 @@ This is run on scene with large state and action space. Specifially,
 * actor lr : 0.0001
 * critic lr: 0.0001
 
-**Exploration method**
+**[Exploration method](https://medium.com/emergent-future/simple-reinforcement-learning-with-tensorflow-part-7-action-selection-strategies-for-exploration-d3a97b7cceaf)**
 * random action noise
 * epsilon-greedy
-* Boltzmann Approach
+* ~~Boltzmann Approach~~(only for discrete action)
+* Bayesian Approach
+* Intrinsic Motivation
 
 **Scene Image and [Results](https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/notebook/notebook_LASAgent_Actor_Critic_SamllSize_System.ipynb)**
 

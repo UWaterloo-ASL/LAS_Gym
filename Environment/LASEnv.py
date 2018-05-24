@@ -32,7 +32,8 @@ from .UtilitiesForEnv import get_all_object_name_and_handle
 from IPython.core.debugger import Tracer
 
 class LASEnv(gym.Env):
-    def __init__(self, IP = '127.0.0.1',Port = 19997):
+    def __init__(self, IP = '127.0.0.1', Port = 19997,
+                 reward_function_type = 'red_light_dense'):
         """
         Instantiate LASEnv. LASEnv is the interface between LAS and Environment. Thus, LASEnv is the internal environment of LAS.
         
@@ -43,6 +44,12 @@ class LASEnv(gym.Env):
          
         Port: int default = 19997
             Port to communicate with V-REP server.
+        
+        reward_function_type: str default = 'red_light_dense'
+            Choose reward function type.
+            Options:
+                1. 'red_light_dense'
+                2. 'red_light_sparse'
         """
         print ('Initialize LASEnv ...')
         # ========================================================================= #
@@ -106,8 +113,8 @@ class LASEnv(gym.Env):
         self.act_min = np.array([-1]*self.actuators_dim)
         # Agent should be informed about observation_space and action_space to initialize
         # agent's observation and action dimension and value limitation.
-        self.observation_space = spaces.Box(self.obs_min, self.obs_max)
-        self.action_space = spaces.Box(self.act_min, self.act_max)
+        self.observation_space = spaces.Box(self.obs_min, self.obs_max, dtype = np.float32)
+        self.action_space = spaces.Box(self.act_min, self.act_max, dtype = np.float32)
         print("Initialization of LAS done!")
         # ========================================================================= #
         #                       Initialize other variables                          #
@@ -120,6 +127,10 @@ class LASEnv(gym.Env):
         self.done = False
         self.info = []
         self.observation = []
+        # ========================================================================= #
+        #                    Initialize Reward Function Type                        #
+        # ========================================================================= #        
+        self.reward_function_type = reward_function_type
     
     def step(self, action):
         """
@@ -182,7 +193,12 @@ class LASEnv(gym.Env):
         
         # This reward is non-interactive reward i.e. it's not affected by visitor.
         # Therefore, it's only used for tunning hyper-parameters of LASAgent
-        self.reward = self._reward_red_light(self.observation)
+        if self.reward_function_type == 'red_light_sparse':
+            self.reward = self._reward_red_light_sparse(self.observation)
+        elif self.reward_function_type == 'red_light_dense':
+            self.reward = self._reward_red_light_dense(self.observation)
+        else:
+            raise ValueError('No reward function: {}'.format(self.reward_function_type))
         
         
         done = False
@@ -274,7 +290,7 @@ class LASEnv(gym.Env):
 
         return group_id, group_num
 
-    def _reward_red_light(self, observation):
+    def _reward_red_light_sparse(self, observation):
         """
         This reward function is used in non-interactive model and only for testing and tuning hyper-parameters of LASAgent. Whenever this is a red light 
         the agent will receive a reward, and the more the red lights are, the 
@@ -310,6 +326,37 @@ class LASEnv(gym.Env):
         else:
             reward = 0
         #reward = red_light_num / self.lights_num
+        return reward
+    
+    def _reward_red_light_dense(self, observation):
+        """
+        This reward function is used in non-interactive model and only for testing and tuning hyper-parameters of LASAgent. Whenever this is a red light 
+        the agent will receive a reward, and the more the red lights are, the 
+        higher the reward will be.
+        
+        If the RGB color of a light within the following thresholds, we regard
+        it as a red light.
+        
+        Threshould for red lights:
+            Red:    0.70 - 1.00
+            Green:  0.00 - 0.30
+            Blue:   0.00 - 0.30
+        
+        """
+        light_color_start_index = self.prox_sensor_num
+        red_light_index = []
+        for i in range(self.lights_num):
+            R = observation[light_color_start_index + i*3]
+            G = observation[light_color_start_index + i*3 + 1]
+            B = observation[light_color_start_index + i*3 + 2]
+            #print("Light: {}, R={}, G={}, B={}".format(i, R,G,B))
+            if 0.7<= R <=1 and 0<=G<=0.3 and 0<=B<=0.3:
+                #print("Find one red light!!")
+                red_light_index.append(i)
+        
+        red_light_num = len(red_light_index)
+        reward = red_light_num / self.lights_num
+        
         return reward
 
     def reset(self):
