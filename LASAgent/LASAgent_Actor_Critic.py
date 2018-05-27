@@ -514,11 +514,36 @@ class LASAgent_Actor_Critic():
         self.action_old = []
         self.reward_new = []
         self.observation_new = []
-        
-        # Reply buffer or Hard Memory
+        # =================================================================== #
+        #                 Initialize Replay Buffers for                       #
+        #         Extrinsic and Intrinsic Policy, and Environment Model        #
+        # =================================================================== #         
+        # ********************************************* #
+        #         Replay Buffer for Extrinsic Policy    #
+        # ********************************************* #
         self.buffer_size = 1000000
         self.random_seed = 1234
         self.replay_buffer = ReplayBuffer(self.buffer_size, self.random_seed)
+        # ********************************************* #
+        #        Replay Buffer for Environment Model    #
+        # ********************************************* #
+        # 5% experience will be saved in test buffer
+        self.env_model_buffer_test_ratio = 0.05
+        # 1. Training Buffer
+        self.env_model_train_buffer_size = 100000
+        self.env_model_train_buffer = ReplayBuffer(self.env_model_train_buffer_size, self.random_seed)
+        # 2. Test Buffer:
+        #    For examing whether our environemnt model is converged, we can 
+        #    save a small set of testing samples that will not be used to 
+        #    training environment. Note that this test set should not have too
+        #    much past experiences either too much recent experiences.
+        self.env_model_test_buffer_size = 100000
+        self.env_model_test_buffer = ReplayBuffer(self.env_model_test_buffer_size, self.random_seed)
+        # ********************************************* #
+        #        Replay Buffer for Intrinsic Policy     #
+        # ********************************************* #
+        
+        
         # =================================================================== #
         #      Initialize Parameters for Both Actor and Critic Model          #
         # =================================================================== #        
@@ -536,9 +561,9 @@ class LASAgent_Actor_Critic():
         self.critic_model_save_path_and_name = self.models_dir + 'critic_model.ckpt'
         self.target_critic_model_save_path_and_name = self.models_dir + 'target_critic_model.ckpt'
         # =================================================================== #
-        #                     Initialize Actor Model                          #
+        #       Initialize Extrinsically Motivated Actor-Critic Model         #
         # =================================================================== #
-        # Hyper-paramter for Actor
+        # Extrinsically Motivated Actor
         self.actor_lr = actor_lr
         self.actor_tau = actor_tau
         self.actor_model = ActorNetwork(self.sess, 
@@ -550,10 +575,7 @@ class LASAgent_Actor_Critic():
                                         self.restore_actor_model_flag,
                                         self.actor_model_save_path_and_name,
                                         self.target_actor_model_save_path_and_name)
-        # =================================================================== #
-        #                     Initialize Critic Model                         #
-        # =================================================================== #
-        # Hyper-paramter for Critic
+        # Extrinsically Motivated Critic
         self.critic_lr = critic_lr
         self.critic_tau = critic_tau
         self.gamma = gamma
@@ -582,6 +604,12 @@ class LASAgent_Actor_Critic():
                                                          self.env_model_save_path,
                                                          self.env_restore_flag,
                                                          self.env_model_restore_path_and_name)
+        # =================================================================== #
+        #       Initialize Intrinsically Motivated Actor-Critic Model         #
+        # =================================================================== #
+        # Intrinsically Motivated Actor
+        
+        # Intrinsically Motivated Critic
         
         # =================================================================== #
         #                  Initialize Exploration Strategies                  #
@@ -653,6 +681,10 @@ class LASAgent_Actor_Critic():
         self.reward_new = reward
         self.done = done
         #Tracer()()
+        
+        # *********************************** # 
+        #            Produce Action           #
+        # *********************************** #
         # If this is the first action, no one single complete experience to remember
         if self.first_experience:
             action = self._act()
@@ -665,12 +697,15 @@ class LASAgent_Actor_Critic():
         # Action, added exploration noise
         action = self._act()
         
-        # Save Step Summaries
+        # *********************************** # 
+        #    Write Summaries for Analysis     #
+        # *********************************** #
+        # 1. Save Step Summaries
         summary_str_action_rewards = self.sess.run(self.summary_ops_action_reward,
                                                    feed_dict = {self.summary_action: self.action_old,
                                                                 self.summary_reward: self.reward_new})
         self.writer.add_summary(summary_str_action_rewards, self.total_step_counter)
-        # Save Episode Summaries
+        # 2. Save Episode Summaries
         self.episode_rewards += self.reward_new
         if self.steps_counter == self.max_episode_len or done == True:
             #Tracer()()
@@ -691,14 +726,36 @@ class LASAgent_Actor_Critic():
         else:
             self.steps_counter += 1
         
-        # Remember experience
+        # *********************************** # 
+        #        Remember Experiences         #
+        # *********************************** #
+        # 1. Extrinsic Policy Replay Buffer
         self.replay_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
                                np.reshape(self.action_old, (self.actor_model.a_dim,)),
                                self.reward_new,
                                self.done,
                                np.reshape(self.observation_new, (self.actor_model.s_dim,)))
-
-        # Train
+        # 2. Environment Model Replay Buffer
+        if np.random.rand(1) <= self.env_model_buffer_test_ratio:
+            self.env_model_test_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
+                                           np.reshape(self.action_old, (self.actor_model.a_dim,)),
+                                           self.reward_new,
+                                           self.done,
+                                           np.reshape(self.observation_new, (self.actor_model.s_dim,)))
+        else:
+            self.env_model_train_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
+                                            np.reshape(self.action_old, (self.actor_model.a_dim,)),
+                                            self.reward_new,
+                                            self.done,
+                                            np.reshape(self.observation_new, (self.actor_model.s_dim,)))
+        # 3. Intrinsc Policy Replay Buffer
+        #    The Learning Progress plays the role of intrinsic reward
+        
+        
+        
+        # *********************************** # 
+        #             Train Models            #
+        # *********************************** #
         self._train()
         
         # Before return, set observation and action as old.
@@ -767,23 +824,25 @@ class LASAgent_Actor_Critic():
         # *********************************** # 
         #        Train Environment Model      #
         # *********************************** #
-        if self.replay_buffer.size() > self.env_model_minibatch_size:
+        if self.env_model_train_buffer.size() > self.env_model_minibatch_size:
             #Tracer()()
-            s_batch, a_batch, r_batch, t_batch, s2_batch = self.replay_buffer.sample_batch(int(self.env_model_minibatch_size))
+            s_batch, a_batch, r_batch, t_batch, s2_batch = self.env_model_train_buffer.sample_batch(int(self.env_model_minibatch_size))
             self.environment_model.train(s_batch,
                                          a_batch,
                                          s2_batch,
                                          np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
-            # Use different sample set to evaluate
-            s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test = self.replay_buffer.sample_batch(int(self.env_model_minibatch_size))
-            env_loss = self.environment_model.evaluate(s_batch_test,
-                                                       a_batch_test,
-                                                       s2_batch_test,
-                                                       np.reshape(r_batch_test, (int(self.env_model_minibatch_size), 1)))
-            # Summaries of Training Environment Model
-            summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
-                                                 feed_dict = {self.summary_env_loss: env_loss})
-            self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
+            # evaluate on test buffer
+            if self.env_model_test_buffer.size() > 0:
+                s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test =\
+                        self.env_model_test_buffer.sample_batch(int(self.env_model_test_buffer.size()))
+                env_loss = self.environment_model.evaluate(s_batch_test,
+                                                           a_batch_test,
+                                                           s2_batch_test,
+                                                           np.reshape(r_batch_test, (int(self.env_model_test_buffer.size()), 1)))
+                # Summaries of Training Environment Model
+                summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
+                                                     feed_dict = {self.summary_env_loss: env_loss})
+                self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
             
 
 # =================================================================== #
