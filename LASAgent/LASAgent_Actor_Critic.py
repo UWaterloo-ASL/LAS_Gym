@@ -11,6 +11,7 @@ from __future__ import print_function
 
 import os
 import tensorflow as tf
+from tensorflow import keras
 import numpy as np
 import gym
 from gym import wrappers
@@ -272,7 +273,162 @@ class CriticNetwork(object):
 
     def update_target_network(self):
         self.sess.run(self.update_target_network_params)
+# ===========================
+#   Environment Model DNNs
+# ===========================
+class EnvironmentModelNetwork(object):
+    def __init__(self, sess, observation_space, action_space,
+                 learning_rate = 0.0001,
+                 # Save Environment Model
+                 env_model_save_path = 'results/models/',
+                 # Restore Environment Model
+                 env_restore_flag = False,
+                 env_model_restore_path_and_name = 'results/models/env_model.ckpt'):
+        """
+        Initialize environment model.
+        
+        Parameters
+        ----------
+        learning_rate: float default = 0.0001
+            learning rate
+        env_model_save_path: str default = 'results/models/'
+            the path to save environment model
+                 # Restore Environment Model
+        env_restore_flag: bool default = False
+            idicate whether restore a previously trained environment model
+        env_model_restore_path_and_name: str default = 'results/models/env_model.ckpt'
+            the path and name of previously trained environment model that is 
+            going to restore
+        """
+        self.sess = sess
+        self.observation_dim = observation_space.shape[0]
+        self.action_dim = action_space.shape[0]
+        self.learning_rate = learning_rate
+        # Parameters for save environment model
+        self.env_model_save_path = env_model_save_path
+        # Parameters for restoring environment model
+        self.env_restore_flag = env_restore_flag
+        self.env_model_restore_path_and_name = env_model_restore_path_and_name
+        
+        # Create Environment Model
+        self.obs_input, self.act_input, self.obs_output, self.reward_output, self.env_model = self.create_environment_model_network()
+        if self.env_restore_flag == True:
+            print('restore environment model')
+            self.env_model = keras.models.load_model(self.env_model_restore_path_and_name)
+       
+    def create_environment_model_network(self):
+        """
+        Create environment model network.
+        
+        Returns
+        -------
+        observation_inputs: tf.Tensor
+            tensor of observation input
+        action_inputs: tf.Tensor
+            tensor of action input
+        observation_output: tf.Tensor
+            tensor of observation output
+        reward_output: tf.Tensor
+            tensor of reward output
+        model: Keras model
+        """
+        observation_inputs = keras.Input(shape=(self.observation_dim,), name='EnvModel_observation_input')
+        obs_h1 = keras.layers.Dense(units = 400, activation='relu')(observation_inputs)
+        obs_h1 = keras.layers.BatchNormalization()(obs_h1)
+        action_inputs = keras.Input(shape=(self.action_dim,), name='EnvModel_action_input')
+        act_h1 = keras.layers.Dense(units = 400, activation='relu')(action_inputs)
+        act_h1 = keras.layers.BatchNormalization()(act_h1)
+        
+        merged_inputs = keras.layers.add([obs_h1, act_h1], name = 'EnvModel_merged_input')
+        merged_h1 = keras.layers.Dense(units=300, activation = 'relu')(merged_inputs)
+        merged_h1 = keras.layers.BatchNormalization()(merged_h1)
+        
+        observation_output = keras.layers.Dense(units = (self.observation_dim), activation = 'relu')(merged_h1)
+        reward_output = keras.layers.Dense(units = (1), activation = 'relu')(merged_h1)
+        
+        model = keras.Model(inputs = [observation_inputs, action_inputs],
+                            outputs = [observation_output, reward_output])
+        adam = keras.optimizers.Adam(lr = 0.001)
+        model.compile(optimizer = adam, loss = 'mse')
+        # Plot Environment Model
+        keras.utils.plot_model(model, to_file = 'actor_model.png',show_shapes=True, show_layer_names=True)
+        
+        return observation_inputs, action_inputs, observation_output, reward_output, model 
+    
+    def train(self, observation_inputs, action_inputs, observation_output, reward_output):
+        """
+        Train environment model.
+        
+        Parameters
+        ----------
+        observation_inputs: ndarray
+            observation at time step t
+        action_inputs: ndarray
+            action at time step t
+        observation_output: ndarray
+            array combined of (observation,reward): 
+                observation at time step t+1
+                reward at time step t
+        """
+        self.env_model.fit(x=[observation_inputs,action_inputs],
+                           y=[observation_output, reward_output],
+                           verbose = 0)
+    
+    def evaluate(self, observation_inputs, action_inputs, observation_output, reward_output):
+        """
+        Evaluate environment model. The testing samples should be different from
+        training samples.
+        
+        Parameters
+        ----------
+        observation_inputs: ndarray
+            observation at time step t
+        action_inputs: ndarray
+            action at time step t
+        observation_output: ndarray
+            array combined of (observation,reward): 
+                observation at time step t+1
+                reward at time step t
+        """
+        loss = self.env_model.evaluate(x=[observation_inputs,action_inputs],
+                                        y=[observation_output, reward_output],
+                                        verbose = 0)
+        return np.mean(loss)
+    
+    def save_environment_model_network(self, env_save_time):
+        """
+        save environment model
+        Parameters
+        ----------
+        env_save_time: int
+            the time step when saving the environment model
+        """
+        keras.models.save_model(self.env_model,
+                                filepath = self.env_model_save_path + '/env_model_' + str(env_save_time) + '.ckpt')
+        
+    def predict_target(self, observation, action):
+        """
+        Predict next step observation and reward based on current observation
+        and action.
+        
+        Parameters
+        ----------
+        observation: ndarray
+            observation at time step t
+        action: ndarray
+            action taken at time step t
+        Returns
+        -------
+        prediction: list [predicted_observation, predicted_reward]
+            prediction of observation and reward resulted from taken action in 
+            observation.
+        """
+        return self.env_model.predict([observation, action])
 
+
+# ===========================
+#   Living Architecture System Agent
+# ===========================
 
 class LASAgent_Actor_Critic():
     def __init__(self, sess, env,
@@ -412,6 +568,22 @@ class LASAgent_Actor_Critic():
                                           self.critic_model_save_path_and_name,
                                           self.target_critic_model_save_path_and_name)
         # =================================================================== #
+        #                     Initialize Environment Model                    #
+        # =================================================================== #
+        self.env_model_lr = 0.0001
+        self.env_model_minibatch_size = 200
+        self.env_model_save_path = self.models_dir
+        self.env_restore_flag = False
+        self.env_model_restore_path_and_name = 'results/models/env_model.ckpt'
+        self.environment_model = EnvironmentModelNetwork(self.sess,
+                                                         self.observation_space,
+                                                         self.action_space,
+                                                         self.env_model_lr,
+                                                         self.env_model_save_path,
+                                                         self.env_restore_flag,
+                                                         self.env_model_restore_path_and_name)
+        
+        # =================================================================== #
         #                  Initialize Exploration Strategies                  #
         # =================================================================== #        
         # 1. Action Noise to Maintain Exploration
@@ -446,6 +618,8 @@ class LASAgent_Actor_Critic():
         summary_str_experiment_setting = self.sess.run(self.summary_ops_experiment_setting,
                                                        feed_dict = {self.summary_experiment_setting: self.experiment_setting})
         self.writer.add_summary(summary_str_experiment_setting)
+        # Summarize Environment Model Training
+        self.summary_ops_env_loss, self.summary_env_loss = self._init_summarize_environment_model()
         # =================================================================== #
         #                    Initialize Tranable Variables                    #
         # =================================================================== #        
@@ -512,6 +686,8 @@ class LASAgent_Actor_Critic():
             # Save trained models each episode
             self.actor_model.save_actor_network()
             self.critic_model.save_critic_network()
+            # Save Environment Model
+            self.environment_model.save_environment_model_network(self.episode_counter)
         else:
             self.steps_counter += 1
         
@@ -557,7 +733,11 @@ class LASAgent_Actor_Critic():
         """
         # Keep adding experience to the memory until
         # there are at least minibatch size samples
+        # *********************************** # 
+        #        Train Actor-Critic Model     #
+        # *********************************** #
         if self.replay_buffer.size() > self.minibatch_size:
+            
             s_batch, a_batch, r_batch, t_batch, s2_batch = \
                 self.replay_buffer.sample_batch(int(self.minibatch_size))
 
@@ -584,6 +764,27 @@ class LASAgent_Actor_Critic():
             # Update target networks
             self.actor_model.update_target_network()
             self.critic_model.update_target_network()
+        # *********************************** # 
+        #        Train Environment Model      #
+        # *********************************** #
+        if self.replay_buffer.size() > self.env_model_minibatch_size:
+            #Tracer()()
+            s_batch, a_batch, r_batch, t_batch, s2_batch = self.replay_buffer.sample_batch(int(self.env_model_minibatch_size))
+            self.environment_model.train(s_batch,
+                                         a_batch,
+                                         s2_batch,
+                                         np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
+            # Use different sample set to evaluate
+            s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test = self.replay_buffer.sample_batch(int(self.env_model_minibatch_size))
+            env_loss = self.environment_model.evaluate(s_batch_test,
+                                                       a_batch_test,
+                                                       s2_batch_test,
+                                                       np.reshape(r_batch_test, (int(self.env_model_minibatch_size), 1)))
+            # Summaries of Training Environment Model
+            summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
+                                                 feed_dict = {self.summary_env_loss: env_loss})
+            self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
+            
 
 # =================================================================== #
 #                    Initialization Helper Functions                  #
@@ -696,5 +897,13 @@ class LASAgent_Actor_Critic():
         experiemnt_setting_sum = tf.summary.text('Experiment_setting', experiemnt_setting)
         summary_ops = tf.summary.merge([experiemnt_setting_sum])
         return summary_ops, experiemnt_setting
-            
+       
+    def _init_summarize_environment_model(self):
+        """
+        Summarize environment model training
+        """
+        loss = tf.placeholder(dtype = tf.float32)
+        loss_sum = tf.summary.scalar('loss_env_model', loss)
+        loss_sum_op = tf.summary.merge([loss_sum])
+        return loss_sum_op, loss
 
