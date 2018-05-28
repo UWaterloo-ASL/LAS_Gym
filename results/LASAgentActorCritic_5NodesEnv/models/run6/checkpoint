@@ -1,2 +1,0 @@
-model_checkpoint_path: "/Users/jack.lingheng.meng/GoogleDrive/Robot_Simulators/V-Rep-Python_Project_ASL/LAS_Gym/results/LASAgentActorCritic_5NodesEnv/models/run6/target_critic_model.ckpt"
-all_model_checkpoint_paths: "/Users/jack.lingheng.meng/GoogleDrive/Robot_Simulators/V-Rep-Python_Project_ASL/LAS_Gym/results/LASAgentActorCritic_5NodesEnv/models/run6/target_critic_model.ckpt"
