@@ -10,6 +10,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import glob
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
@@ -41,12 +42,36 @@ class ActorNetwork(object):
     between -action_bound and action_bound
     """
 
-    def __init__(self, sess, observation_space,  action_space,
+    def __init__(self, name, sess, observation_space,  action_space,
                  learning_rate, tau, batch_size,
                  restore_model_flag=False,
                  actor_model_save_path_and_name = 'results/models/actor_model.ckpt',
                  target_actor_model_save_path_and_name = 'results/models/target_actor_model.ckpt'):
+        """
+        Parameters
+        ----------
+        name: str
+            
+        sess: tf.Session
+            
+        observation_space: gym.spaces.Box
+            
+        action_space: gym.spaces.Box
+            
+        learning_rate: float
+            
+        tau: float
+            
+        batch_size: int
+            
+        restore_model_flag: bool default=False
         
+        actor_model_save_path_and_name: str default = 'results/models/actor_model.ckpt'
+        
+        target_actor_model_save_path_and_name: str default = 'results/models/target_actor_model.ckpt'
+        """
+        
+        self.name = name
         self.sess = sess
         self.s_dim = observation_space.shape[0]
         self.a_dim = action_space.shape[0]
@@ -60,66 +85,68 @@ class ActorNetwork(object):
         self.restore_model_flag = restore_model_flag
         self.actor_model_save_path_and_name = actor_model_save_path_and_name
         self.target_actor_model_save_path_and_name = target_actor_model_save_path_and_name
-        
-        # Initialize or Restore Actor Network
-        self.inputs, self.out, self.scaled_out, self._actor_model = self.create_actor_network()
-        if self.restore_model_flag == True:
-            print('restore actor model')
-            self._actor_model.load(self.actor_model_save_path_and_name)
-        
-        self.network_params = tf.trainable_variables()
-
-        # Initialize or Restore Target Network
-        self.target_inputs, self.target_out, self.target_scaled_out, self._target_actor_model = self.create_actor_network()
-        if self.restore_model_flag == True:
-            print('restore target actor model')
-            self._target_actor_model.load(self.target_actor_model_save_path_and_name)
+        with tf.variable_scope(self.name) as self.scope:
+            # Initialize or Restore Actor Network
+            self.inputs, self.out, self.scaled_out, self._actor_model = self.create_actor_network()
+            if self.restore_model_flag == True:
+                print('restore actor model')
+                self._actor_model.load(self.actor_model_save_path_and_name)
             
-            
-        self.target_network_params = tf.trainable_variables()[
-            len(self.network_params):]
-
-        # Op for periodically updating target network with online network
-        # weights
-        self.update_target_network_params = \
-            [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) +
-                                                  tf.multiply(self.target_network_params[i], 1. - self.tau))
-                for i in range(len(self.target_network_params))]
-
-        # This gradient will be provided by the critic network
-        self.action_gradient = tf.placeholder(tf.float32, [None, self.a_dim])
-
-        # Combine the gradients here
-        self.unnormalized_actor_gradients = tf.gradients(
-            self.scaled_out, self.network_params, -self.action_gradient)
-        
-        self.actor_gradients = list(map(lambda x: tf.divide(x, self.batch_size), self.unnormalized_actor_gradients))
-
-        # Optimization Op
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate).\
-            apply_gradients(zip(self.actor_gradients, self.network_params))
-
-        self.num_trainable_vars = len(
-            self.network_params) + len(self.target_network_params)
+            self.network_params = tf.trainable_variables(scope=self.name)
+    
+            # Initialize or Restore Target Network
+            self.target_inputs, self.target_out, self.target_scaled_out, self._target_actor_model = self.create_actor_network()
+            if self.restore_model_flag == True:
+                print('restore target actor model')
+                self._target_actor_model.load(self.target_actor_model_save_path_and_name)
+                
+            self.target_network_params = tf.trainable_variables(scope=self.name)[len(self.network_params):]
+    
+            # Op for periodically updating target network with online network
+            # weights
+            self.update_target_network_params = \
+                [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) +
+                                                      tf.multiply(self.target_network_params[i], 1. - self.tau))
+                    for i in range(len(self.target_network_params))]
+    
+            # This gradient will be provided by the critic network
+            self.action_gradient = tf.placeholder(tf.float32, [None, self.a_dim])
+    
+            # Combine the gradients here
+            # The reason of negative self.action_gradient here is we want to do 
+            # gradient ascent, and AdamOptimizer will do gradient ascent when applying
+            # a gradient.
+            self.unnormalized_actor_gradients = tf.gradients(
+                    self.scaled_out, self.network_params, -self.action_gradient) 
+            #Tracer()()
+            self.actor_gradients = list(map(lambda x: tf.divide(x, self.batch_size), self.unnormalized_actor_gradients))
+    
+            # Optimization Op
+            self.optimize = tf.train.AdamOptimizer(self.learning_rate).\
+                apply_gradients(zip(self.actor_gradients, self.network_params))
+            # This is useless, since we use tf.variable_scope
+            self.num_trainable_vars = len(
+                self.network_params) + len(self.target_network_params)
 
     def create_actor_network(self):
         """
         
         """
         inputs = tflearn.input_data(shape=[None, self.s_dim],name = 'ActorInput')
-        net = tflearn.fully_connected(inputs, 400)
-        net = tflearn.layers.normalization.batch_normalization(net)
-        net = tflearn.activations.relu(net)
-        net = tflearn.fully_connected(net, 300)
-        net = tflearn.layers.normalization.batch_normalization(net)
-        net = tflearn.activations.relu(net)
+        h1 = tflearn.fully_connected(inputs, 400)
+        h1 = tflearn.activations.relu(h1)
+        h1 = tflearn.layers.normalization.batch_normalization(h1)
+        h2 = tflearn.fully_connected(h1, 300)
+        h2 = tflearn.activations.relu(h2)
+        h2 = tflearn.layers.normalization.batch_normalization(h2)
         # Final layer weights are init to Uniform[-3e-3, 3e-3]
         w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
         out = tflearn.fully_connected(
-            net, self.a_dim, activation='tanh', weights_init=w_init, name = 'ActorOutput') # action space is shifted to [-1,1]
+            h2, self.a_dim, activation='tanh', weights_init=w_init, name = 'ActorOutput') # action space is shifted to [-1,1]
         # Scale output to -action_bound to action_bound
         scaled_out = tf.multiply(out, self.action_bound_high, name = 'ActorScaledOutput')
         model = DNN(scaled_out, tensorboard_verbose = 3)
+
         return inputs, out, scaled_out, model
         
     def save_actor_network(self):
@@ -160,12 +187,18 @@ class CriticNetwork(object):
 
     """
 
-    def __init__(self, sess, observation_space, action_space,
+    def __init__(self, name, sess, observation_space, action_space,
                  learning_rate, tau, gamma, num_actor_vars,
                  restore_model_flag=False,
                  critic_model_save_path_and_name = 'results/models/critic_model.ckpt',
                  target_critic_model_save_path_and_name = 'results/models/target_critic_model.ckpt'):
+        """
+        Parameters
+        ----------
         
+        """
+        # name is necessary, since we will reuse this graph multiple times.
+        self.name = name
         self.sess = sess
         self.s_dim = observation_space.shape[0]
         self.a_dim = action_space.shape[0]
@@ -177,64 +210,67 @@ class CriticNetwork(object):
         self.restore_model_flag = restore_model_flag
         self.critic_model_save_path_and_name = critic_model_save_path_and_name
         self.target_critic_model_save_path_and_name = target_critic_model_save_path_and_name
-        
-        # Create the critic network
-        self.inputs, self.action, self.out, self._critic_model = self.create_critic_network()
-        if self.restore_model_flag == True:
-            print('restore critic model')
-            self._critic_model.load(self.critic_model_save_path_and_name)
-
-        self.network_params = tf.trainable_variables()[num_actor_vars:]
-
-        # Target Network
-        self.target_inputs, self.target_action, self.target_out, self._target_critic_model = self.create_critic_network()
-        if self.restore_model_flag == True:
-            print('restore target critic model')
-            self._target_critic_model.load(self.target_critic_model_save_path_and_name)
-            
-        self.target_network_params = tf.trainable_variables()[(len(self.network_params) + num_actor_vars):]
-
-        # Op for periodically updating target network with online network
-        # weights with regularization
-        self.update_target_network_params = \
-            [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) \
-            + tf.multiply(self.target_network_params[i], 1. - self.tau))
-                for i in range(len(self.target_network_params))]
-
-        # Network target (y_i)
-        self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
-
-        # Define loss and optimization Op
-        self.loss = tflearn.mean_square(self.predicted_q_value, self.out)
-        self.optimize = tf.train.AdamOptimizer(
-            self.learning_rate).minimize(self.loss)
-
-        # Get the gradient of the net w.r.t. the action.
-        # For each action in the minibatch (i.e., for each x in xs),
-        # this will sum up the gradients of each critic output in the minibatch
-        # w.r.t. that action. Each output is independent of all
-        # actions except for one.
-        self.action_grads = tf.gradients(self.out, self.action)
+        with tf.variable_scope(self.name) as self.scope:
+            # Create the critic network
+            self.inputs, self.action, self.out, self._critic_model = self.create_critic_network()
+            if self.restore_model_flag == True:
+                print('restore critic model')
+                self._critic_model.load(self.critic_model_save_path_and_name)
+            # We should avoid using tf.trainable_variables(), since it will
+            # mix all trainable variables together.
+            self.network_params = tf.trainable_variables(scope=self.name)
+    
+            # Target Network
+            self.target_inputs, self.target_action, self.target_out, self._target_critic_model = self.create_critic_network()
+            if self.restore_model_flag == True:
+                print('restore target critic model')
+                self._target_critic_model.load(self.target_critic_model_save_path_and_name)
+                
+            self.target_network_params = tf.trainable_variables(scope=self.name)[len(self.network_params):]
+            #Tracer()()
+            # Op for periodically updating target network with online network
+            # weights with regularization
+            self.update_target_network_params = \
+                [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) \
+                + tf.multiply(self.target_network_params[i], 1. - self.tau))
+                    for i in range(len(self.target_network_params))]
+    
+            # Network target (y_i)
+            self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
+    
+            # Define loss and optimization Op
+            self.loss = tflearn.mean_square(self.predicted_q_value, self.out)
+            self.optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+    
+            # Get the gradient of the net w.r.t. the action.
+            # For each action in the minibatch (i.e., for each x in xs),
+            # this will sum up the gradients of each critic output in the minibatch
+            # w.r.t. that action. Each output is independent of all
+            # actions except for one.
+            self.action_grads = tf.gradients(self.out, self.action)
 
     def create_critic_network(self):
         inputs = tflearn.input_data(shape=[None, self.s_dim], name = 'CriticInputState')
         action = tflearn.input_data(shape=[None, self.a_dim], name = 'CriticInputAction')
-        h1_inputs = tflearn.fully_connected(inputs, 400)
-        h1_norm_inputs = tflearn.layers.normalization.batch_normalization(h1_inputs)
-        h1_act_inputs = tflearn.activations.relu(h1_norm_inputs)
-
+        
+        h1_inputs = tflearn.fully_connected(inputs, 300)
+        h1_inputs = tflearn.activations.relu(h1_inputs)
+        h1_inputs = tflearn.layers.normalization.batch_normalization(h1_inputs)
+        
+        h1_action = tflearn.fully_connected(action, 300)
+        h1_action = tflearn.activations.relu(h1_action)
+        h1_action = tflearn.layers.normalization.batch_normalization(h1_action)
         # Add the action tensor in the 2nd hidden layer
         # Use two temp layers to get the corresponding weights and biases
-        t1 = tflearn.fully_connected(h1_act_inputs, 300)
-        t2 = tflearn.fully_connected(action, 300)
-
-        net = tflearn.activation(
-            tf.matmul(h1_act_inputs, t1.W) + tf.matmul(action, t2.W) + t2.b, activation='relu')
-
+        merged1 = tflearn.layers.merge([h1_inputs, h1_action], mode='concat')
+        h2 = tflearn.fully_connected(merged1, 200)
+        h2 = tflearn.activations.relu(h2)
+        h2 = tflearn.layers.normalization.batch_normalization(h2)
+        
         # linear layer connected to 1 output representing Q(s,a)
         # Weights are init to Uniform[-3e-3, 3e-3]
         w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
-        out = tflearn.fully_connected(net, 1, weights_init=w_init, name = 'CriticOutput')
+        out = tflearn.fully_connected(h2, 1, weights_init=w_init, name = 'CriticOutput')
         model = DNN(out, tensorboard_verbose = 3)
         return inputs, action, out, model
 
@@ -277,7 +313,7 @@ class CriticNetwork(object):
 #   Environment Model DNNs
 # ===========================
 class EnvironmentModelNetwork(object):
-    def __init__(self, sess, observation_space, action_space,
+    def __init__(self, name, sess, observation_space, action_space,
                  learning_rate = 0.0001,
                  # Save Environment Model
                  env_model_save_path = 'results/models/',
@@ -289,6 +325,14 @@ class EnvironmentModelNetwork(object):
         
         Parameters
         ----------
+        name: str
+        
+        sess: tf.Session
+        
+        observation_space: gym.spaces.Box
+            
+        action_space: gym.spaces.Box
+            
         learning_rate: float default = 0.0001
             learning rate
         env_model_save_path: str default = 'results/models/'
@@ -300,6 +344,7 @@ class EnvironmentModelNetwork(object):
             the path and name of previously trained environment model that is 
             going to restore
         """
+        self.name = name
         self.sess = sess
         self.observation_dim = observation_space.shape[0]
         self.action_dim = action_space.shape[0]
@@ -311,10 +356,11 @@ class EnvironmentModelNetwork(object):
         self.env_model_restore_path_and_name = env_model_restore_path_and_name
         
         # Create Environment Model
-        self.obs_input, self.act_input, self.obs_output, self.reward_output, self.env_model = self.create_environment_model_network()
-        if self.env_restore_flag == True:
-            print('restore environment model')
-            self.env_model = keras.models.load_model(self.env_model_restore_path_and_name)
+        with tf.variable_scope(self.name) as self.scope:
+            self.obs_input, self.act_input, self.obs_output, self.reward_output, self.env_model = self.create_environment_model_network()
+            if self.env_restore_flag == True:
+                print('restore environment model')
+                self.env_model = keras.models.load_model(self.env_model_restore_path_and_name)
        
     def create_environment_model_network(self):
         """
@@ -542,7 +588,8 @@ class LASAgent_Actor_Critic():
         # ********************************************* #
         #        Replay Buffer for Intrinsic Policy     #
         # ********************************************* #
-        
+        self.intrinsic_policy_buffer_size = 1000000
+        self.intrinsic_policy_replay_buffer = ReplayBuffer(self.intrinsic_policy_buffer_size, self.random_seed)
         
         # =================================================================== #
         #      Initialize Parameters for Both Actor and Critic Model          #
@@ -552,21 +599,21 @@ class LASAgent_Actor_Critic():
         self.models_dir = save_dir + 'models/' + experiment_runs
         if not os.path.exists(self.models_dir):
             os.makedirs(self.models_dir)
-        # Restore Pre-trained Actor Modles
-        self.restore_actor_model_flag = restore_actor_model_flag
-        self.actor_model_save_path_and_name = self.models_dir + '/actor_model.ckpt'
-        self.target_actor_model_save_path_and_name = self.models_dir + '/target_actor_model.ckpt'
-        # Restore Pre-trained Critic Model
-        self.restore_critic_model_flag = restore_critic_model_flag
-        self.critic_model_save_path_and_name = self.models_dir + 'critic_model.ckpt'
-        self.target_critic_model_save_path_and_name = self.models_dir + 'target_critic_model.ckpt'
+        
         # =================================================================== #
         #       Initialize Extrinsically Motivated Actor-Critic Model         #
         # =================================================================== #
         # Extrinsically Motivated Actor
+        self.extrinsically_motivated_actor_name = 'extrinsically_motivated_actor_name'
         self.actor_lr = actor_lr
         self.actor_tau = actor_tau
-        self.actor_model = ActorNetwork(self.sess, 
+        # Restore Pre-trained Actor Modles
+        self.restore_actor_model_flag = restore_actor_model_flag
+        self.actor_model_save_path_and_name = self.models_dir + '/actor_model.ckpt'
+        self.target_actor_model_save_path_and_name = self.models_dir + '/target_actor_model.ckpt'
+        
+        self.actor_model = ActorNetwork(self.extrinsically_motivated_actor_name,
+                                        self.sess, 
                                         self.observation_space, 
                                         self.action_space,
                                         self.actor_lr, 
@@ -576,10 +623,17 @@ class LASAgent_Actor_Critic():
                                         self.actor_model_save_path_and_name,
                                         self.target_actor_model_save_path_and_name)
         # Extrinsically Motivated Critic
+        self.extrinsically_motivated_critic_name = 'extrinsically_motivated_critic_name'
         self.critic_lr = critic_lr
         self.critic_tau = critic_tau
         self.gamma = gamma
-        self.critic_model = CriticNetwork(self.sess,
+        # Restore Pre-trained Critic Model
+        self.restore_critic_model_flag = restore_critic_model_flag
+        self.critic_model_save_path_and_name = self.models_dir + '/critic_model.ckpt'
+        self.target_critic_model_save_path_and_name = self.models_dir + '/target_critic_model.ckpt'
+        
+        self.critic_model = CriticNetwork(self.extrinsically_motivated_critic_name,
+                                          self.sess,
                                           self.observation_space,
                                           self.action_space,
                                           self.critic_lr,
@@ -592,12 +646,14 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                     Initialize Environment Model                    #
         # =================================================================== #
+        self.environment_model_name = 'current_environment_model_name'
         self.env_model_lr = 0.0001
         self.env_model_minibatch_size = 200
         self.env_model_save_path = self.models_dir
         self.env_restore_flag = False
         self.env_model_restore_path_and_name = 'results/models/env_model.ckpt'
-        self.environment_model = EnvironmentModelNetwork(self.sess,
+        self.environment_model = EnvironmentModelNetwork(self.environment_model_name,
+                                                         self.sess,
                                                          self.observation_space,
                                                          self.action_space,
                                                          self.env_model_lr,
@@ -605,11 +661,65 @@ class LASAgent_Actor_Critic():
                                                          self.env_restore_flag,
                                                          self.env_model_restore_path_and_name)
         # =================================================================== #
-        #       Initialize Intrinsically Motivated Actor-Critic Model         #
+        #                     Initialize Knowledge-based                      #
+        #               Intrinsically Motivated Actor-Critic Model            #
         # =================================================================== #
-        # Intrinsically Motivated Actor
+        # Initialize Intrinsic Motivation Component
+        # Get Save Env Models' Name
+        self.env_model_names = glob.glob(self.models_dir+"/env_model_*.ckpt")
+        self.num_env_models = len(self.env_model_names)
         
+        # Knowledge-based Intrinsic Motivation
+        self.knowledge_based_intrinsic_reward = 0
+
+        # Intrinsically Motivated Actor
+        self.knowledge_based_intrinsic_actor_name = 'knowledge_based_intrinsic_actor_name'
+        self.knowledge_based_intrinsic_actor_lr = actor_lr
+        self.knowledge_based_intrinsic_actor_tau = actor_tau
+        # Restore Pre-trained Actor Motivated by Knowledge-based Intrinsic Motivation
+        self.restore_knowledge_based_intrinsic_actor_model_flag = False
+        self.knowledge_based_intrinsic_actor_model_save_path_and_name = self.models_dir + '/knowledge_based_intrinsic_actor_model.ckpt'
+        self.target_knowledge_based_intrinsic_actor_model_save_path_and_name = self.models_dir + '/target_knowledge_based_intrinsic_actor_model.ckpt'
+        
+        self.knowledge_based_intrinsic_actor_model = ActorNetwork(self.knowledge_based_intrinsic_actor_name,
+                                                                  self.sess,
+                                                                  self.observation_space,
+                                                                  self.action_space,
+                                                                  self.knowledge_based_intrinsic_actor_lr,
+                                                                  self.knowledge_based_intrinsic_actor_tau,
+                                                                  self.minibatch_size,
+                                                                  self.restore_knowledge_based_intrinsic_actor_model_flag,
+                                                                  self.knowledge_based_intrinsic_actor_model_save_path_and_name,
+                                                                  self.target_knowledge_based_intrinsic_actor_model_save_path_and_name)
         # Intrinsically Motivated Critic
+        self.knowledge_based_intrinsic_critic_name = 'knowledge_based_intrinsic_critic_name'
+        self.knowledge_based_intrinsic_critic_lr = critic_lr
+        self.knowledge_based_intrinsic_critic_tau = critic_tau
+        self.knowledge_based_intrinsic_critic_gamma = gamma
+        
+        # Restore Pre-trained Critic Model
+        self.restore_knowledge_based_intrinsic_critic_model_flag = restore_critic_model_flag
+        self.knowledge_based_intrinsic_critic_model_save_path_and_name = self.models_dir + '/knowledge_based_intrinsic_critic_model.ckpt'
+        self.target_knowledge_based_intrinsic_critic_model_save_path_and_name = self.models_dir + '/target_knowledge_based_intrinsic_critic_model.ckpt'
+        
+        self.knowledge_based_intrinsic_critic_model = CriticNetwork(self.knowledge_based_intrinsic_critic_name,
+                                                                    self.sess,
+                                                                    self.observation_space,
+                                                                    self.action_space,
+                                                                    self.knowledge_based_intrinsic_critic_lr,
+                                                                    self.knowledge_based_intrinsic_critic_tau,
+                                                                    self.knowledge_based_intrinsic_critic_gamma,
+                                                                    self.knowledge_based_intrinsic_actor_model.get_num_trainable_vars(),
+                                                                    self.restore_knowledge_based_intrinsic_critic_model_flag,
+                                                                    self.knowledge_based_intrinsic_critic_model_save_path_and_name,
+                                                                    self.target_knowledge_based_intrinsic_critic_model_save_path_and_name)
+        # =================================================================== #
+        #                    Initialize Competence-based                      #
+        #               Intrinsically Motivated Actor-Critic Model            #
+        # =================================================================== #
+        # Competence-based Intrinsic Motivation
+        self.competence_based_intrinsic_reward = 0
+        
         
         # =================================================================== #
         #                  Initialize Exploration Strategies                  #
@@ -621,7 +731,9 @@ class LASAgent_Actor_Critic():
         self.exploration_epsilon_greedy_type = exploration_epsilon_greedy_type # 'epsilon-greedy-max_1_min_0.05_decay_0.999'
         self.epsilon_max, self.epsilon_min, self.epsilon_decay = self._init_epsilon_greedy(self.exploration_epsilon_greedy_type)
         self.epsilon = self.epsilon_max
-        # 3. Intrinsic Motivation (for future implementation)
+        # 3. Knowledge-based Intrinsic Motivation (for future implementation)
+        
+        # 4. Competence-based Intrinsic Motivation
         
         # =================================================================== #
         #                Initialize Training Hyper-parameters                 #
@@ -708,21 +820,26 @@ class LASAgent_Actor_Critic():
         # 2. Save Episode Summaries
         self.episode_rewards += self.reward_new
         if self.steps_counter == self.max_episode_len or done == True:
-            #Tracer()()
-            summary_str = self.sess.run(self.summary_ops_accu_rewards,
-                                        feed_dict = {self.summary_vars_accu_rewards: self.episode_rewards})
-            self.writer.add_summary(summary_str,self.episode_counter)
-            self.writer.flush()
-            # Reset Summary Data
-            self.steps_counter = 1
-            self.episode_rewards = 0
-            self.episode_counter += 1
-            
+            """
+            Save Trained Models episodically
+            """
             # Save trained models each episode
             self.actor_model.save_actor_network()
             self.critic_model.save_critic_network()
             # Save Environment Model
             self.environment_model.save_environment_model_network(self.episode_counter)
+            
+            # Episodic Summary
+            summary_str = self.sess.run(self.summary_ops_accu_rewards,
+                                        feed_dict = {self.summary_vars_accu_rewards: self.episode_rewards})
+            self.writer.add_summary(summary_str,self.episode_counter)
+            self.writer.flush()
+            
+            # Reset Summary Data
+            self.steps_counter = 1
+            self.episode_rewards = 0
+            self.episode_counter += 1
+            
         else:
             self.steps_counter += 1
         
