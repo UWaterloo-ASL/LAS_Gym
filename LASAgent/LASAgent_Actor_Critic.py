@@ -45,9 +45,10 @@ class ActorNetwork(object):
 
     def __init__(self, name, sess, observation_space,  action_space,
                  learning_rate, tau, batch_size,
+                 actor_model_save_path = 'results/models',
+                 target_actor_model_save_path = 'results/models',
                  restore_model_flag=False,
-                 actor_model_save_path_and_name = 'results/models/actor_model.ckpt',
-                 target_actor_model_save_path_and_name = 'results/models/target_actor_model.ckpt'):
+                 restore_model_version = 0):
         """
         Parameters
         ----------
@@ -83,23 +84,30 @@ class ActorNetwork(object):
         self.batch_size = batch_size
         
         # Info for load pre-trained actor models
+        self.actor_model_save_path = actor_model_save_path
+        self.target_actor_model_save_path = target_actor_model_save_path
+        
         self.restore_model_flag = restore_model_flag
-        self.actor_model_save_path_and_name = actor_model_save_path_and_name
-        self.target_actor_model_save_path_and_name = target_actor_model_save_path_and_name
+        self.restore_model_version = restore_model_version
+        
         with tf.variable_scope(self.name) as self.scope:
             # Initialize or Restore Actor Network
             self.inputs, self.out, self.scaled_out, self._actor_model = self.create_actor_network()
             if self.restore_model_flag == True:
-                print('restore actor model')
-                self._actor_model.load(self.actor_model_save_path_and_name)
+                temp_name = os.path.join(self.actor_model_save_path,
+                                         self.name + '_' + str(self.restore_model_version)+'.ckpt')
+                self._actor_model.load(temp_name)
+                print('Restored actor model: {}'.format(temp_name))
             
             self.network_params = tf.trainable_variables(scope=self.name)
     
             # Initialize or Restore Target Network
             self.target_inputs, self.target_out, self.target_scaled_out, self._target_actor_model = self.create_actor_network()
             if self.restore_model_flag == True:
-                print('restore target actor model')
-                self._target_actor_model.load(self.target_actor_model_save_path_and_name)
+                temp_name = os.path.join(self.actor_model_save_path,
+                                         self.name + '_target_' + str(self.restore_model_version)+'.ckpt')
+                self._target_actor_model.load(temp_name)
+                print('Restored target actor model: {}'.format(temp_name))
                 
             self.target_network_params = tf.trainable_variables(scope=self.name)[len(self.network_params):]
     
@@ -150,10 +158,12 @@ class ActorNetwork(object):
 
         return inputs, out, scaled_out, model
         
-    def save_actor_network(self):
+    def save_actor_network(self, actor_save_time = 0):
         """save actor and target actor model"""
-        self._actor_model.save(self.actor_model_save_path_and_name)
-        self._target_actor_model.save(self.target_actor_model_save_path_and_name)
+        self._actor_model.save(os.path.join(self.actor_model_save_path,
+                                            self.name + '_' + str(actor_save_time)+'.ckpt'))
+        self._target_actor_model.save(os.path.join(self.target_actor_model_save_path,
+                                                   self.name +'_target_' + str(actor_save_time)+'.ckpt'))
         print('Save actor networks.')
 
     def train(self, inputs, a_gradient):
@@ -190,9 +200,10 @@ class CriticNetwork(object):
 
     def __init__(self, name, sess, observation_space, action_space,
                  learning_rate, tau, gamma,
+                 critic_model_save_path = 'results/models',
+                 target_critic_model_save_path = 'results/models',
                  restore_model_flag=False,
-                 critic_model_save_path_and_name = 'results/models/critic_model.ckpt',
-                 target_critic_model_save_path_and_name = 'results/models/target_critic_model.ckpt'):
+                 restore_model_version = 0):
         """
         Parameters
         ----------
@@ -211,12 +222,15 @@ class CriticNetwork(object):
             hyper-parameter weighting the update of target network
         gamma: float
             discount rate
+        critic_model_save_path: str default = 'results/models'
+            path of critic model we are going to save
+        target_critic_model_save: str default = 'results/models/target_critic_model.ckpt'
+            path of target critic model we are going to save
         restore_model_flag: bool default=False:
             indicator of whether to restore a pre-trained critic network
-        critic_model_save_path_and_name: str default = 'results/models/critic_model.ckpt'
-            path and name of critic model we are going to restore
-        target_critic_model_save_path_and_name: str default = 'results/models/target_critic_model.ckpt'
-            path and name of target critic model we are going to restore
+        restore_model_version: int default = 0
+            if restore model, this parameter gives the number of specific version
+            of models we are going to restore
         """
         # name is necessary, since we will reuse this graph multiple times.
         self.name = name
@@ -227,16 +241,21 @@ class CriticNetwork(object):
         self.tau = tau
         self.gamma = gamma
         
-        # Info for load pre-trained actor models
+        # Info for save and load pre-trained critic models
+        self.critic_model_save_path = critic_model_save_path
+        self.target_critic_model_save_path = target_critic_model_save_path
+        
         self.restore_model_flag = restore_model_flag
-        self.critic_model_save_path_and_name = critic_model_save_path_and_name
-        self.target_critic_model_save_path_and_name = target_critic_model_save_path_and_name
+        self.restore_model_version = restore_model_version
+        
         with tf.variable_scope(self.name) as self.scope:
             # Create the critic network
             self.inputs, self.action, self.out, self._critic_model = self.create_critic_network()
             if self.restore_model_flag == True:
-                print('restore critic model')
-                self._critic_model.load(self.critic_model_save_path_and_name)
+                temp_name = os.path.join(self.critic_model_save_path,
+                                         self.name + '_' + str(self.restore_model_version)+'.ckpt')
+                self._critic_model.load(temp_name)
+                print('Restored critic model: {}'.format(temp_name))
             # We should avoid using tf.trainable_variables(), since it will
             # mix all trainable variables together.
             self.network_params = tf.trainable_variables(scope=self.name)
@@ -244,9 +263,10 @@ class CriticNetwork(object):
             # Target Network
             self.target_inputs, self.target_action, self.target_out, self._target_critic_model = self.create_critic_network()
             if self.restore_model_flag == True:
-                print('restore target critic model')
-                self._target_critic_model.load(self.target_critic_model_save_path_and_name)
-                
+                temp_name = os.path.join(self.critic_model_save_path,
+                                         self.name + '_target_' + str(self.restore_model_version)+'.ckpt')
+                self._target_critic_model.load(temp_name)
+                print('Restore target critic model: {}'.format(temp_name))
             self.target_network_params = tf.trainable_variables(scope=self.name)[len(self.network_params):]
             #Tracer()()
             # Op for periodically updating target network with online network
@@ -295,12 +315,18 @@ class CriticNetwork(object):
         model = DNN(out, tensorboard_verbose = 3)
         return inputs, action, out, model
 
-    def save_critic_network(self):
+    def save_critic_network(self, critic_save_time = 0):
         """
         Function used to save critic and target critic model
+        Parameters
+        ----------
+        critic_save_time: int default = 0
+            the time when save this ciritic and its target critic models.
         """
-        self._critic_model.save(self.critic_model_save_path_and_name)
-        self._target_critic_model.save(self.target_critic_model_save_path_and_name)
+        self._critic_model.save(model_file = os.path.join(self.critic_model_save_path,
+                                                          self.name + '_' + str(critic_save_time)+'.ckpt'))
+        self._target_critic_model.save(model_file = os.path.join(self.target_critic_model_save_path,
+                                                                 self.name + '_target_' + str(critic_save_time)+'.ckpt'))
         print('Save critic networks.')
 
     def train(self, inputs, action, predicted_q_value):
@@ -496,7 +522,11 @@ class EnvironmentModelNetwork(object):
             observation.
         """
         return self.env_model.predict([observation, action])
-
+    def get_environment_model_weights(self):
+        """
+        
+        """
+        return self.env_model.get_weights()
 # ===========================
 #  Intrinsic Motivation Components
 # ===========================
@@ -524,7 +554,6 @@ class KnowledgeBasedIntrinsicMotivationComponent():
             1. load newest environment model
             2. reduce cost of reading disk
         """
-        start = time.time()
         env_model_names = glob.glob(self.env_models_dir+"/env_model_*.ckpt")
         nums_env_models = []
         for i in range(len(env_model_names)):
@@ -534,9 +563,36 @@ class KnowledgeBasedIntrinsicMotivationComponent():
         nums_env_models.sort()
         #total_num_env_models = len(nums_env_models)
         num_newest_env_model = nums_env_models[-1]
-        print('Find the newest env model spend: {}'.format(time.time()-start))
         
-        self.env_models.append(keras.models.load_model(self.env_models_dir+"/env_model_"+ str(num_newest_env_model)+".ckpt"))
+        self.env_models.append(keras.models.load_model(os.path.join(self.env_models_dir,
+                                                                    "env_model_"+ str(num_newest_env_model)+".ckpt")))
+        
+    def set_weights_of_oldest_env_model_with_newest_env_model(self, newest_weights):
+        """
+        Set the weights of oldest env model in self.env_models with the weights
+        of newest environment model.
+        
+        This function is used after self.env_models is fully filled with env 
+        models.
+        
+        Parameters
+        ----------
+        newest_weights: a list of all weight tensors in the model, as Numpy arrays
+            env_model.get_weights()
+        """
+        if len(self.env_models) == 0:
+            print('self.env_models is empty. Loading from disk ...')
+            self.load_env_models_from_disk()
+        elif len(self.env_models) != self.sliding_window_size:
+            print('Adding new env model ...')
+            temp_env_model = self.env_models[0]
+            temp_env_model.set_weights(newest_weights)
+            self.env_models.append(temp_env_model)
+        else:
+            print('Updating oldest env model to newest ...')
+            oldest_env_model = self.env_models.popleft()
+            oldest_env_model.set_weights(newest_weights)
+            self.env_models.append(oldest_env_model)
         
     def knowledge_based_intrinsic_reward(self, obs_old, act_old,
                                          r_new, obs_new):
@@ -624,7 +680,8 @@ class LASAgent_Actor_Critic():
                  experiment_runs = 'run1',
                  # Save and Restore Actor-Critic Model
                  restore_actor_model_flag = False,
-                 restore_critic_model_flag = False):
+                 restore_critic_model_flag = False,
+                 restore_model_version = 0):
         """
         Intialize LASAgent.
         
@@ -695,6 +752,21 @@ class LASAgent_Actor_Critic():
         self.reward_new = []
         self.observation_new = []
         # =================================================================== #
+        #                Initialize Global Hyper-parameters                   #
+        # =================================================================== #        
+        self.max_episodes = max_episodes
+        self.max_episode_len = max_episode_len
+        self.episode_counter = 1
+        self.steps_counter = 1      # Steps elapsed in one episode
+        self.total_step_counter = 1 # Steps elapsed in whole life
+        self.render_env = False
+        # Save trained models every 5 episodes (saving to disk is very 
+        # time-consuming, so we shouldn't save models so frequently.)
+        # If physical system run in 2Hz and each episode = 1000 steps,
+        # each episode takes 9 mins, we save models every 45 mins is enough
+        # if we need to shut down every one hour.
+        self.save_actor_critic_models_every_xxx_episodes = 5
+        # =================================================================== #
         #                 Initialize Replay Buffers for                       #
         #         Extrinsic and Intrinsic Policy, and Environment Model        #
         # =================================================================== #         
@@ -736,7 +808,7 @@ class LASAgent_Actor_Critic():
         #      Initialize Parameters for Both Actor and Critic Model          #
         # =================================================================== #        
         self.minibatch_size = 64
-        # Common Saving Directory
+        # Common Saving Directory (we should use os.path.join(), change to it later)
         self.models_dir = save_dir + 'models/' + experiment_runs
         if not os.path.exists(self.models_dir):
             os.makedirs(self.models_dir)
@@ -746,43 +818,49 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         # Extrinsically Motivated Actor
         self.extrinsically_motivated_actor_name = 'extrinsically_motivated_actor_name'
-        self.actor_lr = actor_lr
-        self.actor_tau = actor_tau
+        self.extrinsic_actor_lr = actor_lr
+        self.extrinsic_actor_tau = actor_tau
         # Restore Pre-trained Actor Modles
-        self.restore_actor_model_flag = restore_actor_model_flag
-        self.actor_model_save_path_and_name = self.models_dir + '/actor_model.ckpt'
-        self.target_actor_model_save_path_and_name = self.models_dir + '/target_actor_model.ckpt'
+        self.extrinsic_actor_model_save_path = self.models_dir
+        self.target_extrinsic_actor_model_save_path = self.models_dir
         
-        self.actor_model = ActorNetwork(self.extrinsically_motivated_actor_name,
+        self.restore_extrinsic_actor_model_flag = restore_actor_model_flag
+        self.restore_extrinsic_actor_model_version = restore_model_version
+        
+        self.extrinsic_actor_model = ActorNetwork(self.extrinsically_motivated_actor_name,
                                         self.sess, 
                                         self.observation_space, 
                                         self.action_space,
-                                        self.actor_lr, 
-                                        self.actor_tau,
+                                        self.extrinsic_actor_lr, 
+                                        self.extrinsic_actor_tau,
                                         self.minibatch_size,
-                                        self.restore_actor_model_flag,
-                                        self.actor_model_save_path_and_name,
-                                        self.target_actor_model_save_path_and_name)
+                                        self.extrinsic_actor_model_save_path,
+                                        self.target_extrinsic_actor_model_save_path,
+                                        self.restore_extrinsic_actor_model_flag,
+                                        self.restore_extrinsic_actor_model_version)
         # Extrinsically Motivated Critic
         self.extrinsically_motivated_critic_name = 'extrinsically_motivated_critic_name'
-        self.critic_lr = critic_lr
-        self.critic_tau = critic_tau
-        self.gamma = gamma
+        self.extrinsic_critic_lr = critic_lr
+        self.extrinsic_critic_tau = critic_tau
+        self.extrinsic_gamma = gamma
         # Restore Pre-trained Critic Model
-        self.restore_critic_model_flag = restore_critic_model_flag
-        self.critic_model_save_path_and_name = self.models_dir + '/critic_model.ckpt'
-        self.target_critic_model_save_path_and_name = self.models_dir + '/target_critic_model.ckpt'
+        self.extrinsic_critic_model_save_path = self.models_dir
+        self.target_extrinsic_critic_model_save_path = self.models_dir
         
-        self.critic_model = CriticNetwork(self.extrinsically_motivated_critic_name,
+        self.restore_extrinsic_critic_model_flag = restore_critic_model_flag
+        self.restore_extrinsic_critic_model_version = restore_model_version
+        
+        self.extrinsic_critic_model = CriticNetwork(self.extrinsically_motivated_critic_name,
                                           self.sess,
                                           self.observation_space,
                                           self.action_space,
-                                          self.critic_lr,
-                                          self.critic_tau,
-                                          self.gamma,
-                                          self.restore_critic_model_flag,
-                                          self.critic_model_save_path_and_name,
-                                          self.target_critic_model_save_path_and_name)
+                                          self.extrinsic_critic_lr,
+                                          self.extrinsic_critic_tau,
+                                          self.extrinsic_gamma,
+                                          self.extrinsic_critic_model_save_path,
+                                          self.target_extrinsic_critic_model_save_path,
+                                          self.restore_extrinsic_critic_model_flag,
+                                          self.restore_extrinsic_critic_model_version)
         # =================================================================== #
         #                     Initialize Environment Model                    #
         # =================================================================== #
@@ -790,7 +868,7 @@ class LASAgent_Actor_Critic():
         self.env_model_lr = 0.0001
         self.env_model_minibatch_size = 200
         self.env_model_save_path = self.models_dir
-        self.save_env_model_every_xxx_steps = 500
+        self.save_env_model_every_xxx_episodes = 5
         self.saved_env_model_counter = 0
         self.env_restore_flag = False
         self.env_model_restore_path_and_name = 'results/models/env_model.ckpt'
@@ -802,6 +880,10 @@ class LASAgent_Actor_Critic():
                                                          self.env_model_save_path,
                                                          self.env_restore_flag,
                                                          self.env_model_restore_path_and_name)
+        # Immediately save one env model to allow knowledge-based intrinsic
+        # motivation to know the structure of environment model.
+        self.saved_env_model_counter += 1
+        self.environment_model.save_environment_model_network(self.saved_env_model_counter)
         # =================================================================== #
         #                     Initialize Knowledge-based                      #
         #               Intrinsically Motivated Actor-Critic Model            #
@@ -810,17 +892,20 @@ class LASAgent_Actor_Critic():
         self.knowledge_based_intrinsic_reward = 0
         # Note; actual window size = sliding window size * save_env_model_every_xxx_steps
         self.knowledge_based_intrinsic_reward_sliding_window_size = 4 
+        self.update_newest_env_model_every_xxx_steps = 200
         self.knowledge_based_intrinsic_motivation_model = KnowledgeBasedIntrinsicMotivationComponent(self.models_dir,
                                                                                                      self.knowledge_based_intrinsic_reward_sliding_window_size)
-        
         # Intrinsically Motivated Actor
         self.knowledge_based_intrinsic_actor_name = 'knowledge_based_intrinsic_actor_name'
         self.knowledge_based_intrinsic_actor_lr = actor_lr
         self.knowledge_based_intrinsic_actor_tau = actor_tau
         # Restore Pre-trained Actor Motivated by Knowledge-based Intrinsic Motivation
+        
+        self.knowledge_based_intrinsic_actor_model_save_path = self.models_dir
+        self.target_knowledge_based_intrinsic_actor_model_save_path = self.models_dir
+        
         self.restore_knowledge_based_intrinsic_actor_model_flag = False
-        self.knowledge_based_intrinsic_actor_model_save_path_and_name = self.models_dir + '/knowledge_based_intrinsic_actor_model.ckpt'
-        self.target_knowledge_based_intrinsic_actor_model_save_path_and_name = self.models_dir + '/target_knowledge_based_intrinsic_actor_model.ckpt'
+        self.restore_knowledge_based_intrinsic_actor_model_version = restore_model_version
         
         self.knowledge_based_intrinsic_actor_model = ActorNetwork(self.knowledge_based_intrinsic_actor_name,
                                                                   self.sess,
@@ -829,9 +914,10 @@ class LASAgent_Actor_Critic():
                                                                   self.knowledge_based_intrinsic_actor_lr,
                                                                   self.knowledge_based_intrinsic_actor_tau,
                                                                   self.minibatch_size,
+                                                                  self.knowledge_based_intrinsic_actor_model_save_path,
+                                                                  self.target_knowledge_based_intrinsic_actor_model_save_path,
                                                                   self.restore_knowledge_based_intrinsic_actor_model_flag,
-                                                                  self.knowledge_based_intrinsic_actor_model_save_path_and_name,
-                                                                  self.target_knowledge_based_intrinsic_actor_model_save_path_and_name)
+                                                                  self.restore_knowledge_based_intrinsic_actor_model_version)
         # Intrinsically Motivated Critic
         self.knowledge_based_intrinsic_critic_name = 'knowledge_based_intrinsic_critic_name'
         self.knowledge_based_intrinsic_critic_lr = critic_lr
@@ -839,9 +925,12 @@ class LASAgent_Actor_Critic():
         self.knowledge_based_intrinsic_critic_gamma = gamma
         
         # Restore Pre-trained Critic Model
+        
+        self.knowledge_based_intrinsic_critic_model_save_path = self.models_dir
+        self.target_knowledge_based_intrinsic_critic_model_save_path = self.models_dir
+        
         self.restore_knowledge_based_intrinsic_critic_model_flag = restore_critic_model_flag
-        self.knowledge_based_intrinsic_critic_model_save_path_and_name = self.models_dir + '/knowledge_based_intrinsic_critic_model.ckpt'
-        self.target_knowledge_based_intrinsic_critic_model_save_path_and_name = self.models_dir + '/target_knowledge_based_intrinsic_critic_model.ckpt'
+        self.restore_knowledge_based_intrinsic_critic_model_version = restore_model_version
         
         self.knowledge_based_intrinsic_critic_model = CriticNetwork(self.knowledge_based_intrinsic_critic_name,
                                                                     self.sess,
@@ -850,9 +939,10 @@ class LASAgent_Actor_Critic():
                                                                     self.knowledge_based_intrinsic_critic_lr,
                                                                     self.knowledge_based_intrinsic_critic_tau,
                                                                     self.knowledge_based_intrinsic_critic_gamma,
+                                                                    self.knowledge_based_intrinsic_critic_model_save_path,
+                                                                    self.target_knowledge_based_intrinsic_critic_model_save_path,
                                                                     self.restore_knowledge_based_intrinsic_critic_model_flag,
-                                                                    self.knowledge_based_intrinsic_critic_model_save_path_and_name,
-                                                                    self.target_knowledge_based_intrinsic_critic_model_save_path_and_name)
+                                                                    self.restore_knowledge_based_intrinsic_critic_model_version)
         # =================================================================== #
         #                    Initialize Competence-based                      #
         #               Intrinsically Motivated Actor-Critic Model            #
@@ -875,15 +965,7 @@ class LASAgent_Actor_Critic():
         
         # 4. Competence-based Intrinsic Motivation
         
-        # =================================================================== #
-        #                Initialize Training Hyper-parameters                 #
-        # =================================================================== #        
-        self.max_episodes = max_episodes
-        self.max_episode_len = max_episode_len
-        self.episode_counter = 1
-        self.steps_counter = 1      # Steps elapsed in one episode
-        self.total_step_counter = 1 # Steps elapsed in whole life
-        self.render_env = False
+        
         # =================================================================== #
         #                       Initialize Summary Ops                        #
         # =================================================================== #        
@@ -907,8 +989,8 @@ class LASAgent_Actor_Critic():
         #                    Initialize Tranable Variables                    #
         # =================================================================== #        
         self.sess.run(tf.global_variables_initializer()) # Make sure to initialze tensors before use
-        self.actor_model.update_target_network()
-        self.critic_model.update_target_network()
+        self.extrinsic_actor_model.update_target_network()
+        self.extrinsic_critic_model.update_target_network()
 
 # =================================================================== #
 #                       Main Interaction Functions                    #
@@ -966,10 +1048,15 @@ class LASAgent_Actor_Critic():
             """
             Save Trained Models episodically
             """
-            # Save trained models each episode
-            self.actor_model.save_actor_network()
-            self.critic_model.save_critic_network()
-            
+            # Save trained models every xxx_episodes 
+            if self.episode_counter % self.save_actor_critic_models_every_xxx_episodes == 0:
+                self.extrinsic_actor_model.save_actor_network(self.episode_counter)
+                self.extrinsic_critic_model.save_critic_network(self.episode_counter)
+            # Save Environment Model to disk every "xxx_episodes"
+            if (self.episode_counter % self.save_env_model_every_xxx_episodes) == 0:
+                self.saved_env_model_counter += 1
+                self.environment_model.save_environment_model_network(self.saved_env_model_counter)
+                print('Saved {}th environment model.'.format(self.saved_env_model_counter))
             
             # Episodic Summary
             summary_str = self.sess.run(self.summary_ops_accu_rewards,
@@ -989,38 +1076,38 @@ class LASAgent_Actor_Critic():
         #        Remember Experiences         #
         # *********************************** #
         # 1. Extrinsic Policy Replay Buffer
-        self.replay_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
-                               np.reshape(self.action_old, (self.actor_model.a_dim,)),
+        self.replay_buffer.add(np.reshape(self.observation_old, (self.extrinsic_actor_model.s_dim,)),
+                               np.reshape(self.action_old, (self.extrinsic_actor_model.a_dim,)),
                                self.reward_new,
                                self.done,
-                               np.reshape(self.observation_new, (self.actor_model.s_dim,)))
+                               np.reshape(self.observation_new, (self.extrinsic_actor_model.s_dim,)))
         # 2. Environment Model Replay Buffer
         if np.random.rand(1) <= self.env_model_buffer_test_ratio:
-            self.env_model_test_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
-                                           np.reshape(self.action_old, (self.actor_model.a_dim,)),
+            self.env_model_test_buffer.add(np.reshape(self.observation_old, (self.extrinsic_actor_model.s_dim,)),
+                                           np.reshape(self.action_old, (self.extrinsic_actor_model.a_dim,)),
                                            self.reward_new,
                                            self.done,
-                                           np.reshape(self.observation_new, (self.actor_model.s_dim,)))
+                                           np.reshape(self.observation_new, (self.extrinsic_actor_model.s_dim,)))
         else:
-            self.env_model_train_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
-                                            np.reshape(self.action_old, (self.actor_model.a_dim,)),
+            self.env_model_train_buffer.add(np.reshape(self.observation_old, (self.extrinsic_actor_model.s_dim,)),
+                                            np.reshape(self.action_old, (self.extrinsic_actor_model.a_dim,)),
                                             self.reward_new,
                                             self.done,
-                                            np.reshape(self.observation_new, (self.actor_model.s_dim,)))
+                                            np.reshape(self.observation_new, (self.extrinsic_actor_model.s_dim,)))
         # 3. Intrinsc Policy Replay Buffer
         #    The Learning Progress plays the role of intrinsic reward
         #    a. knowledge-based intirnsic motivation
         # number of env models in knowledge_based_intrinsic_motivation_model >= sliding window size
         if len(self.knowledge_based_intrinsic_motivation_model.env_models) == self.knowledge_based_intrinsic_reward_sliding_window_size:
-            self.k_based_intrinsic_r = self.knowledge_based_intrinsic_motivation_model.knowledge_based_intrinsic_reward(np.reshape(self.observation_old, (1,self.actor_model.s_dim)),
-                                                                                                                        np.reshape(self.action_old, (1,self.actor_model.a_dim)),
+            self.k_based_intrinsic_r = self.knowledge_based_intrinsic_motivation_model.knowledge_based_intrinsic_reward(np.reshape(self.observation_old, (1,self.extrinsic_actor_model.s_dim)),
+                                                                                                                        np.reshape(self.action_old, (1,self.extrinsic_actor_model.a_dim)),
                                                                                                                         np.reshape(self.reward_new, (1,1)),
-                                                                                                                        np.reshape(self.observation_new, (1,self.actor_model.s_dim)))
-            self.knowledge_based_intrinsic_policy_replay_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
-                                                                np.reshape(self.action_old, (self.actor_model.a_dim,)),
+                                                                                                                        np.reshape(self.observation_new, (1,self.extrinsic_actor_model.s_dim)))
+            self.knowledge_based_intrinsic_policy_replay_buffer.add(np.reshape(self.observation_old, (self.extrinsic_actor_model.s_dim,)),
+                                                                np.reshape(self.action_old, (self.extrinsic_actor_model.a_dim,)),
                                                                 self.k_based_intrinsic_r,
                                                                 self.done,
-                                                                np.reshape(self.observation_new, (self.actor_model.s_dim,)))
+                                                                np.reshape(self.observation_new, (self.extrinsic_actor_model.s_dim,)))
             # Summarize Knowledge-based Intrinsic Reward
             sum_str = self.sess.run(self.summary_ops_kb_reward,
                                     feed_dict={self.sum_kb_reward:self.k_based_intrinsic_r})
@@ -1053,9 +1140,9 @@ class LASAgent_Actor_Critic():
                 return action
         # Action Noise
         if self.exploration_action_noise_type != 'none':
-            action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim))) + self.actor_noise() #The noise is too huge.
+            action = self.extrinsic_actor_model.predict(np.reshape(self.observation_new, (1, self.extrinsic_actor_model.s_dim))) + self.actor_noise() #The noise is too huge.
         else:
-            action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim)))
+            action = self.extrinsic_actor_model.predict(np.reshape(self.observation_new, (1, self.extrinsic_actor_model.s_dim)))
         
         return action
     
@@ -1065,63 +1152,56 @@ class LASAgent_Actor_Critic():
         """
         # Keep adding experience to the memory until
         # there are at least minibatch size samples
-        # *********************************** # 
-        #        Train Actor-Critic Model     #
-        # *********************************** #
+        # ************************************************** # 
+        #  Train Extrinsically Motivated Actor-Critic Model  #
+        # ************************************************** #
         if self.replay_buffer.size() > self.minibatch_size:
-            
+            # Random Samples
             s_batch, a_batch, r_batch, t_batch, s2_batch = \
                 self.replay_buffer.sample_batch(int(self.minibatch_size))
-
+            # Prioritized Samples
+            
             # Calculate targets
-            target_q = self.critic_model.predict_target(
-                s2_batch, self.actor_model.predict_target(s2_batch))
+            target_q = self.extrinsic_critic_model.predict_target(
+                s2_batch, self.extrinsic_actor_model.predict_target(s2_batch))
 
             y_i = []
             for k in range(int(self.minibatch_size)):
                 if t_batch[k]:
                     y_i.append(r_batch[k])
                 else:
-                    y_i.append(r_batch[k] + self.critic_model.gamma * target_q[k])
+                    y_i.append(r_batch[k] + self.extrinsic_critic_model.gamma * target_q[k])
 
             # Update the critic given the targets
-            predicted_q_value, _ = self.critic_model.train(
+            predicted_q_value, _ = self.extrinsic_critic_model.train(
                 s_batch, a_batch, np.reshape(y_i, (int(self.minibatch_size), 1)))
             
             # Update the actor policy using the sampled gradient
-            a_outs = self.actor_model.predict(s_batch)
-            grads = self.critic_model.action_gradients(s_batch, a_outs)
-            self.actor_model.train(s_batch, grads[0])
+            a_outs = self.extrinsic_actor_model.predict(s_batch)
+            grads = self.extrinsic_critic_model.action_gradients(s_batch, a_outs)
+            self.extrinsic_actor_model.train(s_batch, grads[0])
 
             # Update target networks
-            self.actor_model.update_target_network()
-            self.critic_model.update_target_network()
-        # *********************************** # 
-        #        Train Environment Model      #
-        # *********************************** #
+            self.extrinsic_actor_model.update_target_network()
+            self.extrinsic_critic_model.update_target_network()
+        # ************************************************** # 
+        #               Train Environment Model              #
+        # ************************************************** #
         if self.env_model_train_buffer.size() > self.env_model_minibatch_size:
-            #Tracer()()
+            # Train env model every step
             s_batch, a_batch, r_batch, t_batch, s2_batch = self.env_model_train_buffer.sample_batch(int(self.env_model_minibatch_size))
             self.environment_model.train(s_batch,
                                          a_batch,
                                          s2_batch,
                                          np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
-            if (self.total_step_counter % self.save_env_model_every_xxx_steps) == 0:
-                # Save Environment Model
-                # To maintain fast speed, we should keep env models in memory,
-                # Rather than save and load through disk.
-                self.saved_env_model_counter += 1
-                self.environment_model.save_environment_model_network(self.saved_env_model_counter)
-                print('Saved {}th environment model.'.format(self.saved_env_model_counter))
+            # Every "update_newest_env_model_every_xxx_steps" steps, replace the
+            # oldeest env model in knowledge-based intrinsic motiavtion compoent
+            # with the newest env model.
+            if (self.total_step_counter % self.update_newest_env_model_every_xxx_steps) == 0: 
+                newest_env_weights = self.environment_model.get_environment_model_weights()
+                self.knowledge_based_intrinsic_motivation_model.set_weights_of_oldest_env_model_with_newest_env_model(newest_env_weights)
                 
-                # Everytime save a new env model, load the newest env models 
-                # to intrinsic motivation model.
-                print('Loading env model to Knowledge-based Intrinsic Motivation Model...')
-                start = time.time()
-                self.knowledge_based_intrinsic_motivation_model.load_env_models_from_disk()
-                print('Load done. Spend:{}s.'.format(time.time()-start))
-                
-            # evaluate on test buffer
+            # Evaluate on test buffer every step
             if self.env_model_test_buffer.size() > 0:
                 s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test =\
                         self.env_model_test_buffer.sample_batch(int(self.env_model_test_buffer.size()))
@@ -1133,9 +1213,9 @@ class LASAgent_Actor_Critic():
                 summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
                                                      feed_dict = {self.summary_env_loss: env_loss})
                 self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
-        # ************************************************************************* # 
-        #     Train Knowledge-based Intrinsically Motivated Actor-Critic Model      #
-        # ************************************************************************* #
+        # ********************************************************************* # 
+        #  Train Knowledge-based Intrinsically Motivated Actor-Critic Model     #
+        # ********************************************************************* #
         
 # =================================================================== #
 #                 Intrinsic Motivation Components                     #
