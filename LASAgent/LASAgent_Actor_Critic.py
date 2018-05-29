@@ -21,6 +21,7 @@ from tflearn.models.dnn import DNN
 import argparse
 import pprint as pp
 from collections import deque
+import time
 
 from IPython.core.debugger import Tracer
 
@@ -188,14 +189,34 @@ class CriticNetwork(object):
     """
 
     def __init__(self, name, sess, observation_space, action_space,
-                 learning_rate, tau, gamma, num_actor_vars,
+                 learning_rate, tau, gamma,
                  restore_model_flag=False,
                  critic_model_save_path_and_name = 'results/models/critic_model.ckpt',
                  target_critic_model_save_path_and_name = 'results/models/target_critic_model.ckpt'):
         """
         Parameters
         ----------
-        
+        name: str
+            The name of this cirtic network. Giving a name to object of CriticNetwork
+            is necessary to avoid messing up trainable variables together.
+        sess: tf.Session
+            tf.Session to run computational graph
+        observation_space: gym.spaces.Box
+            observation space of environment
+        action_space: gym.spaces.Box
+            action space of environment
+        learning_rate: float
+            learning rate to train CriticNetwork
+        tau: float
+            hyper-parameter weighting the update of target network
+        gamma: float
+            discount rate
+        restore_model_flag: bool default=False:
+            indicator of whether to restore a pre-trained critic network
+        critic_model_save_path_and_name: str default = 'results/models/critic_model.ckpt'
+            path and name of critic model we are going to restore
+        target_critic_model_save_path_and_name: str default = 'results/models/target_critic_model.ckpt'
+            path and name of target critic model we are going to restore
         """
         # name is necessary, since we will reuse this graph multiple times.
         self.name = name
@@ -313,6 +334,11 @@ class CriticNetwork(object):
 #   Environment Model DNNs
 # ===========================
 class EnvironmentModelNetwork(object):
+    """
+    Environment Model is to learn the state trasition dynamics. Specifically,
+    it learns the maping:
+        from (observation_t, action_t) to (observation_t+1, reward_t)
+    """
     def __init__(self, name, sess, observation_space, action_space,
                  learning_rate = 0.0001,
                  # Save Environment Model
@@ -471,12 +497,120 @@ class EnvironmentModelNetwork(object):
         """
         return self.env_model.predict([observation, action])
 
+# ===========================
+#  Intrinsic Motivation Components
+# ===========================
+class KnowledgeBasedIntrinsicMotivationComponent():
+    def __init__(self, env_models_dir, sliding_window_size):
+        """
+        Parameters
+        ----------
+        env_models_dir: str
+            the directory where environment models are saved in.
+        sliding_window_size: int
+            the size of sliding window
+        """
+        self.env_models_dir = env_models_dir
+        
+        if int(sliding_window_size) < 2:
+            raise ValueError("sliding_window_size should be an int >= 2")
+        self.sliding_window_size = sliding_window_size
+        self.env_models = deque(maxlen=self.sliding_window_size)
+        
+    def load_env_models_from_disk(self):
+        """
+        Call when new environment model is saved, rather than calculate 
+        knowledge-based intrinsic motivation, to:
+            1. load newest environment model
+            2. reduce cost of reading disk
+        """
+        start = time.time()
+        env_model_names = glob.glob(self.env_models_dir+"/env_model_*.ckpt")
+        nums_env_models = []
+        for i in range(len(env_model_names)):
+            model_num, _ = env_model_names[i].split('env_model_')[1].split('.ckpt')
+            nums_env_models.append(int(model_num))
+        
+        nums_env_models.sort()
+        #total_num_env_models = len(nums_env_models)
+        num_newest_env_model = nums_env_models[-1]
+        print('Find the newest env model spend: {}'.format(time.time()-start))
+        
+        self.env_models.append(keras.models.load_model(self.env_models_dir+"/env_model_"+ str(num_newest_env_model)+".ckpt"))
+        
+    def knowledge_based_intrinsic_reward(self, obs_old, act_old,
+                                         r_new, obs_new):
+        """
+        Calculate knowledge-based intrinsic motivation.
+        Called every step.
+        
+        Parameters
+        ----------
+        obs_old: ndarray
+            observation at time step t
+        act_old:
+            action at time step t
+        r_new:
+            reward at time stem t
+        obs_new:
+            observation at time step t+1
+            
+        Returns
+        -------
+        knowledge_based_intrinsic_reward: float
+            knowledge based intrinsic rewward
+        """
+        if len(self.env_models) != self.sliding_window_size:
+            raise ValueError('self.env_models) != self.sliding_window_size')
+        
+        # Calculate Learning Progress
+        first_half_window = int(self.sliding_window_size/2)
+        first_half_mse = 0
+        second_half_mse = 0
+        for i in range(self.sliding_window_size):
+            prediction = self.env_models[i].predict([obs_old, act_old])
+            obs_error = obs_new - prediction[0]
+            r_error = r_new - prediction[1]
+            pred_error = np.concatenate((obs_error, r_error), axis = 1)
+            mse = np.mean(pred_error ** 2)
+            if i <= first_half_window:
+                first_half_mse += mse
+            else:
+                second_half_mse += mse
+        learning_progress = abs(first_half_mse - second_half_mse) / self.sliding_window_size
+        
+        return learning_progress
+        
+    def visualize_knowledge_based_intrinsic_motivation(self, intrinsically_motivated_actor,
+                                                       intrinsically_motivated_critic):
+        """
+        visualize intrinsic motivation using T-SNE.
+        Our data has the form:
+            action = Actor(observation)
+            interest = Critic(observation, action)
+        Parameters
+        ----------
+        intrinsically_motivated_actor:
+            
+        intrinsically_motivated_critic:
+            
+        """
 
 # ===========================
 #   Living Architecture System Agent
 # ===========================
 
 class LASAgent_Actor_Critic():
+    """
+    LASAgent is the learning agent of Living Architecture System. Basically, it
+    consists of three main components coding policies and value-functions:
+        1. Extrinsically motivated actor-critic model
+        2. Knowledge-based Intrinsically motivated actor-critic model
+        3. Competence-based Intrinsically motivated actor-critic model
+    And two main components producing intrinsic motivation
+        1. Knowledge-based intrinsic motivation
+        2. Competence-based intrinsic motivation
+    """
     def __init__(self, sess, env,
                  actor_lr = 0.0001, actor_tau = 0.001,
                  critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
@@ -584,13 +718,20 @@ class LASAgent_Actor_Critic():
         #    training environment. Note that this test set should not have too
         #    much past experiences either too much recent experiences.
         self.env_model_test_buffer_size = 100000
+        self.env_model_test_samples_size = 1000
         self.env_model_test_buffer = ReplayBuffer(self.env_model_test_buffer_size, self.random_seed)
-        # ********************************************* #
-        #        Replay Buffer for Intrinsic Policy     #
-        # ********************************************* #
-        self.intrinsic_policy_buffer_size = 1000000
-        self.intrinsic_policy_replay_buffer = ReplayBuffer(self.intrinsic_policy_buffer_size, self.random_seed)
-        
+        # ****************************************************** #
+        #   Replay Buffer for Knowledge-based Intrinsic Policy   #
+        # ****************************************************** #
+        self.knowledge_based_intrinsic_policy_buffer_size = 1000000
+        self.knowledge_based_intrinsic_policy_replay_buffer = ReplayBuffer(self.knowledge_based_intrinsic_policy_buffer_size,
+                                                                           self.random_seed)
+        # ****************************************************** #
+        #   Replay Buffer for Competence-based Intrinsic Policy  #
+        # ****************************************************** #
+        self.competence_based_intrinsic_policy_buffer_size = 1000000
+        self.competence_based_intrinsic_policy_replay_buffer = ReplayBuffer(self.competence_based_intrinsic_policy_buffer_size,
+                                                                            self.random_seed)
         # =================================================================== #
         #      Initialize Parameters for Both Actor and Critic Model          #
         # =================================================================== #        
@@ -639,7 +780,6 @@ class LASAgent_Actor_Critic():
                                           self.critic_lr,
                                           self.critic_tau,
                                           self.gamma,
-                                          self.actor_model.get_num_trainable_vars(),
                                           self.restore_critic_model_flag,
                                           self.critic_model_save_path_and_name,
                                           self.target_critic_model_save_path_and_name)
@@ -650,6 +790,8 @@ class LASAgent_Actor_Critic():
         self.env_model_lr = 0.0001
         self.env_model_minibatch_size = 200
         self.env_model_save_path = self.models_dir
+        self.save_env_model_every_xxx_steps = 500
+        self.saved_env_model_counter = 0
         self.env_restore_flag = False
         self.env_model_restore_path_and_name = 'results/models/env_model.ckpt'
         self.environment_model = EnvironmentModelNetwork(self.environment_model_name,
@@ -664,14 +806,13 @@ class LASAgent_Actor_Critic():
         #                     Initialize Knowledge-based                      #
         #               Intrinsically Motivated Actor-Critic Model            #
         # =================================================================== #
-        # Initialize Intrinsic Motivation Component
-        # Get Save Env Models' Name
-        self.env_model_names = glob.glob(self.models_dir+"/env_model_*.ckpt")
-        self.num_env_models = len(self.env_model_names)
-        
-        # Knowledge-based Intrinsic Motivation
+        # Initialize Knowledge-based Intrinsic Motivation Component
         self.knowledge_based_intrinsic_reward = 0
-
+        # Note; actual window size = sliding window size * save_env_model_every_xxx_steps
+        self.knowledge_based_intrinsic_reward_sliding_window_size = 4 
+        self.knowledge_based_intrinsic_motivation_model = KnowledgeBasedIntrinsicMotivationComponent(self.models_dir,
+                                                                                                     self.knowledge_based_intrinsic_reward_sliding_window_size)
+        
         # Intrinsically Motivated Actor
         self.knowledge_based_intrinsic_actor_name = 'knowledge_based_intrinsic_actor_name'
         self.knowledge_based_intrinsic_actor_lr = actor_lr
@@ -709,7 +850,6 @@ class LASAgent_Actor_Critic():
                                                                     self.knowledge_based_intrinsic_critic_lr,
                                                                     self.knowledge_based_intrinsic_critic_tau,
                                                                     self.knowledge_based_intrinsic_critic_gamma,
-                                                                    self.knowledge_based_intrinsic_actor_model.get_num_trainable_vars(),
                                                                     self.restore_knowledge_based_intrinsic_critic_model_flag,
                                                                     self.knowledge_based_intrinsic_critic_model_save_path_and_name,
                                                                     self.target_knowledge_based_intrinsic_critic_model_save_path_and_name)
@@ -750,16 +890,19 @@ class LASAgent_Actor_Critic():
         self.save_dir = save_dir
         self.experiment_runs = experiment_runs
         self.episode_rewards = 0
+        # Summarize Extrinsically Motivated Actor-Critic Training
         self.summary_ops_accu_rewards, self.summary_vars_accu_rewards = self._init_summarize_accumulated_rewards()
         self.summary_ops_action_reward, self.summary_action, self.summary_reward = self._init_summarize_action_and_reward()
         self.writer = tf.summary.FileWriter(self.save_dir+'summary/'+self.experiment_runs, self.sess.graph)
+        # Summarize Knowledge-based Intrinsic Motivation Component
+        self.summary_ops_kb_reward, self.sum_kb_reward = self._init_summarize_knowledge_based_intrinsic_reward()
+        # Summarize Environment Model Training
+        self.summary_ops_env_loss, self.summary_env_loss = self._init_summarize_environment_model()
         # Summarize Experiment Setting
         self.summary_ops_experiment_setting, self.summary_experiment_setting = self._init_summarize_experiment_setting()
         summary_str_experiment_setting = self.sess.run(self.summary_ops_experiment_setting,
                                                        feed_dict = {self.summary_experiment_setting: self.experiment_setting})
         self.writer.add_summary(summary_str_experiment_setting)
-        # Summarize Environment Model Training
-        self.summary_ops_env_loss, self.summary_env_loss = self._init_summarize_environment_model()
         # =================================================================== #
         #                    Initialize Tranable Variables                    #
         # =================================================================== #        
@@ -826,8 +969,7 @@ class LASAgent_Actor_Critic():
             # Save trained models each episode
             self.actor_model.save_actor_network()
             self.critic_model.save_critic_network()
-            # Save Environment Model
-            self.environment_model.save_environment_model_network(self.episode_counter)
+            
             
             # Episodic Summary
             summary_str = self.sess.run(self.summary_ops_accu_rewards,
@@ -867,7 +1009,23 @@ class LASAgent_Actor_Critic():
                                             np.reshape(self.observation_new, (self.actor_model.s_dim,)))
         # 3. Intrinsc Policy Replay Buffer
         #    The Learning Progress plays the role of intrinsic reward
-        
+        #    a. knowledge-based intirnsic motivation
+        # number of env models in knowledge_based_intrinsic_motivation_model >= sliding window size
+        if len(self.knowledge_based_intrinsic_motivation_model.env_models) == self.knowledge_based_intrinsic_reward_sliding_window_size:
+            self.k_based_intrinsic_r = self.knowledge_based_intrinsic_motivation_model.knowledge_based_intrinsic_reward(np.reshape(self.observation_old, (1,self.actor_model.s_dim)),
+                                                                                                                        np.reshape(self.action_old, (1,self.actor_model.a_dim)),
+                                                                                                                        np.reshape(self.reward_new, (1,1)),
+                                                                                                                        np.reshape(self.observation_new, (1,self.actor_model.s_dim)))
+            self.knowledge_based_intrinsic_policy_replay_buffer.add(np.reshape(self.observation_old, (self.actor_model.s_dim,)),
+                                                                np.reshape(self.action_old, (self.actor_model.a_dim,)),
+                                                                self.k_based_intrinsic_r,
+                                                                self.done,
+                                                                np.reshape(self.observation_new, (self.actor_model.s_dim,)))
+            # Summarize Knowledge-based Intrinsic Reward
+            sum_str = self.sess.run(self.summary_ops_kb_reward,
+                                    feed_dict={self.sum_kb_reward:self.k_based_intrinsic_r})
+            self.writer.add_summary(sum_str, self.total_step_counter)
+        #    b. competence-based intrinsic motivation
         
         
         # *********************************** # 
@@ -900,7 +1058,7 @@ class LASAgent_Actor_Critic():
             action = self.actor_model.predict(np.reshape(self.observation_new, (1, self.actor_model.s_dim)))
         
         return action
- 
+    
     def _train(self):
         """
         Train Actor-Critic Model
@@ -948,6 +1106,21 @@ class LASAgent_Actor_Critic():
                                          a_batch,
                                          s2_batch,
                                          np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
+            if (self.total_step_counter % self.save_env_model_every_xxx_steps) == 0:
+                # Save Environment Model
+                # To maintain fast speed, we should keep env models in memory,
+                # Rather than save and load through disk.
+                self.saved_env_model_counter += 1
+                self.environment_model.save_environment_model_network(self.saved_env_model_counter)
+                print('Saved {}th environment model.'.format(self.saved_env_model_counter))
+                
+                # Everytime save a new env model, load the newest env models 
+                # to intrinsic motivation model.
+                print('Loading env model to Knowledge-based Intrinsic Motivation Model...')
+                start = time.time()
+                self.knowledge_based_intrinsic_motivation_model.load_env_models_from_disk()
+                print('Load done. Spend:{}s.'.format(time.time()-start))
+                
             # evaluate on test buffer
             if self.env_model_test_buffer.size() > 0:
                 s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test =\
@@ -960,7 +1133,23 @@ class LASAgent_Actor_Critic():
                 summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
                                                      feed_dict = {self.summary_env_loss: env_loss})
                 self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
-            
+        # ************************************************************************* # 
+        #     Train Knowledge-based Intrinsically Motivated Actor-Critic Model      #
+        # ************************************************************************* #
+        
+# =================================================================== #
+#                 Intrinsic Motivation Components                     #
+# =================================================================== #
+
+        
+    def competence_based_intrinsic_motivation_component(self):
+        """
+        Returns
+        -------
+        competence_based_intrinsic_reward: float
+        """
+        
+
 
 # =================================================================== #
 #                    Initialization Helper Functions                  #
@@ -1060,7 +1249,7 @@ class LASAgent_Actor_Critic():
         reward = tf.placeholder(tf.float32)
         
         action_sum = tf.summary.histogram("action", action)
-        reward_sum = tf.summary.histogram("reward", reward)
+        reward_sum = tf.summary.scalar("reward", reward)
         
         summary_ops = tf.summary.merge([action_sum, reward_sum])
         return summary_ops, action, reward
@@ -1082,4 +1271,10 @@ class LASAgent_Actor_Critic():
         loss_sum = tf.summary.scalar('loss_env_model', loss)
         loss_sum_op = tf.summary.merge([loss_sum])
         return loss_sum_op, loss
-
+    
+    def _init_summarize_knowledge_based_intrinsic_reward(self):
+        """ """
+        knowledge_based_intrinsic_reward = tf.placeholder(tf.float32)
+        summary = tf.summary.scalar('knowledge_based_intrinsic_reward', knowledge_based_intrinsic_reward)
+        sum_op = tf.summary.merge([summary])
+        return sum_op, knowledge_based_intrinsic_reward
