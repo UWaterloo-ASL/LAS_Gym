@@ -57,7 +57,7 @@ if __name__ == '__main__':
                                          exploration_epsilon_greedy_type = 'none',
                                          # Save Summaries
                                          save_dir = './results/LASAgentActorCritic_5NodesEnv/',
-                                         experiment_runs = 'run1',
+                                         experiment_runs = 'run9',
                                          # Save and Restore Actor-Critic Model
                                          restore_actor_model_flag = False,
                                          restore_critic_model_flag = False)
