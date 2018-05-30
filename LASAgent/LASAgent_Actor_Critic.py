@@ -449,7 +449,7 @@ class EnvironmentModelNetwork(object):
         adam = keras.optimizers.Adam(lr = 0.001)
         model.compile(optimizer = adam, loss = 'mse')
         # Plot Environment Model
-        keras.utils.plot_model(model, to_file = 'actor_model.png',show_shapes=True, show_layer_names=True)
+        #keras.utils.plot_model(model, to_file = 'actor_model.png',show_shapes=True, show_layer_names=True)
         
         return observation_inputs, action_inputs, observation_output, reward_output, model 
     
