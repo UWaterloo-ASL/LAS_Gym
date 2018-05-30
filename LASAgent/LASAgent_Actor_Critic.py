@@ -1202,9 +1202,9 @@ class LASAgent_Actor_Critic():
                 self.knowledge_based_intrinsic_motivation_model.set_weights_of_oldest_env_model_with_newest_env_model(newest_env_weights)
                 
             # Evaluate on test buffer every step
-            if self.env_model_test_buffer.size() > 0:
+            if self.env_model_test_buffer.size() >= self.env_model_test_samples_size:
                 s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test =\
-                        self.env_model_test_buffer.sample_batch(int(self.env_model_test_buffer.size()))
+                        self.env_model_test_buffer.sample_batch(int(self.env_model_test_samples_size))
                 env_loss = self.environment_model.evaluate(s_batch_test,
                                                            a_batch_test,
                                                            s2_batch_test,
