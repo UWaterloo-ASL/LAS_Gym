@@ -487,11 +487,16 @@ class EnvironmentModelNetwork(object):
             array combined of (observation,reward): 
                 observation at time step t+1
                 reward at time step t
+        
+        Returns
+        -------
+        np.sqrt(np.mean(loss)):
+            square root of mean squared error on the test set.
         """
         loss = self.env_model.evaluate(x=[observation_inputs,action_inputs],
                                         y=[observation_output, reward_output],
                                         verbose = 0)
-        return np.mean(loss)
+        return np.sqrt(np.mean(loss))
     
     def save_environment_model_network(self, env_save_time):
         """
