@@ -56,8 +56,8 @@ if __name__ == '__main__':
                                          exploration_action_noise_type = 'ou_0.2',
                                          exploration_epsilon_greedy_type = 'none',
                                          # Save Summaries
-                                         save_dir = './results/LASAgentActorCritic_5NodesEnv/',
-                                         experiment_runs = 'run9',
+                                         save_dir = '../LAS_gym_results/LASAgentActorCritic/',
+                                         experiment_runs = 'run1',
                                          # Save and Restore Actor-Critic Model
                                          restore_actor_model_flag = False,
                                          restore_critic_model_flag = False)
