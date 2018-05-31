@@ -12,8 +12,10 @@ from __future__ import print_function
 import os
 import glob
 import tensorflow as tf
+from tensorflow.contrib.tensorboard.plugins import projector
 from tensorflow import keras
 import numpy as np
+import pandas as pd
 import gym
 from gym import wrappers
 import tflearn
@@ -748,8 +750,10 @@ class LASAgent_Actor_Critic():
         self.sess = sess
         self.env = env
         self.action_space = env.action_space
-        self.observation_space = env.observation_space 
+        self.observation_space = env.observation_space
         
+        self.save_dir = save_dir
+        self.experiment_runs = experiment_runs
         # Temporary Memory
         self.first_experience = True
         self.observation_old = []
@@ -814,7 +818,7 @@ class LASAgent_Actor_Critic():
         # =================================================================== #        
         self.minibatch_size = 64
         # Common Saving Directory (we should use os.path.join(), change to it later)
-        self.models_dir = save_dir + 'models/' + experiment_runs
+        self.models_dir = os.path.join(self.save_dir,'models',self.experiment_runs)
         if not os.path.exists(self.models_dir):
             os.makedirs(self.models_dir)
         
@@ -974,13 +978,15 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                       Initialize Summary Ops                        #
         # =================================================================== #        
-        self.save_dir = save_dir
-        self.experiment_runs = experiment_runs
+
+        self.summary_dir = os.path.join(self.save_dir,'summary',self.experiment_runs)
         self.episode_rewards = 0
+        
+        self.writer = tf.summary.FileWriter(self.summary_dir, self.sess.graph)
+        
         # Summarize Extrinsically Motivated Actor-Critic Training
         self.summary_ops_accu_rewards, self.summary_vars_accu_rewards = self._init_summarize_accumulated_rewards()
         self.summary_ops_action_reward, self.summary_action, self.summary_reward = self._init_summarize_action_and_reward()
-        self.writer = tf.summary.FileWriter(self.save_dir+'summary/'+self.experiment_runs, self.sess.graph)
         # Summarize Knowledge-based Intrinsic Motivation Component
         self.summary_ops_kb_reward, self.sum_kb_reward = self._init_summarize_knowledge_based_intrinsic_reward()
         # Summarize Environment Model Training
@@ -990,6 +996,10 @@ class LASAgent_Actor_Critic():
         summary_str_experiment_setting = self.sess.run(self.summary_ops_experiment_setting,
                                                        feed_dict = {self.summary_experiment_setting: self.experiment_setting})
         self.writer.add_summary(summary_str_experiment_setting)
+        # Initialize hyper-parameters for visualize extrinsic state action value
+        self._init_visualize_extrinsic_actor_critic()
+#        self._init_visualize_extrinsic_state_action_value_function()
+#        self._init_visualize_extrinsic_action_value_given_a_specific_state()
         # =================================================================== #
         #                    Initialize Tranable Variables                    #
         # =================================================================== #        
@@ -1050,9 +1060,9 @@ class LASAgent_Actor_Critic():
         # 2. Save Episode Summaries
         self.episode_rewards += self.reward_new
         if self.steps_counter == self.max_episode_len or done == True:
-            """
-            Save Trained Models episodically
-            """
+            # *********************************** # 
+            #  Save Trained Models episodically   #
+            # *********************************** #
             # Save trained models every xxx_episodes 
             if self.episode_counter % self.save_actor_critic_models_every_xxx_episodes == 0:
                 self.extrinsic_actor_model.save_actor_network(self.episode_counter)
@@ -1062,7 +1072,13 @@ class LASAgent_Actor_Critic():
                 self.saved_env_model_counter += 1
                 self.environment_model.save_environment_model_network(self.saved_env_model_counter)
                 print('Saved {}th environment model.'.format(self.saved_env_model_counter))
-            
+            # Save data for visualize extrinsic state action value
+            if self.episode_counter % self.embedding_extrinsic_state_action_value_episodic_frequency == 0:
+                self.peoriodically_save_extrinsic_state_action_value_embedding(self.episode_counter)
+            # Save data for visualize extrinsic action values given a state
+            if self.episode_counter % self.embedding_extrinsic_action_value_given_a_state_episodic_frequency == 0:
+                self.peoriodically_save_extrinsic_action_value_given_a_state(self.observation_new,
+                                                                         self.episode_counter)
             # Episodic Summary
             summary_str = self.sess.run(self.summary_ops_accu_rewards,
                                         feed_dict = {self.summary_vars_accu_rewards: self.episode_rewards})
@@ -1125,6 +1141,10 @@ class LASAgent_Actor_Critic():
         # *********************************** #
         self._train()
         
+        
+        # *********************************** # 
+        #       Reset Temporary Variables     #
+        # *********************************** #
         # Before return, set observation and action as old.
         self.observation_old = self.observation_new
         self.action_old = action
@@ -1363,3 +1383,177 @@ class LASAgent_Actor_Critic():
         summary = tf.summary.scalar('knowledge_based_intrinsic_reward', knowledge_based_intrinsic_reward)
         sum_op = tf.summary.merge([summary])
         return sum_op, knowledge_based_intrinsic_reward
+# =================================================================== #
+#             Visualize Extrinsic State-Action Value                  #
+# =================================================================== #    
+    def _init_visualize_extrinsic_actor_critic(self):
+        self.embeded_vars_of_extrinsic_actor_critic_file_name = 'embeded_vars_of_extrinsic_actor_critic.ckpt'
+        self.embeded_vars_of_extrinsic_actor_critic_config = projector.ProjectorConfig()
+        """
+        Visualize state-action value of sampled (state,action) pair.
+        """
+        self.embedding_extrinsic_state_action_value_sample_size = 10000
+        # save every 2 episode
+        self.embedding_extrinsic_state_action_value_episodic_frequency = 2 
+        
+        # Generate embeded data: (sample_size, state_dim + action_dim)
+        # Note: embedded data only need to save once, while metadata need to save
+        # several times.
+        act_dim = self.action_space.shape[0]
+        obs_dim = self.observation_space.shape[0]
+        embeded_data = np.zeros((self.embedding_extrinsic_state_action_value_sample_size, obs_dim+act_dim))
+        self.embeded_extrinsic_action_samples = np.zeros((self.embedding_extrinsic_state_action_value_sample_size, act_dim))
+        self.embeded_extrinsic_state_samples = np.zeros((self.embedding_extrinsic_state_action_value_sample_size, obs_dim))
+        for i in range(self.embedding_extrinsic_state_action_value_sample_size):
+            act_sample = self.action_space.sample()
+            obs_sample = self.observation_space.sample()
+            embeded_data[i,:] = np.concatenate((obs_sample,act_sample))
+            self.embeded_extrinsic_action_samples[i,:] = act_sample
+            self.embeded_extrinsic_state_samples[i,:] = obs_sample
+        # Initialize embedding variable
+        self.embedding_extrinsic_state_action_value_var = tf.Variable(embeded_data,
+                                                                      dtype=tf.float32,
+                                                                      name = 'extrinsic_state_action_value')
+        self.sess.run(self.embedding_extrinsic_state_action_value_var.initializer)
+        """ 
+        Visualize state-action value of sampled action given a specific state.
+        """
+        self.embedding_extrinsic_action_value_given_a_state_sample_size = 10000
+        self.embedding_extrinsic_action_value_given_a_state_episodic_frequency = 2
+        
+        # Generate embedding data: (sample_size, action_dim)
+        act_dim = self.action_space.shape[0]
+        self.embeded_extrinsic_action_samples = np.zeros((self.embedding_extrinsic_action_value_given_a_state_sample_size,act_dim))
+        for i in range(self.embedding_extrinsic_action_value_given_a_state_sample_size):
+            self.embeded_extrinsic_action_samples[i,:] = self.action_space.sample()
+        # Initialize embedding variable
+        self.embeded_extrinsic_action_value_given_a_state_var = tf.Variable(self.embeded_extrinsic_action_samples,
+                                                                            dtype = tf.float32,
+                                                                            name = 'extrinsic_action_value_given_a_state')
+        self.sess.run(self.embeded_extrinsic_action_value_given_a_state_var.initializer)
+        
+        
+        # Save embedding vars
+        saver_embed = tf.train.Saver([self.embedding_extrinsic_state_action_value_var,
+                                      self.embeded_extrinsic_action_value_given_a_state_var])
+        saver_embed.save(self.sess,
+                         os.path.join(self.summary_dir, self.embeded_vars_of_extrinsic_actor_critic_file_name))
+    def _init_visualize_extrinsic_state_action_value_function(self):
+        """
+        Visualize state-action value of sampled (state,action) pair.
+        """
+        self.embedding_extrinsic_state_action_value_sample_size = 10000
+        # save every 2 episode
+        self.embedding_extrinsic_state_action_value_episodic_frequency = 2 
+        
+        # Generate embeded data: (sample_size, state_dim + action_dim)
+        # Note: embedded data only need to save once, while metadata need to save
+        # several times.
+        act_dim = self.action_space.shape[0]
+        obs_dim = self.observation_space.shape[0]
+        embeded_data = np.zeros((self.embedding_extrinsic_state_action_value_sample_size, obs_dim+act_dim))
+        self.embeded_extrinsic_action_samples = np.zeros((self.embedding_extrinsic_state_action_value_sample_size, act_dim))
+        self.embeded_extrinsic_state_samples = np.zeros((self.embedding_extrinsic_state_action_value_sample_size, obs_dim))
+        for i in range(self.embedding_extrinsic_state_action_value_sample_size):
+            act_sample = self.action_space.sample()
+            obs_sample = self.observation_space.sample()
+            embeded_data[i,:] = np.concatenate((obs_sample,act_sample))
+            self.embeded_extrinsic_action_samples[i,:] = act_sample
+            self.embeded_extrinsic_state_samples[i,:] = obs_sample
+        # Initialize embedding variable
+        self.embedding_extrinsic_state_action_value_var = tf.Variable(embeded_data,
+                                                                      dtype=tf.float32,
+                                                                      name = 'extrinsic_state_action_value')
+        self.sess.run(self.embedding_extrinsic_state_action_value_var.initializer)
+        # Save embedding
+        saver_embed = tf.train.Saver([self.embedding_extrinsic_state_action_value_var])
+        saver_embed.save(self.sess,
+                         os.path.join(self.summary_dir,self.embeded_vars_of_extrinsic_actor_critic_file_name))
+
+    def peoriodically_save_extrinsic_state_action_value_embedding(self, version_num):
+        """
+        Preparing embeded data and metadata, then call function peoriodically
+        to write these data into tensorflow summary.
+        """
+        # metadata should be saved peoriodically and separatively to associate with differetn embedding
+        metadata_file_name = 'embedding_extrinsic_state_action_value_meta_' + str(version_num) +'.tsv'
+        
+        # Preparing metadate which will be associated with embedding when write
+        # these data to summary. Thus, the file name of metadata is:
+        #   (embeded_data_name+'_metadata.tsv')
+        action_value_batch = self.extrinsic_critic_model.predict(self.embeded_extrinsic_state_samples,
+                                                                 self.embeded_extrinsic_action_samples)
+        metadata = pd.DataFrame(action_value_batch)
+        metadata.columns = ['embedding_extrinsic_state_action_value_'+str(version_num)]
+        metadata.to_csv(os.path.join(self.summary_dir, metadata_file_name),
+                        sep = '\t')
+        
+        # Associate metadata with embedding:
+        # embeddings {
+        #   tensor_name: 'word_embedding'
+        #   metadata_path: '$LOG_DIR/metadata.tsv'}
+        embedding = self.embeded_vars_of_extrinsic_actor_critic_config.embeddings.add()
+        embedding.tensor_name = self.embedding_extrinsic_state_action_value_var.name
+        embedding.metadata_path = metadata_file_name
+        projector.visualize_embeddings(self.writer,
+                                       self.embeded_vars_of_extrinsic_actor_critic_config)
+        
+    def _init_visualize_extrinsic_action_value_given_a_specific_state(self):
+        """ 
+        Visualize state-action value of sampled action given a specific state.
+        """
+        self.embedding_extrinsic_action_value_given_a_state_sample_size = 10000
+        self.embedding_extrinsic_action_value_given_a_state_episodic_frequency = 2
+        
+        # Generate embedding data: (sample_size, action_dim)
+        act_dim = self.action_space.shape[0]
+        self.embeded_extrinsic_action_samples = np.zeros((self.embedding_extrinsic_action_value_given_a_state_sample_size,act_dim))
+        for i in range(self.embedding_extrinsic_action_value_given_a_state_sample_size):
+            self.embeded_extrinsic_action_samples[i,:] = self.action_space.sample()
+        # Initialize embedding variable
+        self.embeded_extrinsic_action_value_given_a_state_var = tf.Variable(self.embeded_extrinsic_action_samples,
+                                                                            dtype = tf.float32,
+                                                                            name = 'extrinsic_action_value_given_a_state')
+        self.sess.run(self.embeded_extrinsic_action_value_given_a_state_var.initializer)
+        # Save embedding var
+        saver_embed = tf.train.Saver([self.embeded_extrinsic_action_value_given_a_state_var])
+        saver_embed.save(self.sess,
+                         os.path.join(self.summary_dir, self.embeded_vars_of_extrinsic_actor_critic_file_name))
+        
+    def peoriodically_save_extrinsic_action_value_given_a_state(self,
+                                                                state,
+                                                                version_num):
+        """
+        Peoriodically called to visualize action value of a given state
+        
+        Parameters
+        ----------
+        state:
+        
+        version_num:
+            
+        """
+        metadata_file_name = 'embedding_extrinsic_action_value_given_a_state_meta_' + str(version_num) + '.tsv'
+        # Generate metadata
+        state_samples = np.tile(state, [self.embedding_extrinsic_action_value_given_a_state_sample_size,1])
+        action_value_batch = self.extrinsic_critic_model.predict(state_samples,
+                                                                 self.embeded_extrinsic_action_samples)
+        # Save metadata
+        metadata = pd.DataFrame(action_value_batch)
+        metadata.columns = ['embedding_extrinsic_action_value_given_a_state'+str(version_num)]
+        metadata.to_csv(os.path.join(self.summary_dir, metadata_file_name),
+                        sep = '\t')
+        # Associate metadata with embedding
+        embedding = self.embeded_vars_of_extrinsic_actor_critic_config.embeddings.add()
+        embedding.tensor_name = self.embeded_extrinsic_action_value_given_a_state_var.name
+        embedding.metadata_path = metadata_file_name
+        projector.visualize_embeddings(self.writer,
+                                       self.embeded_vars_of_extrinsic_actor_critic_config)
+        
+        
+        
+        
+        
+        
+        
+        
