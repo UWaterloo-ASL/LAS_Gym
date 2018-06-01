@@ -628,19 +628,20 @@ class KnowledgeBasedIntrinsicMotivationComponent():
         
         # Calculate Learning Progress
         first_half_window = int(self.sliding_window_size/2)
-        first_half_sr_mse = 0
-        second_half_sr_mse = 0
+        first_half_norm_error = 0
+        second_half_norm_error = 0
         for i in range(self.sliding_window_size):
             prediction = self.env_models[i].predict([obs_old, act_old])
             obs_error = obs_new - prediction[0]
             r_error = r_new - prediction[1]
             pred_error = np.concatenate((obs_error, r_error), axis = 1)
-            sr_mse = np.sqrt(np.mean(pred_error ** 2))
+#            sr_mse = np.sqrt(np.mean(pred_error ** 2))
+            norm_error = np.linalg.norm(pred_error, ord = 2)
             if i <= first_half_window:
-                first_half_sr_mse += sr_mse
+                first_half_norm_error += norm_error
             else:
-                second_half_sr_mse += sr_mse
-        learning_progress = abs(first_half_sr_mse - second_half_sr_mse) / self.sliding_window_size
+                second_half_norm_error += norm_error
+        learning_progress = abs(first_half_norm_error - second_half_norm_error) / (self.sliding_window_size/2)
         
         return learning_progress
         
