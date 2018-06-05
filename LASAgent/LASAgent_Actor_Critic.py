@@ -495,10 +495,10 @@ class EnvironmentModelNetwork(object):
         np.sqrt(np.mean(loss)):
             square root of mean squared error on the test set.
         """
-        loss = self.env_model.evaluate(x=[observation_inputs,action_inputs],
-                                        y=[observation_output, reward_output],
-                                        verbose = 0)
-        return np.sqrt(np.mean(loss))
+        loss_all, obs_loss, r_loss = self.env_model.evaluate(x=[observation_inputs,action_inputs],
+                                                             y=[observation_output, reward_output],
+                                                             verbose = 0)
+        return np.sqrt(loss_all)
     
     def save_environment_model_network(self, env_save_time):
         """
@@ -790,7 +790,7 @@ class LASAgent_Actor_Critic():
         #        Replay Buffer for Environment Model    #
         # ********************************************* #
         # 5% experience will be saved in test buffer
-        self.env_model_buffer_test_ratio = 0.05
+        self.env_model_buffer_test_ratio = 0.2
         # 1. Training Buffer
         self.env_model_train_buffer_size = 100000
         self.env_model_train_buffer = ReplayBuffer(self.env_model_train_buffer_size, self.random_seed)
@@ -799,7 +799,7 @@ class LASAgent_Actor_Critic():
         #    save a small set of testing samples that will not be used to 
         #    training environment. Note that this test set should not have too
         #    much past experiences either too much recent experiences.
-        self.env_model_test_buffer_size = 100000
+        self.env_model_test_buffer_size = 10000
         self.env_model_test_samples_size = 1000
         self.env_model_test_buffer = ReplayBuffer(self.env_model_test_buffer_size, self.random_seed)
         # ****************************************************** #
