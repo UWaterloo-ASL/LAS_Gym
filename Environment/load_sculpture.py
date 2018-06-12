@@ -57,8 +57,10 @@ def loadModel(clientID, grp_name, grp_coordinate):
                 if res != vrep.simx_return_ok:
                     print("Load model failed, " + str(res))
                     print('handle = ', handle)
-                vrep.simxSetObjectPosition(clientID, handle, -1, single_grp_coord[j], vrep.simx_opmode_oneshot)
+
                 if int(single_grp_name[j]) <= 6:
+                    # move sma closer to center to avoid collision
+                    position = (np.array(single_grp_coord[j]) + np.array(centerA)) / 2
                     vector = np.array(single_grp_coord[j][0:2]) - np.array(centerA[0:2])
                     gamma = np.arccos(vector[0]/np.linalg.norm(vector))
                     # as the range of arccos() is [0,Pi], we need to check the case where angle is negative (y < 0)
@@ -66,11 +68,15 @@ def loadModel(clientID, grp_name, grp_coordinate):
                         gamma = -gamma
                     # print("gamma = ", gamma*180/math.pi)
                 else:
+                    # move sma closer to center to avoid collision
+                    position = (np.array(single_grp_coord[j]) + np.array(centerB))/ 2
                     vector = np.array(single_grp_coord[j][0:2]) - np.array(centerB[0:2])
                     gamma = np.arccos(vector[0] / np.linalg.norm(vector))
                     if vector[1] < 0:
                         gamma = -gamma
                     # print("gamma = ", gamma * 180 / math.pi)
+
+                vrep.simxSetObjectPosition(clientID, handle, -1, position.tolist(), vrep.simx_opmode_oneshot)
                 vrep.simxSetObjectOrientation(clientID,handle,-1, [0,0,gamma], vrep.simx_opmode_oneshot)
 
 def getGroup(names, coordinates):
