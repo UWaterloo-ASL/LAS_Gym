@@ -44,6 +44,7 @@ def loadModel(clientID, grp_name, grp_coordinate):
                 if res != vrep.simx_return_ok:
                     print("Load model failed, " + str(res))
                     print('handle = ', handle)
+                # position = [single_grp_coord[j][0] - x_offset, single_grp_coord[j][1] - y_offset, single_grp_coord[j][2]]
                 vrep.simxSetObjectPosition(clientID, handle, -1, single_grp_coord[j], vrep.simx_opmode_oneshot)
                 # vrep.simxGetObject
                 # for index in range(0,2):
@@ -86,6 +87,22 @@ def getGroup(names, coordinates):
 
     name_group = []
     coord_group = []
+
+    x_boundary = [0,0]
+    y_boundary = [0,0]
+
+    for i in range(0,len(names)):
+
+        x_boundary[0] = min(x_boundary[0], coordinates[i][0])
+        x_boundary[1] = max(x_boundary[1], coordinates[i][0])
+        y_boundary[0] = min(y_boundary[0], coordinates[i][1])
+        y_boundary[1] = max(y_boundary[1], coordinates[i][1])
+
+    x_offset = (x_boundary[0] + x_boundary[1]) / 2
+    y_offset = (y_boundary[0] + y_boundary[1]) / 2
+    print("x_offset = ", x_offset)
+    print("y_offset = ", y_offset)
+
     for i in range(0,len(names)):
         s = str.split(names[i], '-')
         group_num = int(s[0])
@@ -99,7 +116,9 @@ def getGroup(names, coordinates):
             prev_group_num = group_num
 
         name_group.append(id)
-        coord_group.append(coordinates[i])
+        coord_group.append([coordinates[i][0] - x_offset, coordinates[i][1] - y_offset, coordinates[i][2]])
+
+
 
     return grouped_names, grouped_coord
 
@@ -115,7 +134,7 @@ if __name__ == '__main__':
         print('Failed connecting to remote API server')
 
     names, coords = loadCSV()
-    grp_names, grp_coords = getGroup(names,coords)
+    grp_names, grp_coords= getGroup(names,coords)
     loadModel(clientID,grp_names,grp_coords)
 
     vrep.simxStopSimulation(clientID, vrep.simx_opmode_blocking)
