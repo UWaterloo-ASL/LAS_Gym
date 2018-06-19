@@ -81,7 +81,7 @@ def loadModel(clientID, grp_name, grp_coordinate):
                 vrep.simxSetObjectOrientation(clientID,handle,-1, [0,0,gamma], vrep.simx_opmode_oneshot)
 
 def getGroup(names, coordinates):
-    prev_group_num = 1
+    prev_group_num = 0
     grouped_names = []
     grouped_coord = []
 
@@ -109,14 +109,14 @@ def getGroup(names, coordinates):
         id = s[1]
 
         if group_num != prev_group_num:
-            grouped_names.append(name_group)
-            grouped_coord.append(coord_group)
-            name_group = []
-            coord_group = []
+            grouped_names.append([])
+            grouped_coord.append([])
+            # name_group = []
+            # coord_group = []
             prev_group_num = group_num
 
-        name_group.append(id)
-        coord_group.append([coordinates[i][0] - x_offset, coordinates[i][1] - y_offset, coordinates[i][2]])
+        grouped_names[-1].append(id)
+        grouped_coord[-1].append([coordinates[i][0] - x_offset, coordinates[i][1] - y_offset, coordinates[i][2]])
 
 
 
