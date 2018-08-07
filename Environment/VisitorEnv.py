@@ -253,13 +253,14 @@ class VisitorEnv(gym.Env):
         lightPositions = np.zeros([lightNum, 3]) # 3: (x, y, z)
         for i in range(lightNum):
             res, lightPositions[i,:] = vrep.simxGetObjectPosition(self.clientID, self.lightHandles[i], -1, self._get_light_op_mode)
-        return lightPositions         
-        
+            print("light position", lightPositions[i,:])
+        return lightPositions
+
     def _reward(self):
         """ calculate reward for visitor, currently it's always 0."""
         reward = 0
         return reward
-    
+
     @deprecated('Please use method "VisitorEnv._self_observe(bodyName)" to get initial obervation for visitor.')
     def reset(self, bodyName):
         """

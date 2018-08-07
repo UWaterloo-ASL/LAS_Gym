@@ -61,7 +61,7 @@ class Behaviour:
         action = [center_x, center_y, center_z, radius, threshold, intensity]
         Right now it only has excitor function
         """
-        center = action[0:2]
+        center = action[0:3]
         radius = action[3]
         threshold = action[4]
         intensity = action[5]
@@ -224,13 +224,17 @@ class Behaviour:
         """
         # distance intensity
         I = 0
+
+        if threshold <= radius:
+            threshold = radius
+
         for i in range(0,len(self.sma_handles)):
             dist = np.linalg.norm(self.sma_positions[i,:] - center)
             if dist <= radius:
                 I = 1*intensity
             else:
                 if dist <= threshold:
-                    I = intensity * (dist - radius)/(threshold - dist)
+                    I = intensity * (dist - radius)/(threshold - radius)
                 else:
                     I = 0
             self._set_actuator_intensity(I, self.sma_handles[i], 'sma', '')
@@ -254,11 +258,11 @@ class Behaviour:
         if actuator_type == 'sma':
             targetPosition = I
             vrep.simxSetJointTargetPosition(self.client_id, handle, targetPosition, self.set_op_mode)
-            print("actuator:",handle)
-            print("target position:", targetPosition)
+            # print("actuator:",handle)
+            # print("target position:", targetPosition)
         if actuator_type == 'light':
             targetState = 1
-            targetColor = [I,I,I]
+            targetColor = [I,I,0]
 
             emptyBuff = bytearray()
             res, retInts, retFloats, retStrings, retBuffer = vrep.simxCallScriptFunction(self.client_id,
@@ -271,8 +275,8 @@ class Behaviour:
                                                                                          self.set_op_mode)
             if res != vrep.simx_return_ok:
                 warnings.warn("Remote function call: setLightStateAndColor fail in Class AnyLight.")
-            print("actuator:",actuator_name)
-            print("color:", targetColor)
+            # print("actuator:",actuator_name)
+            # print("color:", targetColor)
     def _get_all_light_position(self):
         """
         Get all lights position
@@ -297,6 +301,10 @@ class Behaviour:
                                                                 self.sma_handles[i], -1, self.get_op_mode)
             print("smaPosition:", smaPositions[i,:])
         return smaPositions
+
+    def single_light_position(self, index):
+        if index <= len(self.light_handles):
+            return self.light_positions[index,:]
 
 # def find_location(self, patch_map, trigger_key):
 # 	# Find coordinate [row, col] of triggered patch
