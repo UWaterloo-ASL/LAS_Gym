@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed May  9 19:55:34 2018
+Created on July 9 19:55:34 2018
 
-@author: jack.lingheng.meng
+@author: daiwei.lin
 """
 
 try:
@@ -89,7 +89,8 @@ class LASROMEnv(gym.Env):
         self.lightHandles, self.lightNames, \
         self.jointHandles, self.jointNames, \
         self.visitorTargetNames, self.visitorTargetHandles, \
-        self.visitorBodyNames, self.visitorBodyHandles = get_all_object_name_and_handle(self.clientID, self._def_op_mode, vrep)
+        self.visitorBodyNames, self.visitorBodyHandles, \
+        self.excitorHandles, self.excitorNames = get_all_object_name_and_handle(self.clientID, self._def_op_mode, vrep)
         # ========================================================================= #
         #               Initialize LAS action and observation space                 #
         # ========================================================================= # 
@@ -128,6 +129,7 @@ class LASROMEnv(gym.Env):
         self.done = False
         self.info = []
         self.observation = []
+        self.prev_excitor_size = 1.0
         # ========================================================================= #
         #                    Initialize Reward Function Type                        #
         # ========================================================================= #        
@@ -143,7 +145,8 @@ class LASROMEnv(gym.Env):
         ----------
         action:  x,y,z,radius,threshold,intensity
         range:
-        x,y [-7.5 7.5]
+        x [-7.5 7.5]
+        y [-5, 5]
         z   [0 2]
         radius = [0 2]
         threshold = [0,5]
@@ -162,17 +165,21 @@ class LASROMEnv(gym.Env):
         """
 
         # Action is performed through Behaviour
-        x = action[0]*15.0
-        y = action[1]*10.0
+        x = action[0]*7.5
+        y = action[1]*5.0
         z = action[2] + 1.0
         radius = action[3] + 1.0
         threshold = action[4]*2.5 + 2.5
         intensity = action[5]*0.5 + 0.5
 
-        self.behaviour.act([x,y,z,radius,threshold,intensity])
+        self.behaviour.act([x,y,z,radius,threshold,max(intensity,radius)]) # taking max() here is to make it consistant with the Behaviour class
+
+        # Visualize excitor
+        self._set_excitor_pos_and_size("Excitor", threshold, [x,y,z])
 
         # move the visitor based on observations one step ago
-        self._move_single_to_excitor_location(self.observation, isBody=False)
+        # self._move_single_to_excitor_location(self.observation, isBody=True)
+        self._move_to_excitor_location(self.observation)
 
         time.sleep(0.01)
         # Observe current state
@@ -329,11 +336,14 @@ class LASROMEnv(gym.Env):
         """
         #vrep.simxStopSimulation(self.clientID, self._def_op_mode)
         vrep.simxStartSimulation(self.clientID, self._def_op_mode)
-        
+
         self.observation = self._self_observe()
         # self.reward = self._reward(self.observation)
         
         observation = self.observation[:self.prox_sensor_num]
+
+        self._set_excitor_pos_and_size("Excitor", 1, [0, 0, 0])
+
         return observation#, self.reward, done
         
     def destroy(self):
@@ -484,7 +494,7 @@ class LASROMEnv(gym.Env):
 
     def _move_to_excitor_location(self, observation):
         """
-        find the light with maximum intensity and move the visitors to that location
+        find lights with maximum intensities and move the visitors to that location
 
         """
         light_color_start_index = self.prox_sensor_num
@@ -514,7 +524,8 @@ class LASROMEnv(gym.Env):
 
     def _move_single_to_excitor_location(self, observation, isBody=True):
         """
-        find the light with maximum intensity and move the visitors to that location
+        find the light with maximum intensity and move Visitor#1 to that location
+        Testing target movement
 
         """
         light_color_start_index = self.prox_sensor_num
@@ -540,3 +551,36 @@ class LASROMEnv(gym.Env):
             # visitor target
             position[2] = 0
             self._set_single_target_position("Target_Visitor#1",position)
+
+    #==================================#
+    #                                  #
+    #      Excitor in the env          #
+    #                                  #
+    #==================================#
+
+    # This function is for visualization of the excitor
+
+    def _set_excitor_pos_and_size(self, excitor_name, excitor_size, excitor_position):
+        excitorIndex = np.where(self.excitorNames == excitor_name)
+        if len(excitorIndex[0]) == 0:
+            print("Not found excitor: {}".format(excitor_name))
+        else:
+            ex_handle = self.excitorHandles[excitorIndex]
+
+            # Set excitor position
+            vrep.simxSetObjectPosition(self.clientID, ex_handle, -1, excitor_position, self._set_visitor_op_mode)
+
+            # Set excitor size
+            ratio = excitor_size/self.prev_excitor_size
+            self.prev_excitor_size = excitor_size
+            emptyBuff = bytearray()
+            res, retInts, retFloats, retStrings, retBuffer = vrep.simxCallScriptFunction(self.clientID,
+                                                                                         excitor_name,
+                                                                                         vrep.sim_scripttype_childscript,
+                                                                                         'setExcitorSize',
+                                                                                         [ex_handle],
+                                                                                         [ratio], [],
+                                                                                         emptyBuff,
+                                                                                         vrep.simx_opmode_oneshot)
+            if res != vrep.simx_return_ok:
+                warnings.warn("Remote function call: setExcitorSize failed.")

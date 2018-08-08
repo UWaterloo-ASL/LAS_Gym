@@ -105,7 +105,22 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
             break
         else:
             print ('Fail to get visitors body!!!')
-    
+
+    # Excitor
+    excitorIndex = []
+    rc = vrep.simx_return_initialize_error_flag
+    while rc != vrep.simx_return_ok:
+        rc, shapeHandles, intData, floatData, shapeNames = vrep.simxGetObjectGroupData(clientID,vrep.sim_object_shape_type,dataType, opMode)
+        if rc == vrep.simx_return_ok:
+            print('Get Excitor Success!!!!!')  # display the reply from V-REP (in this case, just a string)
+            for i, name in enumerate(shapeNames):
+                if "Excitor" in name:
+                    print("Excitor: {}, and handle: {}".format(name, shapeHandles[i]))
+                    excitorIndex.append(i)
+            break
+        else:
+            print('Fail to get Excitor!!!')
+
     proxSensorHandles = np.array(proxSensorHandles)
     proxSensorNames = np.array(proxSensorNames)
     lightHandles = np.array(lightHandles)
@@ -116,6 +131,8 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
     visitorNames = np.array(visitorNames)
     visitorBodyHandles = np.array(visitorBodyHandles)
     visitorBodyNames = np.array(visitorBodyNames)
+    shapeHandles = np.array(shapeHandles)
+    shapeNames = np.array(shapeNames)
     # All objects handels and names
     proxSensorHandles = proxSensorHandles[proxSensorIndex]
     proxSensorNames = proxSensorNames[proxSensorIndex]
@@ -127,11 +144,14 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
     visitorTargetHandles = visitorHandles[visitorIndex]
     visitorBodyNames = visitorBodyNames[visitorBodyIndex]
     visitorBodyHandles = visitorBodyHandles[visitorBodyIndex]
+    excitorHandles = shapeHandles[excitorIndex]
+    excitorNames = shapeNames[excitorIndex]
     return proxSensorHandles, proxSensorNames, \
            lightHandles, lightNames, \
            jointHandles, jointNames, \
            visitorTargetNames, visitorTargetHandles, \
-           visitorBodyNames, visitorBodyHandles
+           visitorBodyNames, visitorBodyHandles,\
+           excitorHandles, excitorNames
 
 def deprecated(msg=''):
     def dep(func):

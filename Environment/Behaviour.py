@@ -37,7 +37,9 @@ class Behaviour:
         self.idle_event_start_time = 0.0
         self.active_event_start_time = 0.0
 
-        # VREP remote API config
+        #==========================#
+        # VREP remote API config  #
+        #==========================#
         self.client_id = client_id
         # self.get_op_mode = get_op_mode
         self.get_op_mode = vrep.simx_opmode_blocking
@@ -48,8 +50,6 @@ class Behaviour:
         print("get sma position")
         self.sma_positions = self._get_all_sma_position()
         self.parameter_list = []
-        # for _ in self.sma_handles:
-        #     self.parameter_list.append(Parameter('sma'))
         self.light_handles = light_handles
         self.light_positions = self._get_all_light_position()
         self.light_names = lightNames
