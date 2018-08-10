@@ -74,8 +74,7 @@ class VisitorEnv(gym.Env):
         self.proxSensorHandles, self.proxSensorNames, \
         self.lightHandles, self.lightNames, \
         self.jointHandles, self.jointNames, \
-        self.visitorTargetNames, self.visitorTargetHandles, \
-        self.visitorBodyNames, self.visitorBodyHandles = get_all_object_name_and_handle(self.clientID, self._def_op_mode, vrep)
+        self.visitorNames, self.visitorHandles = get_all_object_name_and_handle(self.clientID, self._def_op_mode, vrep)
         
         # ========================================================================= #
         #             Initialize single Visitor action and observation space        #
@@ -125,7 +124,7 @@ class VisitorEnv(gym.Env):
         self.info = []
         self.observation = []
         
-    def step(self, targetPositionName, bodyName, action):
+    def step(self, visitorName, action):
         """
         A specific interface for red excited visitor:
             return observation:
@@ -142,37 +141,37 @@ class VisitorEnv(gym.Env):
         if move == 1:
             #vrep.simxPauseCommunication(self.clientID,True)
             #print("Set Position in Vrep: {}".format(position))
-            self._set_single_visitor_position(targetPositionName, position)
+            self._set_single_visitor_position(visitorName, position)
             #vrep.simxPauseCommunication(self.clientID,False)
         
-        self.observation = self._self_observe(bodyName)
+        self.observation = self._self_observe(visitorName)
         #print("len(observation):{}".format(len(observation)))
         self.reward = 0
         self.done = False
         self.info = []
         return self.observation, self.reward, self.done, self.info
     
-    def _set_single_visitor_position(self, targetPositionName, position):
-        visitorIndex = np.where(self.visitorTargetNames == targetPositionName)
+    def _set_single_visitor_position(self, visitorName, position):
+        visitorIndex = np.where(self.visitorNames == visitorName)
         if len(visitorIndex[0]) == 0:
-            print("Not found visitor: {}".format(targetPositionName))
+            print("Not found visitor: {}".format(visitorName))
         else:
-            vrep.simxSetObjectPosition(self.clientID, self.visitorTargetHandles[visitorIndex], -1, [position[0],position[1],0], self._set_visitor_op_mode)
+            vrep.simxSetObjectPosition(self.clientID, self.visitorHandles[visitorIndex], -1, [position[0],position[1],0], self._set_visitor_op_mode)
     
-    def _get_single_visitor_body_position(self, bodyName):
+    def _get_single_visitor_body_position(self, visitorName):
         """
-        Give bodyName, return bodyPosition
+        Give visitorName, return bodyPosition
         """
         bodyPosition = np.zeros(3)
-        visitorBodyIndex = np.where(self.visitorBodyNames == bodyName)
+        visitorBodyIndex = np.where(self.visitorNames == visitorName)
         if len(visitorBodyIndex[0]) == 0:
-            print("Not found visitor: {}".format(bodyName))
+            print("Not found visitor: {}".format(visitorName))
         else:
-            res, bodyPosition = vrep.simxGetObjectPosition(self.clientID, self.visitorBodyHandles[visitorBodyIndex], -1, self._get_light_op_mode)
+            res, bodyPosition = vrep.simxGetObjectPosition(self.clientID, self.visitorHandles[visitorBodyIndex], -1, self._get_light_op_mode)
         #print("Visitor position: {}".format(position))
         return np.array(bodyPosition)
         
-    def _self_observe(self,bodyName):
+    def _self_observe(self,visitorName):
         """
         This obervave function is for visitors:
             light state: observation[:lightNum]
@@ -182,7 +181,7 @@ class VisitorEnv(gym.Env):
         """
         lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
         lightPositions = self._get_all_light_position()
-        visitorBodyPosition = self._get_single_visitor_body_position(bodyName)
+        visitorBodyPosition = self._get_single_visitor_body_position(visitorName)
         obser_for_red_light_excited_visitor = np.concatenate((lightStates,
                                                                    lightDiffsePart.flatten(),
                                                                    lightPositions.flatten(),

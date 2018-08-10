@@ -675,7 +675,8 @@ class LASAgent_Actor_Critic():
         1. Knowledge-based intrinsic motivation
         2. Competence-based intrinsic motivation
     """
-    def __init__(self, sess, env,
+    def __init__(self, sess, agent_name,
+                 observation_space, action_space,
                  actor_lr = 0.0001, actor_tau = 0.001,
                  critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
                  minibatch_size = 64,
@@ -732,8 +733,8 @@ class LASAgent_Actor_Critic():
         """
         # Produce a string describes experiment setting
         self.experiment_setting = ['LAS Environment:' + '<br />' +\
-                                   '1. action_space: ' + str(env.action_space.shape) + '<br />' +\
-                                   '2. observation_space: ' + str(env.observation_space.shape) + '<br /><br />' +\
+                                   '1. action_space: ' + str(action_space.shape) + '<br />' +\
+                                   '2. observation_space: ' + str(observation_space.shape) + '<br /><br />' +\
                                    'LASAgent Hyper-parameters: ' + '<br />' +\
                                    '1. actor_lr: ' + str(actor_lr) + '<br />' +\
                                    '2. actor_tau: ' + str(actor_tau) + '<br />' +\
@@ -749,9 +750,9 @@ class LASAgent_Actor_Critic():
                                    '12.restore_critic_model_flag: ' + str(restore_critic_model_flag)][0]
         # Init Environment Related Parameters
         self.sess = sess
-        self.env = env
-        self.action_space = env.action_space
-        self.observation_space = env.observation_space
+        self.agent_name = agent_name
+        self.action_space = action_space
+        self.observation_space = observation_space
         
         self.save_dir = save_dir
         self.experiment_runs = experiment_runs
@@ -827,7 +828,7 @@ class LASAgent_Actor_Critic():
         #       Initialize Extrinsically Motivated Actor-Critic Model         #
         # =================================================================== #
         # Extrinsically Motivated Actor
-        self.extrinsically_motivated_actor_name = 'extrinsically_motivated_actor_name'
+        self.extrinsically_motivated_actor_name = self.agent_name+'_extrinsically_motivated_actor_name'
         self.extrinsic_actor_lr = actor_lr
         self.extrinsic_actor_tau = actor_tau
         # Restore Pre-trained Actor Modles
@@ -849,7 +850,7 @@ class LASAgent_Actor_Critic():
                                         self.restore_extrinsic_actor_model_flag,
                                         self.restore_extrinsic_actor_model_version)
         # Extrinsically Motivated Critic
-        self.extrinsically_motivated_critic_name = 'extrinsically_motivated_critic_name'
+        self.extrinsically_motivated_critic_name = self.agent_name+'_extrinsically_motivated_critic_name'
         self.extrinsic_critic_lr = critic_lr
         self.extrinsic_critic_tau = critic_tau
         self.extrinsic_gamma = gamma
@@ -874,7 +875,7 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                     Initialize Environment Model                    #
         # =================================================================== #
-        self.environment_model_name = 'current_environment_model_name'
+        self.environment_model_name = self.agent_name+'current_environment_model_name'
         self.env_model_lr = 0.0001
         self.env_model_minibatch_size = 200
         self.env_model_save_path = self.models_dir
@@ -906,7 +907,7 @@ class LASAgent_Actor_Critic():
         self.knowledge_based_intrinsic_motivation_model = KnowledgeBasedIntrinsicMotivationComponent(self.models_dir,
                                                                                                      self.knowledge_based_intrinsic_reward_sliding_window_size)
         # Intrinsically Motivated Actor
-        self.knowledge_based_intrinsic_actor_name = 'knowledge_based_intrinsic_actor_name'
+        self.knowledge_based_intrinsic_actor_name = self.agent_name+'_knowledge_based_intrinsic_actor_name'
         self.knowledge_based_intrinsic_actor_lr = actor_lr
         self.knowledge_based_intrinsic_actor_tau = actor_tau
         # Restore Pre-trained Actor Motivated by Knowledge-based Intrinsic Motivation
@@ -929,7 +930,7 @@ class LASAgent_Actor_Critic():
                                                                   self.restore_knowledge_based_intrinsic_actor_model_flag,
                                                                   self.restore_knowledge_based_intrinsic_actor_model_version)
         # Intrinsically Motivated Critic
-        self.knowledge_based_intrinsic_critic_name = 'knowledge_based_intrinsic_critic_name'
+        self.knowledge_based_intrinsic_critic_name = self.agent_name+'_knowledge_based_intrinsic_critic_name'
         self.knowledge_based_intrinsic_critic_lr = critic_lr
         self.knowledge_based_intrinsic_critic_tau = critic_tau
         self.knowledge_based_intrinsic_critic_gamma = gamma
@@ -1076,10 +1077,10 @@ class LASAgent_Actor_Critic():
             # Save data for visualize extrinsic state action value
             if self.episode_counter % self.embedding_extrinsic_state_action_value_episodic_frequency == 0:
                 self.peoriodically_save_extrinsic_state_action_value_embedding(self.episode_counter)
-            # Save data for visualize extrinsic action values given a state
-            if self.episode_counter % self.embedding_extrinsic_action_value_given_a_state_episodic_frequency == 0:
-                self.peoriodically_save_extrinsic_action_value_given_a_state(self.observation_new,
-                                                                         self.episode_counter)
+#            # Save data for visualize extrinsic action values given a state
+#            if self.episode_counter % self.embedding_extrinsic_action_value_given_a_state_episodic_frequency == 0:
+#                self.peoriodically_save_extrinsic_action_value_given_a_state(self.observation_new,
+#                                                                         self.episode_counter)
             # Episodic Summary
             summary_str = self.sess.run(self.summary_ops_accu_rewards,
                                         feed_dict = {self.summary_vars_accu_rewards: self.episode_rewards})

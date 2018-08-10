@@ -33,7 +33,7 @@ from IPython.core.debugger import Tracer
 
 class LASEnv(gym.Env):
     def __init__(self, IP = '127.0.0.1', Port = 19997,
-                 reward_function_type = 'red_light_dense'):
+                 reward_function_type = 'occupancy'):
         """
         Instantiate LASEnv. LASEnv is the interface between LAS and Environment. Thus, LASEnv is the internal environment of LAS.
         
@@ -45,11 +45,13 @@ class LASEnv(gym.Env):
         Port: int default = 19997
             Port to communicate with V-REP server.
         
-        reward_function_type: str default = 'red_light_dense'
+        reward_function_type: str default = 'occupancy'
             Choose reward function type.
             Options:
-                1. 'red_light_dense'
-                2. 'red_light_sparse'
+                1. 'occupancy'
+                2. 'red_light_dense'
+                3. 'red_light_sparse'
+                
         """
         print ('Initialize LASEnv ...')
         # ========================================================================= #
@@ -88,8 +90,7 @@ class LASEnv(gym.Env):
         self.proxSensorHandles, self.proxSensorNames, \
         self.lightHandles, self.lightNames, \
         self.jointHandles, self.jointNames, \
-        self.visitorTargetNames, self.visitorTargetHandles, \
-        self.visitorBodyNames, self.visitorBodyHandles = get_all_object_name_and_handle(self.clientID, self._def_op_mode, vrep)
+        self.visitorNames, self.visitorHandles = get_all_object_name_and_handle(self.clientID, self._def_op_mode, vrep)
         # ========================================================================= #
         #               Initialize LAS action and observation space                 #
         # ========================================================================= # 
@@ -116,17 +117,10 @@ class LASEnv(gym.Env):
         self.observation_space = spaces.Box(self.obs_min, self.obs_max, dtype = np.float32)
         self.action_space = spaces.Box(self.act_min, self.act_max, dtype = np.float32)
         print("Initialization of LAS done!")
-        # ========================================================================= #
-        #                       Initialize other variables                          #
-        # ========================================================================= #
-        self.time_reward = np.array([0]*self.prox_sensor_num) # Reward for each proximity sensor
-        self.action_history = deque(maxlen=500)
-        self.group_id, self.group_num = self._create_group()
-        self._create_group()
-        self.reward = 0
-        self.done = False
-        self.info = []
-        self.observation = []
+        # save the name of each entry in observation
+        light_name = np.matlib.repmat(np.reshape(self.lightNames,[len(self.lightNames),1]), 1,3).flatten()
+        self.observation_space_name = np.concatenate((self.proxSensorNames, light_name))
+        self.action_space_name = np.concatenate((self.jointNames, light_name))
         # ========================================================================= #
         #                    Initialize Reward Function Type                        #
         # ========================================================================= #        
@@ -162,6 +156,7 @@ class LASEnv(gym.Env):
         action = np.clip(action, self.act_min, self.act_max)
         action = (action + 1) / 2.0
         # Split action for light and sma
+        action = np.ndarray.flatten(action)  # flatten array
         action_smas = action[:self.smas_num]
         action_lights_color = action[self.smas_num:]
         # Taking action
@@ -175,13 +170,6 @@ class LASEnv(gym.Env):
         # Set a small sleep time to avoid getting nan sensor data
         time.sleep(0.01)
 
-        #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
-        self._set_all_joint_position(action_smas)
-        # Actually only set light color
-        self._set_all_light_state_and_color(action_lights_color)
-        #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
-        #self.action_history.append(action_lights_color)  # Only consider light actions for now
-
         # Observe current state
         try:
             self.observation = self._self_observe()
@@ -193,7 +181,9 @@ class LASEnv(gym.Env):
         
         # This reward is non-interactive reward i.e. it's not affected by visitor.
         # Therefore, it's only used for tunning hyper-parameters of LASAgent
-        if self.reward_function_type == 'red_light_sparse':
+        if self.reward_function_type == 'occupancy':
+            self.reward = self._reward_occupancy(self.observation)
+        elif self.reward_function_type == 'red_light_sparse':
             self.reward = self._reward_red_light_sparse(self.observation)
         elif self.reward_function_type == 'red_light_dense':
             self.reward = self._reward_red_light_dense(self.observation)
@@ -221,54 +211,14 @@ class LASEnv(gym.Env):
         lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
 
         observation = np.concatenate((proxStates, lightDiffsePart.flatten()))
+        
+        
         return observation
 
-    def _reward(self, observation):
-        """
-        Calculate reward based on observation of proximity sensor.
-
-        All sensors have accumulated time rewards. The longer it has been triggered, the greater
-        the reward will be. The reward function also uses memories of actions. For sensors with
-        zero accumulated rewards, if it detects a new trigger but an action belonging to its own
-        group CANNOT be found in the history, then this signal is ignored.
-
-        Use adjusted sigmoid function to calculate the individual reward r(t)_i based on accumulated
-        time reward (t)
-
-        r(t)_i = 2*sigmoid(t/ratio) -1
-
-        Final reward = avg(all sensors reward r(t)_i)
-        """
-        individual_action_summary = np.array([0]*self.lights_num)
-        if len(self.action_history) > 0:
-            for step_action in self.action_history:
-                individual_action_summary = individual_action_summary | step_action
-
-        group_action_summary = np.array([0]*self.group_num)
-        for j in range(0, self.lights_num):
-            # Notice here the group id (node number) starts from 1
-            group_action_summary[self.group_id[j]-1] = group_action_summary[self.group_id[j]-1] | \
-                                                       individual_action_summary[self.group_id[j]-1]
-
-        prox_obs = observation[:self.prox_sensor_num]
-        is_newly_triggered = prox_obs - self.time_reward > 0
-
-        for i in range(0, self.lights_num):
-            if prox_obs[i] == 1:
-                obs = 1
-                if is_newly_triggered[i] and group_action_summary[self.group_id[j]-1] == 0:
-                    obs = 0
-                self.time_reward[i] = self.time_reward[i] + obs
-            else:
-                self.time_reward[i] = 0
-
-        # prox_obs = observation[:self.prox_sensor_num]
-        # self.time_reward = (prox_obs + self.time_reward) * prox_obs
-
-        ratio = 1000
-        self.reward = np.mean(-1 + 2/(1+np.exp(-self.time_reward/ratio)))
-
+    def _reward_occupancy(self, observation):
+        self.reward = np.sum(observation[:self.prox_sensor_num])
         return self.reward
+
 
     def _create_group(self):
         """
@@ -378,7 +328,7 @@ class LASEnv(gym.Env):
         vrep.simxStartSimulation(self.clientID, self._def_op_mode)
         
         self.observation = self._self_observe()
-        self.reward = self._reward(self.observation)
+        self.reward = self._reward_occupancy(self.observation)
         
         done = False
         return self.observation#, self.reward, done
