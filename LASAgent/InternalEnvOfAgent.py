@@ -50,7 +50,7 @@ class InternalEnvOfAgent(object):
                                            exploration_action_noise_type = 'ou_0.2',
                                            exploration_epsilon_greedy_type = 'none',
                                            # Save Summaries
-                                           save_dir = os.path.join('../ROM_Experiment_results',self.agent_name),
+                                           save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results',self.agent_name),
                                            experiment_runs = datetime.now().strftime("%Y%m%d-%H%M%S"),
                                            # Save and Restore Actor-Critic Model
                                            restore_actor_model_flag = False,
