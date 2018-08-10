@@ -980,8 +980,9 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                       Initialize Summary Ops                        #
         # =================================================================== #        
-
         self.summary_dir = os.path.join(self.save_dir,'summary',self.experiment_runs)
+        if not os.path.isdir(self.summary_dir):
+            os.makedirs(self.summary_dir)
         self.episode_rewards = 0
         
         self.writer = tf.summary.FileWriter(self.summary_dir, self.sess.graph)
