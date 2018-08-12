@@ -71,7 +71,6 @@ class InternalEnvOfCommunity(object):
         self.agent_community = self._create_agent_community(self.agent_community_partition_config,
                                                             agent_config = 'actor_critic_agent')  # agent_config = 'random_agent'
         
-        
     def interact(self, observation, external_reward = 0, done = False):
         """
         The interface function interacts with external environment.
@@ -301,7 +300,12 @@ class InternalEnvOfCommunity(object):
                 # Get IR sensor info
                 if 'ir_node' in name:
                     obs_interest[i] = observation_partition[agent_name][i]
-            reward_partition[agent_name] = np.sum(obs_interest)
+            # Make here insistent with IR data
+            reward_temp = 0.0
+            for distance in obs_interest:
+                if distance != 0:
+                    reward_temp += 1/distance
+            reward_partition[agent_name] = reward_temp
         return reward_partition
     
     def _collect_action(self, observation_partition, reward_partition, agent_community):
