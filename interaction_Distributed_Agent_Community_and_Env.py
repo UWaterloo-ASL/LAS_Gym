@@ -26,7 +26,7 @@ if __name__ == '__main__':
         observation_For_LAS= envLAS.reset()
         
         # Instatiate LAS-community
-        community_name = 'LAS_agent_community'
+        community_name = 'LAS_Agent_Community'
         community_size = 3
         LAS_agent_community = InternalEnvOfCommunity(sess, 
                                                      community_name, 

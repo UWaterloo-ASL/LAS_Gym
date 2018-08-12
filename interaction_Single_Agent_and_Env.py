@@ -24,7 +24,7 @@ if __name__ == '__main__':
         observation_For_LAS= envLAS.reset()
         
         # Iinstantiate LAS-agent
-        agent_name = 'single_agent'
+        agent_name = 'LAS_Single_Agent'
         observation_space = envLAS.observation_space
         action_space = envLAS.action_space
         agent = InternalEnvOfAgent(sess, agent_name, observation_space, action_space,
