@@ -179,7 +179,11 @@ class LASEnv(gym.Env):
         # This reward is non-interactive reward i.e. it's not affected by visitor.
         # Therefore, it's only used for tunning hyper-parameters of LASAgent
         if self.reward_function_type == 'occupancy':
-            self.reward = self._reward_occupancy(self.observation)
+            #   1. 'IR_distance': based on IR distance from detected object to IR
+            #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+            #                        of IR sensors 
+            #   3. 'IR_state_number': the number of detected objects
+            self.reward = self._reward_occupancy(self.observation, 'IR_distance')
         else:
             raise ValueError('No reward function: {}'.format(self.reward_function_type))
         
@@ -207,7 +211,7 @@ class LASEnv(gym.Env):
         observation = np.concatenate((proxDistances, lightIntensity))
         return observation
 
-    def _reward_occupancy(self, observation):
+    def _reward_occupancy(self, observation, reward_type = 'IR_distance'):
         """
         Calculate reward based on occupancy i.e. the # of IRs been activated
         
@@ -217,11 +221,28 @@ class LASEnv(gym.Env):
             the value of reward
         """
         prox_distances = observation[:self.prox_sensor_num]
-        reward = 0.0
-        for distance in prox_distances:
-            if distance != 0:
-                reward += 1/distance
-        self.reward = reward
+        # Make here insistent with IR data
+        #   1. 'IR_distance': based on IR distance from detected object to IR
+        #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+        #                        of IR sensors 
+        #   3. 'IR_state_number': the number of detected objects
+        reward_temp = 0.0
+        if reward_type == 'IR_distance':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1/distance
+        elif reward_type == 'IR_state_ratio':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1
+            reward_temp = reward_temp / len(prox_distances)
+        elif reward_type == 'IR_state_number':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1
+        else:
+            raise Exception('Please choose a proper reward type!')
+        self.reward = reward_temp
         return self.reward
 
     def reset(self):
