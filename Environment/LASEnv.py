@@ -98,9 +98,8 @@ class LASEnv(gym.Env):
         self.smas_num = len(self.jointHandles)
         self.lights_num = len(self.lightHandles)
         # Sensor range:
-        #   prox sensor: 0 or 1 
-        #   light intensity(only use B-color-channel): [0, 1]
-        self.sensors_dim = self.prox_sensor_num + self.lights_num
+        #   prox sensor: 0 or 1 (Only Proximity Sensor, no light data)
+        self.sensors_dim = self.prox_sensor_num
         self.obs_max = np.array([1.]*self.sensors_dim)      
         self.obs_min = np.array([0.]*self.sensors_dim)
         # Actuator range:
@@ -116,9 +115,9 @@ class LASEnv(gym.Env):
         self.observation_space = spaces.Box(self.obs_min, self.obs_max, dtype = np.float32)
         self.action_space = spaces.Box(self.act_min, self.act_max, dtype = np.float32)
         print("Initialization of LAS done!")
-        # save the name of each entry in observation
+        # save the name of each entry in observation and action
         light_name = matlib.repmat(np.reshape(self.lightNames,[len(self.lightNames),1]), 1,1).flatten()
-        self.observation_space_name = np.concatenate((self.proxSensorNames, light_name))
+        self.observation_space_name = np.concatenate((self.proxSensorNames)) # only proxSensor
         self.action_space_name = np.concatenate((self.jointNames, light_name))
         # ========================================================================= #
         #                    Initialize Reward Function Type                        #
@@ -197,18 +196,15 @@ class LASEnv(gym.Env):
         This observe function is for LAS:
             distance from the detected object to proximity sensors (if no 
             detected object, the value is 0)
-            light intensity
             
         Returns
         -------
-        observation: ndarray (proxDistances, lightIntensity)
+        observation: ndarray (proxDistances)
         """
         # For IRs only proxDistances is used in ROM Exhibit simulation
         _, proxDistances, _ = self._get_all_prox_data()
-        # For LEDs only B-color channel used for light intensity
-        lightIntensity = self._get_all_light_intensity()
-        # Combine observation
-        observation = np.concatenate((proxDistances, lightIntensity))
+        # Combine observation (No light data)
+        observation = np.concatenate((proxDistances))
         return observation
 
     def _reward_occupancy(self, observation, reward_type = 'IR_distance'):
