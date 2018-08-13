@@ -17,6 +17,14 @@ from Environment.BrightLightExcitedVisitorEnv import BrightLightExcitedVisitorEn
 from VisitorAgent.BrightLightExcitedVisitorAgent import BrightLightExcitedVisitorAgent
 
 
+import matplotlib.pyplot as plt
+def plot_cumulative_reward(cumulativeReward):
+    line, = plt.plot(cumulativeReward)
+    #plt.ion()
+    plt.show()
+    plt.pause(0.01)
+
+
 if __name__ == '__main__':
  
     # Instantiate visitor environment object
@@ -48,38 +56,47 @@ if __name__ == '__main__':
     reward_for_Visitor1 = 0
     reward_for_Visitor2 = 0
     reward_for_Visitor3 = 0
+    
+    light_num_change = []
+    
     while not done:
         # Visitor interacts with environment.
         visitorName, action = visitor.perceive_and_act(observation_For_Visitor,reward_for_Visitor,done)
         observation_For_Visitor, reward_for_Visitor, done, [] = envVisitor.step(visitorName, action)
-        print("Visitor Step: {}, brightest_light_num: {}".format(i, visitor.bright_light_num))
+        print("Visitor Step: {}, brigh_light_num: {}".format(i, visitor.bright_light_num))
         
         # Visitor0 interacts with environment.
         visitorName0, action = visitor0.perceive_and_act(observation_For_Visitor0,reward_for_Visitor0,done)
         observation_For_Visitor0, reward_for_Visitor0, done, [] = envVisitor.step(visitorName0, action)
-        print("Visitor Step: {}, brightest_light_num: {}".format(i, visitor0.bright_light_num))
+        print("Visitor Step: {}, brigh_light_num: {}".format(i, visitor0.bright_light_num))
         
         # Visitor1 interacts with environment.
         visitorName1, action = visitor1.perceive_and_act(observation_For_Visitor1,reward_for_Visitor1,done)
         observation_For_Visitor1, reward_for_Visitor1, done, [] = envVisitor.step(visitorName1, action)
-        print("Visitor Step: {}, brightest_light_num: {}".format(i, visitor1.bright_light_num))
+        print("Visitor Step: {}, brigh_light_num: {}".format(i, visitor1.bright_light_num))
         
         # Visitor2 interacts with environment.
         visitorName2, action = visitor2.perceive_and_act(observation_For_Visitor2,reward_for_Visitor2,done)
         observation_For_Visitor2, reward_for_Visitor2, done, [] = envVisitor.step(visitorName2, action)
-        print("Visitor Step: {}, brightest_light_num: {}".format(i, visitor2.bright_light_num))
+        print("Visitor Step: {}, brigh_light_num: {}".format(i, visitor2.bright_light_num))
         
         # Visitor3 interacts with environment.
         visitorName3, action = visitor3.perceive_and_act(observation_For_Visitor3,reward_for_Visitor3,done)
         observation_For_Visitor3, reward_for_Visitor3, done, [] = envVisitor.step(visitorName3, action)
-        print("Visitor Step: {}, brightest_light_num: {}".format(i, visitor3.bright_light_num))
+        print("Visitor Step: {}, brigh_light_num: {}".format(i, visitor3.bright_light_num))
         
         time.sleep(0.1)
         
+#        light_num_change.append(visitor3.bright_light_num)
+#        plot_cumulative_reward(light_num_change)
+        
+        plt.scatter(i, visitor3.bright_light_num, c="r")
+        plt.show()
+        plt.pause(0.05)
         
         # reset all visitors out of the range of LAS
         move = 1
-        action = [move, -6, np.random.randint(-3,0), 0]
+        action = [move, -6, np.random.randint(-3,2), 0]
         envVisitor.step(visitorName0, action)
         envVisitor.step(visitorName1, action)
         envVisitor.step(visitorName2, action)
