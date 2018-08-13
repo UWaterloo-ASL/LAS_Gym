@@ -215,6 +215,17 @@ class LASEnv(gym.Env):
         """
         Calculate reward based on occupancy i.e. the # of IRs been activated
         
+        Parameters
+        ----------
+        observation: array
+            observation array
+            
+        reward_type: string default='IR_distance'
+            1. 'IR_distance': based on IR distance from detected object to IR
+            2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                                 of IR sensors 
+            3. 'IR_state_number': the number of detected objects
+        
         Returns
         -------
         reward: float
