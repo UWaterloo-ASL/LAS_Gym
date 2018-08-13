@@ -117,7 +117,7 @@ class LASEnv(gym.Env):
         print("Initialization of LAS done!")
         # save the name of each entry in observation and action
         light_name = matlib.repmat(np.reshape(self.lightNames,[len(self.lightNames),1]), 1,1).flatten()
-        self.observation_space_name = np.concatenate((self.proxSensorNames)) # only proxSensor
+        self.observation_space_name = self.proxSensorNames # only proxSensor
         self.action_space_name = np.concatenate((self.jointNames, light_name))
         # ========================================================================= #
         #                    Initialize Reward Function Type                        #
@@ -204,7 +204,7 @@ class LASEnv(gym.Env):
         # For IRs only proxDistances is used in ROM Exhibit simulation
         _, proxDistances, _ = self._get_all_prox_data()
         # Combine observation (No light data)
-        observation = np.concatenate((proxDistances))
+        observation = proxDistances
         return observation
 
     def _reward_occupancy(self, observation, reward_type = 'IR_distance'):
