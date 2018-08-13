@@ -112,7 +112,7 @@ class BrightLightExcitedVisitorAgent():
             if not empty: each entry is (3,) position
             if empty: 
         """
-        bright_threthold = 0.8
+        bright_threthold = 0.95
         light_intensity, light_position, _= self._extract_observation(observation)
         bright_light_position = []
         for i_temp, intensity in enumerate(light_intensity):
