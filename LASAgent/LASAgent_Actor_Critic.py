@@ -332,7 +332,16 @@ class CriticNetwork(object):
         print('Save critic networks.')
 
     def train(self, inputs, action, predicted_q_value):
-        return self.sess.run([self.out, self.optimize], feed_dict={
+        """
+        Returns
+        -------
+        loss: mean square error
+            
+        out: output of Critic_Network
+            
+        optimize: tf.operation
+        """
+        return self.sess.run([self.loss, self.out, self.optimize], feed_dict={
             self.inputs: inputs,
             self.action: action,
             self.predicted_q_value: predicted_q_value
@@ -990,6 +999,7 @@ class LASAgent_Actor_Critic():
         # Summarize Extrinsically Motivated Actor-Critic Training
         self.summary_ops_accu_rewards, self.summary_vars_accu_rewards = self._init_summarize_accumulated_rewards()
         self.summary_ops_action_reward, self.summary_action, self.summary_reward = self._init_summarize_action_and_reward()
+        self.summary_ops_critic_loss, self.summary_critic_loss = self._init_summarize_actor_critic()
         # Summarize Knowledge-based Intrinsic Motivation Component
         self.summary_ops_kb_reward, self.sum_kb_reward = self._init_summarize_knowledge_based_intrinsic_reward()
         # Summarize Environment Model Training
@@ -1201,14 +1211,20 @@ class LASAgent_Actor_Critic():
                     y_i.append(r_batch[k] + self.extrinsic_critic_model.gamma * target_q[k])
 
             # Update the critic given the targets
-            predicted_q_value, _ = self.extrinsic_critic_model.train(
-                s_batch, a_batch, np.reshape(y_i, (int(self.minibatch_size), 1)))
+            critic_loss, predicted_q_value, _ = self.extrinsic_critic_model.train(\
+                                                                                  s_batch,
+                                                                                  a_batch,
+                                                                                  np.reshape(y_i, (int(self.minibatch_size), 1)))
+            # Summarize critic training loss
+            summary_critic_loss_str = self.sess.run(self.summary_ops_critic_loss,
+                                                    feed_dict = {self.summary_critic_loss: critic_loss})
+            self.writer.add_summary(summary_critic_loss_str, self.total_step_counter)
             
             # Update the actor policy using the sampled gradient
             a_outs = self.extrinsic_actor_model.predict(s_batch)
             grads = self.extrinsic_critic_model.action_gradients(s_batch, a_outs)
             self.extrinsic_actor_model.train(s_batch, grads[0])
-
+            
             # Update target networks
             self.extrinsic_actor_model.update_target_network()
             self.extrinsic_critic_model.update_target_network()
@@ -1328,7 +1344,9 @@ class LASAgent_Actor_Critic():
             return action_noise
         else:
             raise RuntimeError('unknown noise type "{}"'.format(action_noise_type))
-    
+# =================================================================== #
+#                   Initialization Summary Functions                  #
+# =================================================================== # 
     def _init_summarize_accumulated_rewards(self):
         """
         Function used for building summaries.
@@ -1361,6 +1379,15 @@ class LASAgent_Actor_Critic():
         
         summary_ops = tf.summary.merge([action_sum, reward_sum])
         return summary_ops, action, reward
+    
+    def _init_summarize_actor_critic(self):
+        """
+        Summarize data from actor-critic model.
+        """
+        loss_critic = tf.placeholder(dtype = tf.float32)
+        loss_critic_sum = tf.summary.scalar('loss_critic', loss_critic)
+        loss_critic_sum_op = tf.summary.merge([loss_critic_sum])
+        return loss_critic_sum_op, loss_critic
     
     def _init_summarize_experiment_setting(self):
         """
