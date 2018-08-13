@@ -45,6 +45,10 @@ class InternalEnvOfCommunity(object):
         # Initialize community
         self.community_name = community_name
         self.community_size = community_size
+        ####################################################################
+        #                          Configuration
+        ####################################################################
+        # Config 1: with shared sensor
         self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15'],
                                      'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
                                      'agent_3':['node#9','node#8','node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
@@ -53,6 +57,32 @@ class InternalEnvOfCommunity(object):
                                      'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
                                      'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
                                      }
+#        # Config 2: no shared sensor
+#        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+#                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
+#                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+#                                     }
+#        self.community_config_act = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+#                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
+#                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+#                                     }
+        # Config 3: share all sensor
+#        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15',\
+#                                                'node#14','node#13','node#12','node#11','node#10','node#9','node#8','node#7','node#6',\
+#                                                'node#5','node#4','node#3','node#2','node#1','node#0'],
+#                                     'agent_2':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15',\
+#                                                'node#14','node#13','node#12','node#11','node#10','node#9','node#8','node#7','node#6',\
+#                                                'node#5','node#4','node#3','node#2','node#1','node#0'],
+#                                     'agent_3':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15',\
+#                                                'node#14','node#13','node#12','node#11','node#10','node#9','node#8','node#7','node#6',\
+#                                                'node#5','node#4','node#3','node#2','node#1','node#0']
+#                                     }
+#        self.community_config_act = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+#                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
+#                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+#                                     }
+        ####################################################################
+        
         self.observation_space = observation_space
         self.observation_space_name = observation_space_name
         self.action_space = action_space
@@ -92,8 +122,13 @@ class InternalEnvOfCommunity(object):
         observation_partition = self._partition_observation(observation,
                                                             self.agent_community_partition_config)
         # Partition reward
+        #   1. 'IR_distance': based on IR distance from detected object to IR
+        #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+        #                        of IR sensors 
+        #   3. 'IR_state_number': the number of detected objects
         reward_partition = self._partition_reward(observation_partition,
-                                                  self.agent_community_partition_config)
+                                                  self.agent_community_partition_config,
+                                                  'IR_state')
         for agent_name in reward_partition.keys():
             print('Reward of {} is: {}'.format(agent_name,reward_partition[agent_name]))
         # Collect actions from each agent
@@ -271,7 +306,8 @@ class InternalEnvOfCommunity(object):
         return observation_partition
     
     def _partition_reward(self, observation_partition, 
-                          agent_community_partition_config):
+                          agent_community_partition_config,
+                          reward_type = 'IR_distance'):
         """
         Partition reward based on observation_partition and agent_community_partition_config
         
@@ -286,6 +322,12 @@ class InternalEnvOfCommunity(object):
                                                                  'observation_space':observation_space,
                                                                  'action_space':action_space
                                                                  }}
+        reward_type: string
+            1. 'IR_distance': based on IR distance from detected object to IR
+            2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                                 of IR sensors 
+            3. 'IR_state_number': the number of detected objects
+        
         Returns
         -------
         reward_partition: dict
@@ -295,16 +337,31 @@ class InternalEnvOfCommunity(object):
         """
         reward_partition = {}
         for agent_name in observation_partition.keys():
-            obs_interest = np.zeros(agent_community_partition_config[agent_name]['observation_space'].shape)
+            IR_data = []
             for i, name in enumerate(agent_community_partition_config[agent_name]['observation_space_name']):
                 # Get IR sensor info
                 if 'ir_node' in name:
-                    obs_interest[i] = observation_partition[agent_name][i]
+                    IR_data.append(observation_partition[agent_name][i])
             # Make here insistent with IR data
+            # 1. 'IR_distance': sum of reciprocal of distance from detected 
+            #                   object to IR.
+            # 2. 'IR_state': ratio of # of detected objects and # of IR
             reward_temp = 0.0
-            for distance in obs_interest:
-                if distance != 0:
-                    reward_temp += 1/distance
+            if reward_type == 'IR_distance':
+                for distance in IR_data:
+                    if distance != 0:
+                        reward_temp += 1/distance
+            elif reward_type == 'IR_state_ratio':
+                for distance in IR_data:
+                    if distance != 0:
+                        reward_temp += 1
+                reward_temp = reward_temp / len(IR_data)
+            elif reward_type == 'IR_state_number':
+                for distance in IR_data:
+                    if distance != 0:
+                        reward_temp += 1
+            else:
+                raise Exception('Please choose a proper reward type!')
             reward_partition[agent_name] = reward_temp
         return reward_partition
     
@@ -392,3 +449,4 @@ class InternalEnvOfCommunity(object):
         observation: ndarray
             the observation received from external environment
         """
+        
