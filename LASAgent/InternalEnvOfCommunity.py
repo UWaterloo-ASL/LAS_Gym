@@ -128,7 +128,7 @@ class InternalEnvOfCommunity(object):
         #   3. 'IR_state_number': the number of detected objects
         reward_partition = self._partition_reward(observation_partition,
                                                   self.agent_community_partition_config,
-                                                  'IR_state')
+                                                  'IR_state_ratio')
         for agent_name in reward_partition.keys():
             print('Reward of {} is: {}'.format(agent_name,reward_partition[agent_name]))
         # Collect actions from each agent
