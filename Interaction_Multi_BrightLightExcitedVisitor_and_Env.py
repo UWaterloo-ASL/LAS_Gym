@@ -18,11 +18,6 @@ from VisitorAgent.BrightLightExcitedVisitorAgent import BrightLightExcitedVisito
 
 
 import matplotlib.pyplot as plt
-def plot_cumulative_reward(cumulativeReward):
-    line, = plt.plot(cumulativeReward)
-    #plt.ion()
-    plt.show()
-    plt.pause(0.01)
 
 
 if __name__ == '__main__':
@@ -90,9 +85,9 @@ if __name__ == '__main__':
 #        light_num_change.append(visitor3.bright_light_num)
 #        plot_cumulative_reward(light_num_change)
         
-        plt.scatter(i, visitor3.bright_light_num, c="r")
-        plt.show()
-        plt.pause(0.05)
+#        plt.scatter(i, visitor3.bright_light_num, c="r")
+#        plt.show()
+#        plt.pause(0.05)
         
         # reset all visitors out of the range of LAS
         move = 1
