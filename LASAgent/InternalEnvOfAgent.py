@@ -16,7 +16,9 @@ class InternalEnvOfAgent(object):
     """
     This class provides Internal Environment for an agent.
     """
-    def __init__(self, sess, agent_name, observation_space, action_space,
+    def __init__(self, sess, agent_name, 
+                 observation_space, action_space,
+                 observation_space_name = [], action_space_name = [],
                  occupancy_reward_type = 'IR_distance',
                  interaction_mode = 'real_interaction'):
         """
@@ -29,6 +31,12 @@ class InternalEnvOfAgent(object):
             observation space of "agent_name"
         action_space: gym.spaces.Box datatype
             action space of "agent_name"
+        observation_space_name: string array
+            name of each entry of observation space
+            (hold for complex reward function definition.)
+        action_space_name: string array
+            name of each entry of action space 
+            (hold for complex reward function definition.)
         interaction_mode: string default = 'real_interaction'
             indicate interaction mode: 
                 1) 'real_interaction': interact with real robot
@@ -39,6 +47,8 @@ class InternalEnvOfAgent(object):
         self.agent_name = agent_name
         self.observation_space = observation_space
         self.action_space = action_space
+        self.observation_space_name = observation_space_name
+        self.action_space_name = action_space_name
         self.agent = LASAgent_Actor_Critic(self.tf_session,
                                            self.agent_name,
                                            self.observation_space,
