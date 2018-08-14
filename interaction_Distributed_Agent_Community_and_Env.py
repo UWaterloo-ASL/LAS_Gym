@@ -45,7 +45,7 @@ def _init_summarize_total_bright_light_number():
         bright_light_number_sum_op = tf.summary.merge([bright_light_number_sum])
         return bright_light_number_sum_op, bright_light_number
 # Summary directory
-save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results', 'overall_summary')
+save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results', 'Overall_Summary')
 summary_dir = os.path.join(save_dir,datetime.now().strftime("%Y%m%d-%H%M%S"))
 if not os.path.isdir(summary_dir):
     os.makedirs(summary_dir)
@@ -54,6 +54,7 @@ tf_writer = tf.summary.FileWriter(summary_dir)
 # Summarize # of bright light
 total_bright_light_number_sum_op,\
 total_bright_light_number_sum = _init_summarize_total_bright_light_number()
+
 
 if __name__ == '__main__':
     
@@ -85,6 +86,7 @@ if __name__ == '__main__':
             actionLAS = LAS_agent_community.interact(observation_For_LAS, reward_for_LAS, done)
             # delay the observing of consequence of LASAgent's action
             observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            
             ###################################################################
             #                          Summary                                #
             ###################################################################
@@ -96,7 +98,7 @@ if __name__ == '__main__':
             summary_str_bright_light_number = sess.run(total_bright_light_number_sum_op, 
                                                        feed_dict={total_bright_light_number_sum:bright_light_number})
             tf_writer.add_summary(summary_str_bright_light_number, i)
-            
+            ###################################################################
             
             i += 1
         
