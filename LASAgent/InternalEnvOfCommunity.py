@@ -110,15 +110,8 @@ class InternalEnvOfCommunity(object):
         ####################################################################
         self.total_step_counter = 0
         
-        self.save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results',self.community_name)
-        self.summary_dir = os.path.join(self.save_dir,datetime.now().strftime("%Y%m%d-%H%M%S"))
-        if not os.path.isdir(self.summary_dir):
-            os.makedirs(self.summary_dir)
         
-        self.writer = tf.summary.FileWriter(self.summary_dir, self.tf_session.graph)
         
-        self.total_bright_light_number_sum_op,\
-        self.total_bright_light_number_sum = self._init_summarize_total_bright_light_number()
         
     def interact(self, observation, external_reward = 0, done = False):
         """
@@ -140,12 +133,7 @@ class InternalEnvOfCommunity(object):
         # Partition observation
         observation_partition = self._partition_observation(observation,
                                                             self.agent_community_partition_config)
-        # Summary total bright light number
-        bright_light_number = self._calculate_total_bright_light_number(observation)
-        summary_str_bright_light_number = self.tf_session.run(self.total_bright_light_number_sum_op,
-                                                              feed_dict = {self.total_bright_light_number_sum:bright_light_number})
-        self.writer.add_summary(summary_str_bright_light_number, 
-                                self.total_step_counter)
+        
         # Partition reward
         #   1. 'IR_distance': based on IR distance from detected object to IR
         #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
@@ -480,37 +468,8 @@ class InternalEnvOfCommunity(object):
         
 # =================================================================== #
 #                   Initialization Summary Functions                  #
-# =================================================================== # 
-    def _calculate_total_bright_light_number(self, observation,
-                                             bright_light_threshold = 0.95):
-        """
-        calculate the # of bright light.
-        
-        Parameters
-        ----------
-        observation: array
-            
-        bright_light_threshold: float default = 0.95
-            
-        """
-        light_data = []
-        bright_light_threshold = 0.95
-        bright_light_number = 0
-        for i, name in enumerate(self.observation_space_name):
-            if 'light' in name:
-                light_data.append(observation[i])
-                if observation[i] >= bright_light_threshold:
-                    bright_light_number += 1
-        return bright_light_number
-        
-    def _init_summarize_total_bright_light_number(self):
-        """
-        Summarize the # of bright light.
-        """
-        bright_light_number = tf.placeholder(dtype = tf.float32)
-        bright_light_number_sum = tf.summary.scalar('total_bright_light_number', bright_light_number)
-        bright_light_number_sum_op = tf.summary.merge([bright_light_number_sum])
-        return bright_light_number_sum_op, bright_light_number
+# =================================================================== #     
+
 
 
 
