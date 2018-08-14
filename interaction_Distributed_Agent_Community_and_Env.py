@@ -69,9 +69,9 @@ if __name__ == '__main__':
         LAS_agent_community = InternalEnvOfCommunity(sess, 
                                                      community_name, 
                                                      community_size,
-                                                     envLAS.observation_space, 
-                                                     envLAS.observation_space_name,
+                                                     envLAS.observation_space,
                                                      envLAS.action_space, 
+                                                     envLAS.observation_space_name,
                                                      envLAS.action_space_name,
                                                      occupancy_reward_type = 'IR_distance',
                                                      interaction_mode = 'virtual_interaction')

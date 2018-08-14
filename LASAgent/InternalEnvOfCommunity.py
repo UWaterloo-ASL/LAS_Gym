@@ -19,8 +19,8 @@ class InternalEnvOfCommunity(object):
     interact with external environment.
     """
     def __init__(self, sess, community_name, community_size,
-                 observation_space, observation_space_name,
-                 action_space, action_space_name,
+                 observation_space, action_space, 
+                 observation_space_name, action_space_name,
                  occupancy_reward_type = 'IR_distance',
                  interaction_mode = 'real_interaction'):
         """
@@ -33,10 +33,10 @@ class InternalEnvOfCommunity(object):
             the # of agents living in the community 
         observation_space: gym.spaces.Box datatype
             observation space of "agent_name"
-        observation_space_name: list of string
-            gives the name of each entry in observation space
         action_space: gym.spaces.Box datatype
             action space of "agent_name"
+        observation_space_name: list of string
+            gives the name of each entry in observation space
         action_space_name: list of strings
             gives the name of each entry in action space
         occupancy_reward_type: string default = 'IR_distance'
