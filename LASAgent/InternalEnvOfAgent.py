@@ -54,6 +54,10 @@ class InternalEnvOfAgent(object):
                 2) 'virtual_interaction': interact with virtual environment
         """
         self.tf_session = sess
+        self.x_order_MDP = x_order_MDP
+        self.x_order_MDP_observation_pool = []
+        self.occupancy_reward_type = occupancy_reward_type
+        self.interaction_mode = interaction_mode
         # Initialize agent
         self.agent_name = agent_name
         self.observation_space = observation_space
@@ -77,7 +81,7 @@ class InternalEnvOfAgent(object):
                                            # Save and Restore Actor-Critic Model
                                            restore_actor_model_flag = False,
                                            restore_critic_model_flag = False)
-        self.interaction_mode = interaction_mode
+        
         
     def interact(self, observation, external_reward = 0, done = False):
         """
