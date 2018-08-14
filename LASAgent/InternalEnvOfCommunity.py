@@ -21,6 +21,7 @@ class InternalEnvOfCommunity(object):
     def __init__(self, sess, community_name, community_size,
                  observation_space, observation_space_name,
                  action_space, action_space_name,
+                 occupancy_reward_type = 'IR_distance',
                  interaction_mode = 'real_interaction'):
         """
         Initialize internal environment for an agent
@@ -38,6 +39,11 @@ class InternalEnvOfCommunity(object):
             action space of "agent_name"
         action_space_name: list of strings
             gives the name of each entry in action space
+        occupancy_reward_type: string default = 'IR_distance'
+            1. 'IR_distance': based on IR distance from detected object to IR
+            2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                                 of IR sensors 
+            3. 'IR_state_number': the number of detected objects
         interaction_mode: string default = 'real_interaction'
             indicate interaction mode: 
                 1) 'real_interaction': interact with real robot
@@ -45,6 +51,7 @@ class InternalEnvOfCommunity(object):
         """
         self.tf_session = sess
         self.interaction_mode = interaction_mode
+        self.occupancy_reward_type = occupancy_reward_type
         # Initialize community
         self.community_name = community_name
         self.community_size = community_size
@@ -141,7 +148,7 @@ class InternalEnvOfCommunity(object):
         #   3. 'IR_state_number': the number of detected objects
         reward_partition = self._partition_reward(observation_partition,
                                                   self.agent_community_partition_config,
-                                                  'IR_state_ratio')
+                                                  self.occupancy_reward_type)
         for agent_name in reward_partition.keys():
             print('Reward of {} is: {}'.format(agent_name,reward_partition[agent_name]))
         # Collect actions from each agent
