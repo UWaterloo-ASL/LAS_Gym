@@ -17,6 +17,7 @@ class InternalEnvOfAgent(object):
     This class provides Internal Environment for an agent.
     """
     def __init__(self, sess, agent_name, observation_space, action_space,
+                 occupancy_reward_type = 'IR_distance',
                  interaction_mode = 'real_interaction'):
         """
         Initialize internal environment for an agent
@@ -75,7 +76,7 @@ class InternalEnvOfAgent(object):
             the action chosen by intelligent agent
         """
         if self.interaction_mode == 'real_interaction':
-            reward = self._extrinsic_reward_func(observation)
+            reward = self._reward_occupancy(observation)
         elif self.interaction_mode == 'virtual_interaction':
             reward = external_reward
         else:
@@ -85,12 +86,50 @@ class InternalEnvOfAgent(object):
         action = self.agent.perceive_and_act(observation, reward, done)
         return action
     
-    def _extrinsic_reward_func(self, observation):
+    def _reward_occupancy(self, observation, reward_type = 'IR_distance'):
         """
-        This function is used to provide extrinsic reward.
+        Calculate reward based on occupancy i.e. the IRs data
+        
+        Parameters
+        ----------
+        observation: array
+            observation array
+            
+        reward_type: string default='IR_distance'
+            1. 'IR_distance': based on IR distance from detected object to IR
+            2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                                 of IR sensors 
+            3. 'IR_state_number': the number of detected objects
+        
+        Returns
+        -------
+        reward: float
+            the value of reward
         """
-        reward = 1
-        return reward
+        prox_distances = observation[:self.prox_sensor_num]
+        # Make here insistent with IR data
+        #   1. 'IR_distance': based on IR distance from detected object to IR
+        #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+        #                        of IR sensors 
+        #   3. 'IR_state_number': the number of detected objects
+        reward_temp = 0.0
+        if reward_type == 'IR_distance':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1/distance
+        elif reward_type == 'IR_state_ratio':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1
+            reward_temp = reward_temp / len(prox_distances)
+        elif reward_type == 'IR_state_number':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1
+        else:
+            raise Exception('Please choose a proper reward type!')
+        self.reward = reward_temp
+        return self.reward
     
     def start(self):
         """

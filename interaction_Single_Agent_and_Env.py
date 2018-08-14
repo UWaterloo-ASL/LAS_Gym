@@ -28,6 +28,7 @@ if __name__ == '__main__':
         observation_space = envLAS.observation_space
         action_space = envLAS.action_space
         agent = InternalEnvOfAgent(sess, agent_name, observation_space, action_space,
+                                   occupancy_reward_type = 'IR_distance',
                                    interaction_mode = 'virtual_interaction')
         
         # Step counter
