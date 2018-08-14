@@ -73,6 +73,7 @@ if __name__ == '__main__':
                                                      envLAS.action_space, 
                                                      envLAS.observation_space_name,
                                                      envLAS.action_space_name,
+                                                     x_order_MDP = 1,
                                                      occupancy_reward_type = 'IR_distance',
                                                      interaction_mode = 'virtual_interaction')
         

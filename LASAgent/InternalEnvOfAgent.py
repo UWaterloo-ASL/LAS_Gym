@@ -19,6 +19,7 @@ class InternalEnvOfAgent(object):
     def __init__(self, sess, agent_name, 
                  observation_space, action_space,
                  observation_space_name = [], action_space_name = [],
+                 x_order_MDP = 1,
                  occupancy_reward_type = 'IR_distance',
                  interaction_mode = 'real_interaction'):
         """
@@ -28,7 +29,9 @@ class InternalEnvOfAgent(object):
         agent_name: string
             the name of the agent this internal environment serves for
         observation_space: gym.spaces.Box datatype
-            observation space of "agent_name"
+            observation space of "agent_name". if we use x_order_MDP
+            the actual_observation_space should be:
+                (observation_space * x_order_MDP)
         action_space: gym.spaces.Box datatype
             action space of "agent_name"
         observation_space_name: string array
@@ -37,6 +40,14 @@ class InternalEnvOfAgent(object):
         action_space_name: string array
             name of each entry of action space 
             (hold for complex reward function definition.)
+        x_order_MDP: int default=1
+            define the order of MDP. If x_order_MDP != 1, we combine multiple
+            observations as one single observation.
+        occupancy_reward_type: string default = 'IR_distance'
+            1. 'IR_distance': based on IR distance from detected object to IR
+            2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                                 of IR sensors 
+            3. 'IR_state_number': the number of detected objects
         interaction_mode: string default = 'real_interaction'
             indicate interaction mode: 
                 1) 'real_interaction': interact with real robot

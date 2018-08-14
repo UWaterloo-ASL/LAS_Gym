@@ -68,6 +68,7 @@ if __name__ == '__main__':
         agent = InternalEnvOfAgent(sess, agent_name, observation_space, action_space,
                                    observation_space_name = [], 
                                    action_space_name = [],
+                                   x_order_MDP = 1,
                                    occupancy_reward_type = 'IR_distance',
                                    interaction_mode = 'virtual_interaction')
         

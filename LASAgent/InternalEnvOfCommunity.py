@@ -21,6 +21,7 @@ class InternalEnvOfCommunity(object):
     def __init__(self, sess, community_name, community_size,
                  observation_space, action_space, 
                  observation_space_name, action_space_name,
+                 x_order_MDP = 1,
                  occupancy_reward_type = 'IR_distance',
                  interaction_mode = 'real_interaction'):
         """
@@ -32,13 +33,18 @@ class InternalEnvOfCommunity(object):
         community_size: int
             the # of agents living in the community 
         observation_space: gym.spaces.Box datatype
-            observation space of "agent_name"
+            firt-order observation space of "agent_name", if we use x_order_MDP
+            the actual_observation_space should be:
+                (observation_space * x_order_MDP)
         action_space: gym.spaces.Box datatype
-            action space of "agent_name"
+            this is actually actuator space
         observation_space_name: list of string
             gives the name of each entry in observation space
         action_space_name: list of strings
             gives the name of each entry in action space
+        x_order_MDP: int default=1
+            define the order of MDP. If x_order_MDP != 1, we combine multiple
+            observations as one single observation.
         occupancy_reward_type: string default = 'IR_distance'
             1. 'IR_distance': based on IR distance from detected object to IR
             2. 'IR_state_ratio': the ratio of # of detected objects and all # 
@@ -50,8 +56,10 @@ class InternalEnvOfCommunity(object):
                 2) 'virtual_interaction': interact with virtual environment
         """
         self.tf_session = sess
-        self.interaction_mode = interaction_mode
+        self.x_order_MDP = x_order_MDP
         self.occupancy_reward_type = occupancy_reward_type
+        self.interaction_mode = interaction_mode
+        
         # Initialize community
         self.community_name = community_name
         self.community_size = community_size
