@@ -45,7 +45,7 @@ def _init_summarize_total_bright_light_number():
         bright_light_number_sum_op = tf.summary.merge([bright_light_number_sum])
         return bright_light_number_sum_op, bright_light_number
 # Summary directory
-save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results', 'Overall_Summary')
+save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results', 'Overall_Summary_Agent_Community')
 summary_dir = os.path.join(save_dir,datetime.now().strftime("%Y%m%d-%H%M%S"))
 if not os.path.isdir(summary_dir):
     os.makedirs(summary_dir)
