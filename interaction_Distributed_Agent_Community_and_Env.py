@@ -17,7 +17,9 @@ from datetime import datetime
 from Environment.LASEnv import LASEnv
 from LASAgent.InternalEnvOfAgent import InternalEnvOfAgent
 from LASAgent.InternalEnvOfCommunity import InternalEnvOfCommunity
-
+###############################################################################
+#                          Only Used For Summary                              #
+###############################################################################
 def calculate_total_bright_light_number(light_intensity,
                                         bright_light_threshold = 0.95):
     """
@@ -54,7 +56,7 @@ tf_writer = tf.summary.FileWriter(summary_dir)
 # Summarize # of bright light
 total_bright_light_number_sum_op,\
 total_bright_light_number_sum = _init_summarize_total_bright_light_number()
-
+###############################################################################
 
 if __name__ == '__main__':
     
