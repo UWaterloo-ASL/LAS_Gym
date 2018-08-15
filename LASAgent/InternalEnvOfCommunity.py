@@ -85,24 +85,24 @@ class InternalEnvOfCommunity(object):
         ####################################################################
         #                          Configuration
         ####################################################################
-        # Config 1: with shared sensor
-        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15'],
-                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
-                                     'agent_3':['node#9','node#8','node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
-                                     }
-        self.community_config_act = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
-                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
-                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
-                                     }
-#        # Config 2: no shared sensor
-#        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+#        # Config 1: with shared sensor
+#        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15'],
 #                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
-#                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+#                                     'agent_3':['node#9','node#8','node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
 #                                     }
 #        self.community_config_act = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
 #                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
 #                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
 #                                     }
+        # Config 2: no shared sensor
+        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
+                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+                                     }
+        self.community_config_act = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
+                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+                                     }
         # Config 3: share all sensor
 #        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15',\
 #                                                'node#14','node#13','node#12','node#11','node#10','node#9','node#8','node#7','node#6',\
@@ -353,12 +353,31 @@ class InternalEnvOfCommunity(object):
             for agent_name in agent_community_partition_config.keys():
                 observation_space = agent_community_partition_config[agent_name]['observation_space']
                 action_space = agent_community_partition_config[agent_name]['action_space']
+                observation_space_name = agent_community_partition_config[agent_name]['observation_space_name']
+                action_space_name = agent_community_partition_config[agent_name]['action_space_name']
                 # Instantiate LAS-agent
+                #   x_order_MDP = 1: 
+                #       observations have been combined, so use x_order_MDP=1
+                #   x_order_MDP_observation_type = 'concatenate_observation':
+                #       doesn't matter, since x_order_MDP = 1
+                #   occupancy_reward_type = 'IR_distance':
+                #       doesn't matter, since interaction_mode = 'virtual_interaction'
+                #   interaction_mode = 'virtual_interaction':
+                #       because rward is provided by InternalEnvOfCommunity
+                x_order_MDP = 1
+                x_order_MDP_observation_type = 'concatenate_observation' # doesn't matter
+                occupancy_reward_type = 'IR_distance'                    # doesn't matter
+                interaction_mode = 'virtual_interaction'
                 agent_community[agent_name] = InternalEnvOfAgent(self.tf_session,\
-                                                                 agent_name,
-                                                                 observation_space,
+                                                                 agent_name, 
+                                                                 observation_space, 
                                                                  action_space,
-                                                                 interaction_mode = 'virtual_interaction')
+                                                                 observation_space_name, 
+                                                                 action_space_name,
+                                                                 x_order_MDP,
+                                                                 x_order_MDP_observation_type,
+                                                                 occupancy_reward_type,
+                                                                 interaction_mode)
             print('Create actor_critic_agent community done!')
         else:
             raise Exception('Please choose a right agent type!')

@@ -66,7 +66,7 @@ if __name__ == '__main__':
         # Instatiate LAS-community
         community_name = 'LAS_Agent_Community'
         community_size = 3
-        x_order_MDP = 5
+        x_order_MDP = 1
         LAS_agent_community = InternalEnvOfCommunity(sess, 
                                                      community_name, 
                                                      community_size,

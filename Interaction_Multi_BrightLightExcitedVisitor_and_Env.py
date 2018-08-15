@@ -83,10 +83,8 @@ if __name__ == '__main__':
         
         time.sleep(0.1)
         
-<<<<<<< HEAD
-=======
         # Plot bright_light_number
->>>>>>> 9988d549de74cc424f647815a99cccdf4dec97f3
+
         plt.scatter(i, visitor3.bright_light_num, c="r")
         plt.show()
         plt.pause(0.05)
