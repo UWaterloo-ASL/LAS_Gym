@@ -8,6 +8,7 @@ Created on Tue Aug  7 23:09:52 2018
 import tensorflow as tf
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 from Environment.LASEnv import LASEnv
 from LASAgent.RandomLASAgent import RandomLASAgent
@@ -17,7 +18,7 @@ from Environment.BrightLightExcitedVisitorEnv import BrightLightExcitedVisitorEn
 from VisitorAgent.BrightLightExcitedVisitorAgent import BrightLightExcitedVisitorAgent
 
 
-import matplotlib.pyplot as plt
+
 
 
 if __name__ == '__main__':
@@ -82,6 +83,10 @@ if __name__ == '__main__':
         
         time.sleep(0.1)
         
+<<<<<<< HEAD
+=======
+        # Plot bright_light_number
+>>>>>>> 9988d549de74cc424f647815a99cccdf4dec97f3
         plt.scatter(i, visitor3.bright_light_num, c="r")
         plt.show()
         plt.pause(0.05)

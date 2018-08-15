@@ -45,7 +45,7 @@ def _init_summarize_total_bright_light_number():
         bright_light_number_sum_op = tf.summary.merge([bright_light_number_sum])
         return bright_light_number_sum_op, bright_light_number
 # Summary directory
-save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results', 'Overall_Summary')
+save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results', 'Overall_Summary_Agent_Community')
 summary_dir = os.path.join(save_dir,datetime.now().strftime("%Y%m%d-%H%M%S"))
 if not os.path.isdir(summary_dir):
     os.makedirs(summary_dir)
@@ -66,13 +66,16 @@ if __name__ == '__main__':
         # Instatiate LAS-community
         community_name = 'LAS_Agent_Community'
         community_size = 3
+        x_order_MDP = 5
         LAS_agent_community = InternalEnvOfCommunity(sess, 
                                                      community_name, 
                                                      community_size,
-                                                     envLAS.observation_space, 
-                                                     envLAS.observation_space_name,
+                                                     envLAS.observation_space,
                                                      envLAS.action_space, 
+                                                     envLAS.observation_space_name,
                                                      envLAS.action_space_name,
+                                                     x_order_MDP,
+                                                     x_order_MDP_observation_type = 'concatenate_observation',
                                                      occupancy_reward_type = 'IR_distance',
                                                      interaction_mode = 'virtual_interaction')
         
@@ -82,10 +85,27 @@ if __name__ == '__main__':
         done = False
         reward_for_LAS = 0
         while not done:
-            # LAS_community interacts with environment.
-            actionLAS = LAS_agent_community.interact(observation_For_LAS, reward_for_LAS, done)
-            # delay the observing of consequence of LASAgent's action
-            observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            if x_order_MDP == 1:
+                # LAS_community interacts with environment.
+                actionLAS = LAS_agent_community.interact(observation_For_LAS, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            elif x_order_MDP > 1:
+                # Feed (x_order_MDP-1) observation
+                for obs_temp_i in range(x_order_MDP-1):
+                    # the first obs is the immediate obaservation afer taking action
+                    if obs_temp_i == 0: 
+                        LAS_agent_community.feed_observation(observation_For_LAS)
+                    else:
+                        observation = envLAS._self_observe()
+                        LAS_agent_community.feed_observation(observation)
+                # LAS_community interacts with environment.
+                observation = envLAS._self_observe()
+                actionLAS = LAS_agent_community.interact(observation, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            else:
+                raise Exception('Please choose a proper x_order_MDP!')
             
             ###################################################################
             #                          Summary                                #
