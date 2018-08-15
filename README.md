@@ -46,6 +46,14 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
 
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/ROM_Simulation_Scene.png" width="400" height="400" /> 
 
+## How To Use
+
+### Demo 1: Single Agent
+   `interaction_Single_Agent_and_Env.py`
+### Demo 2: Multi-Agents
+   `interaction_Distributed_Agent_Community_and_Env.py`
+### Demo 3: Visitors
+   `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
 
 ## Features
   1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
