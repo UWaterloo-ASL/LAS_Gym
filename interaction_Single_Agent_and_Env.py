@@ -65,10 +65,11 @@ if __name__ == '__main__':
         agent_name = 'LAS_Single_Agent'
         observation_space = envLAS.observation_space
         action_space = envLAS.action_space
+        x_order_MDP = 1
         agent = InternalEnvOfAgent(sess, agent_name, observation_space, action_space,
                                    observation_space_name = [], 
                                    action_space_name = [],
-                                   x_order_MDP = 1,
+                                   x_order_MDP,
                                    occupancy_reward_type = 'IR_distance',
                                    interaction_mode = 'virtual_interaction')
         
@@ -77,12 +78,27 @@ if __name__ == '__main__':
         done = False
         reward_for_LAS = 0
         while not done:
-            # LAS interacts with environment.
-            actionLAS = agent.interact(observation_For_LAS, reward_for_LAS, done)
-            # delay the observing of consequence of LASAgent's action
-            observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
-            print("LAS Step: {}, reward: {}".format(i, reward_for_LAS))
-            
+            if x_order_MDP == 1:
+                # LAS interacts with environment.
+                actionLAS = agent.interact(observation_For_LAS, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            elif x_order_MDP > 1:
+                # Feed (x_order_MDP-1) observation
+                for obs_temp_i in range(x_order_MDP-1):
+                    # the first obs is the immediate obaservation afer taking action
+                    if obs_temp_i == 0: 
+                        agent.feed_observation(observation_For_LAS)
+                    else:
+                        observation = envLAS._self_observe()
+                        agent.feed_observation(observation)
+                # The last obs is input into interact function.
+                observation = envLAS._self_observe()
+                actionLAS = agent.interact(observation, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            else:
+                raise Exception('Please choose a proper x_order_MDP!')
             ###################################################################
             #                          Summary                                #
             ###################################################################
