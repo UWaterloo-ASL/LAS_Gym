@@ -67,6 +67,7 @@ class InternalEnvOfAgent(object):
             indicate interaction mode: 
                 1) 'real_interaction': interact with real robot
                 2) 'virtual_interaction': interact with virtual environment
+                        i.e. reward is provided
         """
         self.tf_session = sess
         

@@ -84,6 +84,7 @@ if __name__ == '__main__':
         time.sleep(0.1)
         
         # Plot bright_light_number
+
         plt.scatter(i, visitor3.bright_light_num, c="r")
         plt.show()
         plt.pause(0.05)
