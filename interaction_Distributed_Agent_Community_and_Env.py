@@ -66,6 +66,7 @@ if __name__ == '__main__':
         # Instatiate LAS-community
         community_name = 'LAS_Agent_Community'
         community_size = 3
+        x_order_MDP = 5
         LAS_agent_community = InternalEnvOfCommunity(sess, 
                                                      community_name, 
                                                      community_size,
@@ -73,7 +74,8 @@ if __name__ == '__main__':
                                                      envLAS.action_space, 
                                                      envLAS.observation_space_name,
                                                      envLAS.action_space_name,
-                                                     x_order_MDP = 1,
+                                                     x_order_MDP,
+                                                     x_order_MDP_observation_type = 'concatenate_observation',
                                                      occupancy_reward_type = 'IR_distance',
                                                      interaction_mode = 'virtual_interaction')
         
@@ -83,10 +85,27 @@ if __name__ == '__main__':
         done = False
         reward_for_LAS = 0
         while not done:
-            # LAS_community interacts with environment.
-            actionLAS = LAS_agent_community.interact(observation_For_LAS, reward_for_LAS, done)
-            # delay the observing of consequence of LASAgent's action
-            observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            if x_order_MDP == 1:
+                # LAS_community interacts with environment.
+                actionLAS = LAS_agent_community.interact(observation_For_LAS, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            elif x_order_MDP > 1:
+                # Feed (x_order_MDP-1) observation
+                for obs_temp_i in range(x_order_MDP-1):
+                    # the first obs is the immediate obaservation afer taking action
+                    if obs_temp_i == 0: 
+                        LAS_agent_community.feed_observation(observation_For_LAS)
+                    else:
+                        observation = envLAS._self_observe()
+                        LAS_agent_community.feed_observation(observation)
+                # LAS_community interacts with environment.
+                observation = envLAS._self_observe()
+                actionLAS = LAS_agent_community.interact(observation, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            else:
+                raise Exception('Please choose a proper x_order_MDP!')
             
             ###################################################################
             #                          Summary                                #
