@@ -90,7 +90,9 @@ class ActorNetwork(object):
         self.target_actor_model_save_path = target_actor_model_save_path
         
         self.restore_model_flag = restore_model_flag
-        self.restore_model_version = restore_model_version
+        self.restore_model_version = self._find_the_most_recent_model_version() 
+        if self.restore_model_flag and self.restore_model_version == -1:
+            raise Exception('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
         
         with tf.variable_scope(self.name) as self.scope:
             # Initialize or Restore Actor Network
@@ -191,7 +193,25 @@ class ActorNetwork(object):
 
     def get_num_trainable_vars(self):
         return self.num_trainable_vars
-
+    
+    def _find_the_most_recent_model_version(self):
+        """
+        Returns
+        -------
+        the_most_recent_model_version: int
+            the most recent model version. If no saved model, return -1.
+        """
+        # Find the most recent version
+        model_version = []
+        for file_name_temp in os.listdir(self.actor_model_save_path):
+            if self.name+'_target_' in file_name_temp:
+                _, version_temp = file_name_temp.split('.')[0].split(self.name+'_target_')
+                model_version.append(version_temp)
+        if len(model_version) != 0:
+            the_most_recent_model_version = int(max(model_version))
+        else:
+            the_most_recent_model_version = -1
+        return the_most_recent_model_version
 
 class CriticNetwork(object):
     """
@@ -248,7 +268,9 @@ class CriticNetwork(object):
         self.target_critic_model_save_path = target_critic_model_save_path
         
         self.restore_model_flag = restore_model_flag
-        self.restore_model_version = restore_model_version
+        self.restore_model_version = self._find_the_most_recent_model_version()
+        if self.restore_model_flag and self.restore_model_version == -1:
+            raise Exception('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
         
         with tf.variable_scope(self.name) as self.scope:
             # Create the critic network
@@ -367,6 +389,25 @@ class CriticNetwork(object):
 
     def update_target_network(self):
         self.sess.run(self.update_target_network_params)
+    
+    def _find_the_most_recent_model_version(self):
+        """
+        Returns
+        -------
+        the_most_recent_model_version: int
+            the most recent model version
+        """
+        # Find the most recent version
+        model_version = []
+        for file_name_temp in os.listdir(self.critic_model_save_path):
+            if self.name+'_target_' in file_name_temp:
+                _, version_temp = file_name_temp.split('.')[0].split(self.name+'_target_')
+                model_version.append(version_temp)
+        if len(model_version) != 0:
+            the_most_recent_model_version = int(max(model_version))
+        else:
+            the_most_recent_model_version = -1
+        return the_most_recent_model_version
 # ===========================
 #   Environment Model DNNs
 # ===========================
@@ -694,8 +735,8 @@ class LASAgent_Actor_Critic():
                  exploration_action_noise_type = 'ou_0.2',
                  exploration_epsilon_greedy_type = 'none',
                  # Save Summaries
-                 save_dir = './results/LASAgentActorCritic_5NodesEnv/',
-                 experiment_runs = 'run1',
+                 save_dir = '',
+                 experiment_runs = '',
                  # Save and Restore Actor-Critic Model
                  restore_actor_model_flag = False,
                  restore_critic_model_flag = False,
@@ -707,36 +748,49 @@ class LASAgent_Actor_Critic():
         ----------
         actor_lr: float default = 0.0001
             actor model learning rate
+        
         actor_tau: float default = 0.001
             target actor model updating weight
+        
         critic_lr: float default = 0.0001
             critic model learning rate
+        
         critic_tau: float default = 0.001
             target critic model updating weight
+        
         gamma default:int = 0.99
             future reward discounting paramter
+        
         minibatch_size:int default = 64
             size of minibabtch
+        
         max_episodes:int default = 50000
             maximum number of episodes
+        
         max_episode_len: int default = 1000
             maximum lenght of each episode
+        
         exploration_action_noise_type: str default = 'ou_0.2',
             set up action noise. Options:
                 1. 'none' (no action noise)
                 2. 'adaptive-param_0.2'
                 3. 'normal_0.2'
                 4. 'ou_0.2' 
+        
         exploration_epsilon_greedy_type: str default = 'none',
             set up epsilon-greedy.
             1. If exploration_epsilon_greedy_type == 'none', no epsilon-greedy.
             2. 'epsilon-greedy-max_1_min_0.05_decay_0.999'
-        save_dir: string default='./results/LASAgent_Actor_Critic')
+        
+        save_dir: string default='')
             directory to save tensorflow summaries and pre-trained models
-        experiment_runs: str default = 'run1'
+        
+        experiment_runs: str default = ''
             directory to save summaries of a specific run 
+        
         restore_actor_model_flag: bool default = False
             indicate whether load pre-trained actor model
+        
         restore_critic_model_flag: bool default = False
             indicate whetther load pre-trained critic model
         """
@@ -949,7 +1003,7 @@ class LASAgent_Actor_Critic():
         self.knowledge_based_intrinsic_critic_model_save_path = self.models_dir
         self.target_knowledge_based_intrinsic_critic_model_save_path = self.models_dir
         
-        self.restore_knowledge_based_intrinsic_critic_model_flag = restore_critic_model_flag
+        self.restore_knowledge_based_intrinsic_critic_model_flag = False
         self.restore_knowledge_based_intrinsic_critic_model_version = restore_model_version
         
         self.knowledge_based_intrinsic_critic_model = CriticNetwork(self.knowledge_based_intrinsic_critic_name,
@@ -1394,7 +1448,7 @@ class LASAgent_Actor_Critic():
         Summarize experiment setting
         """
         experiemnt_setting = tf.placeholder(tf.string)
-        experiemnt_setting_sum = tf.summary.text('Experiment_setting', experiemnt_setting)
+        experiemnt_setting_sum = tf.summary.text('Actor_Critic_Agent_Experiment_Setting', experiemnt_setting)
         summary_ops = tf.summary.merge([experiemnt_setting_sum])
         return summary_ops, experiemnt_setting
        
@@ -1579,11 +1633,4 @@ class LASAgent_Actor_Critic():
         embedding.metadata_path = metadata_file_name
         projector.visualize_embeddings(self.writer,
                                        self.embeded_vars_of_extrinsic_actor_critic_config)
-        
-        
-        
-        
-        
-        
-        
         
