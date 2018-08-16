@@ -24,7 +24,8 @@ class InternalEnvOfAgent(object):
                  x_order_MDP = 1,
                  x_order_MDP_observation_type = 'concatenate_observation',
                  occupancy_reward_type = 'IR_distance',
-                 interaction_mode = 'real_interaction'):
+                 interaction_mode = 'real_interaction',
+                 load_pretrained_agent_flag = False):
         """
         Initialize internal environment for an agent
         Parameters
@@ -68,6 +69,9 @@ class InternalEnvOfAgent(object):
                 1) 'real_interaction': interact with real robot
                 2) 'virtual_interaction': interact with virtual environment
                         i.e. reward is provided
+        
+        load_pretrained_agent: boolean default = False
+            if == True: load pretrained agent, otherwise randomly initialize.
         """
         self.tf_session = sess
         
@@ -88,24 +92,31 @@ class InternalEnvOfAgent(object):
         
         self.observation_space_name = observation_space_name
         self.action_space_name = action_space_name
-        self.agent = LASAgent_Actor_Critic(self.tf_session,
-                                           self.agent_name,
-                                           self.actual_observation_space,
-                                           self.action_space,
-                                           actor_lr = 0.0001, actor_tau = 0.001,
-                                           critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
-                                           minibatch_size = 64,
-                                           max_episodes = 50000, max_episode_len = 1000,
-                                           # Exploration Strategies
-                                           exploration_action_noise_type = 'ou_0.2',
-                                           exploration_epsilon_greedy_type = 'none',
-                                           # Save Summaries
-                                           save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results',self.agent_name),
-                                           experiment_runs = datetime.now().strftime("%Y%m%d-%H%M%S"),
-                                           # Save and Restore Actor-Critic Model
-                                           restore_actor_model_flag = False,
-                                           restore_critic_model_flag = False)
         
+        self.agent_model_save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results',self.agent_name)
+        
+        if load_pretrained_agent_flag == False:
+            self.agent = LASAgent_Actor_Critic(self.tf_session,
+                                               self.agent_name,
+                                               self.actual_observation_space,
+                                               self.action_space,
+                                               actor_lr = 0.0001, actor_tau = 0.001,
+                                               critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
+                                               minibatch_size = 64,
+                                               max_episodes = 50000, max_episode_len = 1000,
+                                               # Exploration Strategies
+                                               exploration_action_noise_type = 'ou_0.2',
+                                               exploration_epsilon_greedy_type = 'none',
+                                               # Save Summaries
+                                               save_dir = self.agent_model_save_dir,
+                                               experiment_runs = datetime.now().strftime("%Y%m%d-%H%M%S"),
+                                               # Save and Restore Actor-Critic Model
+                                               restore_actor_model_flag = False,
+                                               restore_critic_model_flag = False)
+        elif load_pretrained_agent_flag == True:
+            self._initialize_pretrained_agent()
+        else:
+            raise Exception('Please set load_pretrained_agent parameter!')
         
     def interact(self, observation, external_reward = 0, done = False):
         """
@@ -141,7 +152,7 @@ class InternalEnvOfAgent(object):
             reward = external_reward
         else:
             raise Exception('Please choose right interaction mode!')
-        
+        print('Reward of {} is: {}'.format(self.agent_name, reward))
         done = False
         action = self.agent.perceive_and_act(observation_for_x_order_MDP, reward, done)
         return action
@@ -232,16 +243,62 @@ class InternalEnvOfAgent(object):
         self.reward = reward_temp / x_order_MDP
         return self.reward
     
-    def start(self):
+    def _initialize_pretrained_agent(self):
         """
-        This interface function is to load pretrained models.
+        This function is to load pretrained models. This function 
+        is actually to reinitialize an agent with pretrained models.
+        
+        (Call this function only if you want to start learning with most recently 
+        trained agent.)
         """
+        # Search for most recent model in model directory
+        model_directory = os.path.join(self.agent_model_save_dir,'models')
+        model_created_date = []
+        for directory_temp in os.listdir(model_directory):
+            # Only compare date
+            if '2018' in directory_temp:
+                model_created_date.append(directory_temp)
+        directory_of_most_recent_models = max(model_created_date)
+        # Instantiate Agent With the Pretrained Model
+        self.agent = LASAgent_Actor_Critic(self.tf_session,
+                                           self.agent_name,
+                                           self.actual_observation_space,
+                                           self.action_space,
+                                           actor_lr = 0.0001, actor_tau = 0.001,
+                                           critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
+                                           minibatch_size = 64,
+                                           max_episodes = 50000, max_episode_len = 1000,
+                                           # Exploration Strategies
+                                           exploration_action_noise_type = 'ou_0.2',
+                                           exploration_epsilon_greedy_type = 'none',
+                                           # Save Summaries
+                                           save_dir = self.agent_model_save_dir,
+                                           experiment_runs = directory_of_most_recent_models,
+                                           # Save and Restore Actor-Critic Model
+                                           restore_actor_model_flag = True,
+                                           restore_critic_model_flag = True)
         
         
     def stop(self):
         """
-        This interface function is to save trained models.
+        This interface function is to save trained models for the agent:
+            1. actor-critic model
+            2. environment model
+        
+        (Try to call this function before shut down learning to maintain most
+        recently trained agent, although there is a periodic saving which cannot
+        ensure saving the most recent trained agent.)
         """
+        # Save Actor-Critic model
+        self.agent.extrinsic_actor_model.save_actor_network(self.agent.episode_counter)
+        self.agent.extrinsic_critic_model.save_critic_network(self.agent.episode_counter)
+        # Save Environment Model
+        self.agent.saved_env_model_counter += 1
+        self.agent.environment_model.save_environment_model_network(self.agent.saved_env_model_counter)
+        # Save Replay Buffer ?? (not really necessary)
+        
+        # Save
+        
         
     def feed_observation(self, observation):
         """
