@@ -70,7 +70,7 @@ class InternalEnvOfAgent(object):
                 2) 'virtual_interaction': interact with virtual environment
                         i.e. reward is provided
         
-        load_pretrained_agent: boolean default = False
+        load_pretrained_agent_flag: boolean default = False
             if == True: load pretrained agent, otherwise randomly initialize.
         """
         self.tf_session = sess
