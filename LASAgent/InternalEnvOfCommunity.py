@@ -8,6 +8,7 @@ Created on Wed Aug  8 21:47:50 2018
 import os
 from datetime import datetime
 import numpy as np
+import csv
 from collections import deque
 import tensorflow as tf
 from gym import spaces
@@ -153,7 +154,27 @@ class InternalEnvOfCommunity(object):
         ####################################################################
         self.total_step_counter = 0
         
-        
+        #####################################################################
+        #                 Interaction data saving directory                 #
+        #                                                                   #
+        # Note: each agent living in this community has its own Interaction #
+        #       data saving directory. Here is a saving of interaction from #
+        #       the perspective of Agent-Community.
+        #####################################################################
+        self.interaction_data_dir = os.path.join(os.path.abspath('..'),
+                                                      'ROM_Experiment_results',
+                                                      self.community_name,
+                                                      'interaction_data')
+        if not os.path.exists(self.interaction_data_dir):
+            os.makedirs(self.interaction_data_dir)
+        self.interaction_data_file = os.path.join(self.interaction_data_dir,
+                                                  datetime.now().strftime("%Y%m%d-%H%M%S")+'.csv')
+        with open(self.interaction_data_file, 'a') as csv_datafile:
+            fieldnames = ['Time', 'Observation_queue', 'Observation_partition',
+                          'Reward_partition', 
+                          'Action_partition', 'Action']
+            writer = csv.DictWriter(csv_datafile, fieldnames = fieldnames)
+            writer.writeheader()
         
         
     def interact(self, observation, external_reward = 0, done = False):
@@ -204,6 +225,12 @@ class InternalEnvOfCommunity(object):
         action = self._combine_action(action_partition, self.agent_community_partition_config)
         
         self.total_step_counter += 1
+        # Logging interaction data
+        self._logging_interaction_data(self.x_order_MDP_observation_sequence.copy(),
+                                       observation_partition,
+                                       reward_partition,
+                                       action_partition,
+                                       action)
         
         return action
     
@@ -622,7 +649,35 @@ class InternalEnvOfCommunity(object):
         # Train all agent when feeding observation
         for agent_name in self.agent_community.keys():
             self.agent_community[agent_name].agent._train()
+    
+    def _logging_interaction_data(self, x_order_MDP_observation_sequence,
+                                  observation_partition,
+                                  reward_partition,
+                                  action_partition,
+                                  action):
+        """
+        Saving interaction data
         
+        Parameters
+        ----------
+        observation_for_x_order_MDP: array
+        
+        reward: float
+        
+        action: array
+        
+        """
+        with open(self.interaction_data_file, 'a') as csv_datafile:
+            fieldnames = ['Time', 'Observation_queue', 'Observation_partition',
+                          'Reward_partition', 
+                          'Action_partition', 'Action']
+            writer = csv.DictWriter(csv_datafile, fieldnames = fieldnames)
+            writer.writerow({'Time':datetime.now().strftime("%Y%m%d-%H%M%S"),
+                             'Observation_queue': x_order_MDP_observation_sequence,
+                             'Observation_partition': observation_partition,
+                             'Reward_partition': reward_partition,
+                             'Action_partition': action_partition,
+                             'Action':action})
 # =================================================================== #
 #                   Initialization Summary Functions                  #
 # =================================================================== #     
