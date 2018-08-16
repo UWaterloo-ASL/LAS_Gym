@@ -68,11 +68,17 @@ if __name__ == '__main__':
         #######################################################################
         #                    Instatiate LAS-Agent-Community                   #
         #######################################################################
+        # Note: 1. Set load_pretrained_agent_flag to "True" only when you have and want 
+        #          to load pretrained agent.
+        #       2. Keep observation unchanged if using pretrained agent.
         community_name = 'LAS_Agent_Community'
         community_size = 3
         x_order_MDP = 5
-        # Note: Set load_pretrained_agent_flag to "True" only when you have and want 
-        #       to load pretrained agent.
+        x_order_MDP_observation_type = 'concatenate_observation'
+        occupancy_reward_type = 'IR_distance'
+        interaction_mode = 'virtual_interaction'
+        load_pretrained_agent_flag = True
+        
         LAS_agent_community = InternalEnvOfCommunity(sess, 
                                                      community_name, 
                                                      community_size,
@@ -81,10 +87,10 @@ if __name__ == '__main__':
                                                      envLAS.observation_space_name,
                                                      envLAS.action_space_name,
                                                      x_order_MDP,
-                                                     x_order_MDP_observation_type = 'concatenate_observation',
-                                                     occupancy_reward_type = 'IR_distance',
-                                                     interaction_mode = 'virtual_interaction',
-                                                     load_pretrained_agent_flag = True)
+                                                     x_order_MDP_observation_type,
+                                                     occupancy_reward_type,
+                                                     interaction_mode,
+                                                     load_pretrained_agent_flag)
         #######################################################################
         
         

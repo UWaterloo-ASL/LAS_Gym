@@ -68,6 +68,9 @@ if __name__ == '__main__':
         #######################################################################
         #                          Instatiate LAS-Agent                       #
         #######################################################################
+        # Note: 1. Set load_pretrained_agent_flag to "True" only when you have and want 
+        #          to load pretrained agent.
+        #       2. Keep observation unchanged if using pretrained agent.
         agent_name = 'LAS_Single_Agent'
         observation_space = envLAS.observation_space
         action_space = envLAS.action_space
@@ -75,8 +78,10 @@ if __name__ == '__main__':
         action_space_name = []
         x_order_MDP = 5
         x_order_MDP_observation_type = 'concatenate_observation'
-        # Note: Set load_pretrained_agent_flag to "True" only when you have and want 
-        #       to load pretrained agent.
+        occupancy_reward_type = 'IR_distance'
+        interaction_mode = 'virtual_interaction'
+        load_pretrained_agent_flag = True
+        
         agent = InternalEnvOfAgent(sess, agent_name, 
                                    observation_space, 
                                    action_space,
@@ -84,9 +89,9 @@ if __name__ == '__main__':
                                    action_space_name,
                                    x_order_MDP,
                                    x_order_MDP_observation_type,
-                                   occupancy_reward_type = 'IR_distance',
-                                   interaction_mode = 'virtual_interaction',
-                                   load_pretrained_agent_flag = True)
+                                   occupancy_reward_type,
+                                   interaction_mode,
+                                   load_pretrained_agent_flag)
         #######################################################################
         
         # Step counter
