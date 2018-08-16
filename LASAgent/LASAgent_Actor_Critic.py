@@ -208,7 +208,7 @@ class ActorNetwork(object):
                 _, version_temp = file_name_temp.split('.')[0].split(self.name+'_target_')
                 model_version.append(version_temp)
         if len(model_version) != 0:
-            the_most_recent_model_version = int(max(model_version))
+            the_most_recent_model_version = max([int(i) for i in model_version])
         else:
             the_most_recent_model_version = -1
         return the_most_recent_model_version
@@ -404,7 +404,7 @@ class CriticNetwork(object):
                 _, version_temp = file_name_temp.split('.')[0].split(self.name+'_target_')
                 model_version.append(version_temp)
         if len(model_version) != 0:
-            the_most_recent_model_version = int(max(model_version))
+            the_most_recent_model_version = max([int(i) for i in model_version])
         else:
             the_most_recent_model_version = -1
         return the_most_recent_model_version
