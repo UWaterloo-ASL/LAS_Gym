@@ -129,7 +129,7 @@ class InternalEnvOfAgent(object):
                                                       self.agent_name,
                                                       'interaction_data')
         if not os.path.exists(self.interaction_data_dir):
-            os.makedirs(self.interaction_data_file)
+            os.makedirs(self.interaction_data_dir)
         self.interaction_data_file = os.path.join(self.interaction_data_dir,
                                                   datetime.now().strftime("%Y%m%d-%H%M%S")+'.csv')
         with open(self.interaction_data_file, 'a') as csv_datafile:
