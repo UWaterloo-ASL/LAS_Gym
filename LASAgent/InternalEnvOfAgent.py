@@ -10,6 +10,7 @@ from datetime import datetime
 import os
 import numpy as np
 from collections import deque
+import csv
 
 from LASAgent.LASAgent_Actor_Critic import LASAgent_Actor_Critic
 
@@ -81,7 +82,9 @@ class InternalEnvOfAgent(object):
         
         self.occupancy_reward_type = occupancy_reward_type
         self.interaction_mode = interaction_mode
-        # Initialize agent
+        #####################################################################
+        #                       Initialize agent                            #
+        #####################################################################
         self.agent_name = agent_name
         
         self.observation_space = observation_space
@@ -93,6 +96,7 @@ class InternalEnvOfAgent(object):
         self.observation_space_name = observation_space_name
         self.action_space_name = action_space_name
         
+        # Model saving directory
         self.agent_model_save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results',self.agent_name)
         
         if load_pretrained_agent_flag == False:
@@ -117,6 +121,21 @@ class InternalEnvOfAgent(object):
             self._initialize_pretrained_agent()
         else:
             raise Exception('Please set load_pretrained_agent parameter!')
+        #####################################################################
+        #                 Interaction data saving directory                 #
+        #####################################################################
+        self.interaction_data_dir = os.path.join(os.path.abspath('..'),
+                                                      'ROM_Experiment_results',
+                                                      self.agent_name,
+                                                      'interaction_data')
+        if not os.path.exists(self.interaction_data_dir):
+            os.makedirs(self.interaction_data_file)
+        self.interaction_data_file = os.path.join(self.interaction_data_dir,
+                                                  datetime.now().strftime("%Y%m%d-%H%M%S")+'.csv')
+        with open(self.interaction_data_file, 'a') as csv_datafile:
+            fieldnames = ['Time', 'Observation', 'Reward', 'Action']
+            writer = csv.DictWriter(csv_datafile, fieldnames = fieldnames)
+            writer.writeheader()
         
     def interact(self, observation, external_reward = 0, done = False):
         """
@@ -155,6 +174,10 @@ class InternalEnvOfAgent(object):
         print('Reward of {} is: {}'.format(self.agent_name, reward))
         done = False
         action = self.agent.perceive_and_act(observation_for_x_order_MDP, reward, done)
+        # Logging interaction data
+        self._logging_interaction_data(observation_for_x_order_MDP,
+                                       reward,
+                                       action)
         return action
     
     def _generate_observation_for_x_order_MDP(self, observation_sequence,
@@ -315,3 +338,30 @@ class InternalEnvOfAgent(object):
         
         # Train all agent when feeding observation
         self.agent._train()
+
+    def _logging_interaction_data(self, observation_for_x_order_MDP,
+                                  reward,
+                                  action):
+        """
+        Saving interaction data
+        
+        Parameters
+        ----------
+        observation_for_x_order_MDP: array
+        
+        reward: float
+        
+        action: array
+        
+        """
+        with open(self.interaction_data_file, 'a') as csv_datafile:
+            fieldnames = ['Time', 'Observation', 'Reward', 'Action']
+            writer = csv.DictWriter(csv_datafile, fieldnames = fieldnames)
+            writer.writerow({'Time':datetime.now().strftime("%Y%m%d-%H%M%S"),
+                             'Observation': observation_for_x_order_MDP, 
+                             'Reward': reward, 
+                             'Action':action})
+        
+        
+        
+       
