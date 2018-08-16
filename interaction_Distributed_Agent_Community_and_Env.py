@@ -65,10 +65,14 @@ if __name__ == '__main__':
         envLAS = LASEnv('127.0.0.1', 19997, reward_function_type = 'occupancy')
         observation_For_LAS= envLAS.reset()
         
-        # Instatiate LAS-community
+        #######################################################################
+        #                    Instatiate LAS-Agent-Community                   #
+        #######################################################################
         community_name = 'LAS_Agent_Community'
         community_size = 3
-        x_order_MDP = 1
+        x_order_MDP = 5
+        # Note: Set load_pretrained_agent_flag to "True" only when you have and want 
+        #       to load pretrained agent.
         LAS_agent_community = InternalEnvOfCommunity(sess, 
                                                      community_name, 
                                                      community_size,
@@ -79,7 +83,9 @@ if __name__ == '__main__':
                                                      x_order_MDP,
                                                      x_order_MDP_observation_type = 'concatenate_observation',
                                                      occupancy_reward_type = 'IR_distance',
-                                                     interaction_mode = 'virtual_interaction')
+                                                     interaction_mode = 'virtual_interaction',
+                                                     load_pretrained_agent_flag = True)
+        #######################################################################
         
         
         # Step counter

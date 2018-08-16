@@ -25,7 +25,8 @@ class InternalEnvOfCommunity(object):
                  x_order_MDP = 1,
                  x_order_MDP_observation_type = 'concatenate_observation',
                  occupancy_reward_type = 'IR_distance',
-                 interaction_mode = 'real_interaction'):
+                 interaction_mode = 'real_interaction',
+                 load_pretrained_agent_flag = False):
         """
         Initialize internal environment for an agent
         Parameters
@@ -69,6 +70,9 @@ class InternalEnvOfCommunity(object):
             indicate interaction mode: 
                 1) 'real_interaction': interact with real robot
                 2) 'virtual_interaction': interact with virtual environment
+        
+        load_pretrained_agent_flag: boolean default = False
+            if == True: load pretrained agent, otherwise randomly initialize.
         """
         self.tf_session = sess
         
@@ -79,30 +83,32 @@ class InternalEnvOfCommunity(object):
         self.occupancy_reward_type = occupancy_reward_type
         self.interaction_mode = interaction_mode
         
+        self.load_pretrained_agent_flag = load_pretrained_agent_flag
+        
         # Initialize community
         self.community_name = community_name
         self.community_size = community_size
         ####################################################################
         #                          Configuration
         ####################################################################
-#        # Config 1: with shared sensor
-#        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15'],
-#                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
-#                                     'agent_3':['node#9','node#8','node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
-#                                     }
-#        self.community_config_act = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
-#                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
-#                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
-#                                     }
-        # Config 2: no shared sensor
-        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+        # Config 1: with shared sensor
+        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15'],
                                      'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
-                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+                                     'agent_3':['node#9','node#8','node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
                                      }
         self.community_config_act = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
                                      'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
                                      'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
                                      }
+#        # Config 2: no shared sensor
+#        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+#                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
+#                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+#                                     }
+#        self.community_config_act = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17'],
+#                                     'agent_2':['node#16','node#15','node#14','node#13','node#12','node#11','node#10','node#9','node#8'],
+#                                     'agent_3':['node#7','node#6','node#5','node#4','node#3','node#2','node#1','node#0']
+#                                     }
         # Config 3: share all sensor
 #        self.community_config_obs = {'agent_1':['node','node#22','node#21','node#20','node#19','node#18','node#17','node#16','node#15',\
 #                                                'node#14','node#13','node#12','node#11','node#10','node#9','node#8','node#7','node#6',\
@@ -140,6 +146,7 @@ class InternalEnvOfCommunity(object):
         #   1. 'random_agent'
         #   2. 'actor_critic_agent'
         self.agent_community = self._create_agent_community(self.agent_community_partition_config,
+                                                            self.load_pretrained_agent_flag,
                                                             agent_config = 'actor_critic_agent')  
         ####################################################################
         #                          Initialize Summary
@@ -320,6 +327,7 @@ class InternalEnvOfCommunity(object):
         return agent_community_partition
         
     def _create_agent_community(self, agent_community_partition_config,
+                                load_pretrained_agent_flag,
                                 agent_config = 'random_agent'):
         """
         Create agent community according to community partition configuration
@@ -329,6 +337,9 @@ class InternalEnvOfCommunity(object):
         ----------
         agent_community_partition_config: dict of dict
             contains information on how to partition observation and action space
+        
+        load_pretrained_agent_flag: boolean default = False
+            if == True: load pretrained agent, otherwise randomly initialize.
         
         agent_config: (not determined)
             contains information on how to configurate each agent:
@@ -377,7 +388,8 @@ class InternalEnvOfCommunity(object):
                                                                  x_order_MDP,
                                                                  x_order_MDP_observation_type,
                                                                  occupancy_reward_type,
-                                                                 interaction_mode)
+                                                                 interaction_mode,
+                                                                 load_pretrained_agent_flag)
             print('Create actor_critic_agent community done!')
         else:
             raise Exception('Please choose a right agent type!')
