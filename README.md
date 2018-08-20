@@ -1,5 +1,7 @@
 # LAS_Gym
-Living Architecture System simulated environment with OpenAi Gym APIs
+This versatile reposity provides simulation environment with [OpenAi Gym APIs](https://gym.openai.com/docs/) for Living Architecture System developed by a colaboration with [Living Architecture System Group](http://livingarchitecturesystems.com).
+
+
 
 ## To run the simulating environment
 
