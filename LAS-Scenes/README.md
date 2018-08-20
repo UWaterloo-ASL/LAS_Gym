@@ -16,4 +16,10 @@ This folder contains all simulation scenes and python scripts to create a scene 
 
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; **Figure 1.** ROM Exhibit: Transforming Space
 
-  
+### Create Scene Automatically by Loading and Assembling Models
+V-REP provide APIs to automatically loading and assembing models to create a scene.
+#### General Steps to Create a Scene
+1. Load object shape designed by AutoCAD etc. to make simulated object more realistic. For detailed supported file types, please refer to [Importing and exporting shapes](http://www.coppeliarobotics.com/helpFiles/en/importExport.htm) provided by V-REP.
+2. In V-REP, first design a model, then save it as a model following the instructions on [Models in V-REP](http://www.coppeliarobotics.com/helpFiles/en/models.htm).
+3. Load model by scripts `vrep_load_object_setObjectPosition.py` with specific locations given by `model_locations.csv`. 
+   * Python [API](http://www.coppeliarobotics.com/helpFiles/en/remoteApiFunctionsPython.htm) for load model `vrep.simxLoadModel` and set object position `vrep.simxSetObjectPosition`
