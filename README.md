@@ -1,7 +1,7 @@
 # LAS_Gym
 This versatile reposity provides simulation environment with [OpenAi Gym APIs](https://gym.openai.com/docs/) for Living Architecture System developed by a colaboration with [Living Architecture System Group](http://livingarchitecturesystems.com).
 
-### Organization
+## Organization
 1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LAS-Scenes):**
    * **Royal Ontario Museum (ROM) Exhibit: Transforming Space**
       1. V-REP Scene: `livingArchitecture_ROM_exhibit.ttt`
@@ -29,7 +29,7 @@ This versatile reposity provides simulation environment with [OpenAi Gym APIs](h
          * Implemented in: `BrightLightExcitedVisitorAgent.py`
       * **Red-light-excited Visitor** who is excited when there is a red light being trun on in LAS.
          * Implemented in: `RedLightExcitedVisitorAgent.py`
-### Interaction Pattern
+## Interaction Pattern
 In our design, the interaction between LAS and Environment is parallel with the interaction between Visitor and Environment. These two interactions can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/ROM_Simulation_Scene.png" width="400" height="400" /> 
 
