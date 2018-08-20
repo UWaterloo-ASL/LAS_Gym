@@ -5,10 +5,6 @@ This versatile reposity provides simulation environment with [OpenAi Gym APIs](h
 
 ## To run the simulating environment
 
-
-## Interaction Pattern
-In our design, the interaction between LAS and Environment (i.e. `Interaction_LAS_and_Env.py`) is parallel with the interaction between Visitor and Environment (i.e. `Interaction_Visitor_and_Env.py`). These two scripts can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
-
 ### Organization
 1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LAS-Scenes):**
    * **Royal Ontario Museum (ROM) Exhibit: Transforming Space**
@@ -37,9 +33,8 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
          * Implemented in: `BrightLightExcitedVisitorAgent.py`
       * **Red-light-excited Visitor** who is excited when there is a red light being trun on in LAS.
          * Implemented in: `RedLightExcitedVisitorAgent.py`
-
-### Interaction paradigm and Simulator
-
+### Interaction Pattern
+In our design, the interaction between LAS and Environment is parallel with the interaction between Visitor and Environment. These two interactions can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/ROM_Simulation_Scene.png" width="400" height="400" /> 
 
 ## How To Use
