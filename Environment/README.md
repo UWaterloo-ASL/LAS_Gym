@@ -16,7 +16,7 @@ The public interface functions in these classes follow convention of [the Env cl
 1. Clone the whole repositry
 2. Open `Terminal` or `Command Prompt`
 3. Change directory to your vrep.exe. For example: `cd C:\Program Files\V-REP3\V-REP_PRO_EDU\`
-4. start V-REP via the command line: `vrep -h -s C:\LAS_Gym\LAS-Scenes\livingArchitecture_singleVisitor_nondistributed.ttt`
+4. start V-REP via the command line: `vrep -h -s C:\LAS_Gym\LAS-Scenes\livingArchitecture_ROM_exhibit.ttt`
    * Notes:
       * For details on starting V-REP via the command line, please visit [here](http://www.coppeliarobotics.com/helpFiles/en/commandLine.htm).
       * You can also add path of vrep.exe to environment variable. If there is error to load scene, please firmly follow **Method 2**.
