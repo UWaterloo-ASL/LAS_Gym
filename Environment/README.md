@@ -30,10 +30,3 @@ Notes:
   * You can also add path of vrep.exe to environment variable. If there is error to load scene, please firmly follow **Method 2**.
   * Compared with **Method 1**, **Method 2** is faster. Therefore, this method is preferred when you training your learning algorithm.
 
-
-
-### To create a scene of living architecture environment:
-1. Put the LAS_Gym\LAS-Scenes\las_scene_models\LAS_Model folder in your VREP model folder.  For example: C:\Program Files\V-REP3\V-REP_PRO_EDU\models\LAS_Model
-2. Open VREP and load LAS_Gym\LAS-Scenes\livingArchitecture_load_model_test.ttt  This file has one copy of all LAS Models inside. This is to make sure that the models added later has correct suffix (#num). 
-2. Run load_sculpture.py. This will read coordinates of actuators from output.csv file and set it in the scene.
-4. Delete the models without suffix （#num) and save the scene as new scene
