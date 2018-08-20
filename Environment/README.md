@@ -5,8 +5,10 @@ The public interface functions in these classes follow convention of [the Env cl
 
   1. `observation = env.reset()`
   2. `observation, rewward, done, info = env.step(action)`
+## 
 
-## Step 1. Run the Simulating Scene in V-REP
+## How To Use
+### Step 1. Run the Simulating Scene in V-REP
 #### Method 1: with GUI (Better for visulizing behavior) ####
 1. Clone the whole repositry
 2. In V-REP: `File -> Open scene -> choose LAS_Gym/LAS-Scenes/livingArchitecture_ROM_exhibit.ttt `
@@ -18,7 +20,11 @@ The public interface functions in these classes follow convention of [the Env cl
 3. Change directory to your vrep.exe. For example: `cd C:\Program Files\V-REP3\V-REP_PRO_EDU\`
 4. start V-REP via the command line: `vrep -h -s C:\LAS_Gym\LAS-Scenes\livingArchitecture_ROM_exhibit.ttt`
    * Notes:
-      * For details on starting V-REP via the command line, please visit [here](http://www.coppeliarobotics.com/helpFiles/en/commandLine.htm).
-      * You can also add path of vrep.exe to environment variable. If there is error to load scene, please firmly follow **Method 2**.
-      * Compared with **Method 1**, **Method 2** is faster. Therefore, this method is preferred when you training your learning algorithm.
+      * For details on starting V-REP via the command line, please refer to [start V-REP via the command line](http://www.coppeliarobotics.com/helpFiles/en/commandLine.htm) provided by V-REP.
+      * You can also add path of vrep.exe to environment variable without needing to chang directory everytime.
+### Step 2. Instantiate Environment Classs with IP and Port
+To instantiate environment class, we need IP and Port to connect to and communicate with V-REP server. More details on [Enabling the Remote API - server side](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) and [Enabling the Remote API - client side](http://www.coppeliarobotics.com/helpFiles/en/remoteApiClientSide.htm).
+1. IP address to connect V-REP server.
+2. Port to communicate with V-REP server.
 
+### Step 3. Use Instantiated Environment Object As Using [OpenAI Gym.env](https://gym.openai.com/docs/)
