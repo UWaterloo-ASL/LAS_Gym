@@ -11,14 +11,15 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
 
 ### Organization
 1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LAS-Scenes):**
-2. **Environment:**
+2. **[Environment](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/Environment):**
    1. Virtual Environment for LAS Agent: `LASEnv.py`
    2. Virtual Environment for Visitor Agent: `VisitorEnv.py`
-3. **LASAgent:**
+3. **[LASAgent](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LASAgent):**
    * `RandomLASAgent.py`: random action
    * `LASAgent_Actor_Critic.py`: extrinsically motivated behavior
-4. **Visitor Agent class:** 
+4. **[Visitor Agent class](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/VisitorAgent):** 
       * `RedLightExcitedVisitorAgent.py`: red light excited visitor
+
 ### Interaction paradigm and Simulator
 
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/ROM_Simulation_Scene.png" width="400" height="400" /> 
