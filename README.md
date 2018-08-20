@@ -1,10 +1,6 @@
 # LAS_Gym
 This versatile reposity provides simulation environment with [OpenAi Gym APIs](https://gym.openai.com/docs/) for Living Architecture System developed by a colaboration with [Living Architecture System Group](http://livingarchitecturesystems.com).
 
-
-
-## To run the simulating environment
-
 ### Organization
 1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LAS-Scenes):**
    * **Royal Ontario Museum (ROM) Exhibit: Transforming Space**
