@@ -6,6 +6,7 @@ The public interface functions in these classes follow convention of [the Env cl
   1. `observation = env.reset()`
   2. `observation, rewward, done, info = env.step(action)`
 ## Organization of Environment Classes
+In our interactive system, Living Architecture System and Visitor interacts with each other. Since we need to implement control algorithms for both Living Architecture System and Visitor, there are two types of environment classes:
 * Living Architecture Environment:
    1. LASEnv.py
 * Visitor Environment:
