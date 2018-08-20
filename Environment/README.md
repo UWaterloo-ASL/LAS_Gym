@@ -27,6 +27,7 @@ To instantiate environment class, we need IP and Port to connect to and communic
 1. IP address to connect V-REP server.
 2. Port to communicate with V-REP server.
 ### Step 3. Use Instantiated Environment Object As Using [OpenAI Gym.env](https://gym.openai.com/docs/)
+A sample code for using environment class:
 ~~~~
 env = LASEnv('127.0.0.1', 19997)
 observation = env.reset()
