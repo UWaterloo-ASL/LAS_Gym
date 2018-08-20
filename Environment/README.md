@@ -9,19 +9,18 @@ The public interface functions in these classes follow convention of [the Env cl
 
 ## How To Use
 ### Step 1. Run the Simulating Scene in V-REP
-#### Method 1: with GUI (Better for visulizing behavior) ####
-1. Clone the whole repositry
-2. In V-REP: `File -> Open scene -> choose LAS_Gym/LAS-Scenes/livingArchitecture_ROM_exhibit.ttt `
-   * Notes:In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases like training, please use **Method 2**. 
-
-#### Method 2: without any GUI (Faster) ####
-1. Clone the whole repositry
-2. Open `Terminal` or `Command Prompt`
-3. Change directory to your vrep.exe. For example: `cd C:\Program Files\V-REP3\V-REP_PRO_EDU\`
-4. start V-REP via the command line: `vrep -h -s C:\LAS_Gym\LAS-Scenes\livingArchitecture_ROM_exhibit.ttt`
-   * Notes:
-      * For details on starting V-REP via the command line, please refer to [start V-REP via the command line](http://www.coppeliarobotics.com/helpFiles/en/commandLine.htm) provided by V-REP.
-      * You can also add path of vrep.exe to environment variable without needing to chang directory everytime.
+1. Method 1: with GUI (Better for visulizing behavior) ####
+   1. Clone the whole repositry
+   2. In V-REP: `File -> Open scene -> choose LAS_Gym/LAS-Scenes/livingArchitecture_ROM_exhibit.ttt `
+      * Notes:In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases like training, please use **Method 2**. 
+2. Method 2: without any GUI (Faster) ####
+   1. Clone the whole repositry
+   2. Open `Terminal` or `Command Prompt`
+   3. Change directory to your vrep.exe. For example: `cd C:\Program Files\V-REP3\V-REP_PRO_EDU\`
+   4. start V-REP via the command line: `vrep -h -s C:\LAS_Gym\LAS-Scenes\livingArchitecture_ROM_exhibit.ttt`
+      * Notes:
+         * For details on starting V-REP via the command line, please refer to [start V-REP via the command line](http://www.coppeliarobotics.com/helpFiles/en/commandLine.htm) provided by V-REP.
+         * You can also add path of vrep.exe to environment variable without needing to chang directory everytime.
 ### Step 2. Instantiate Environment Classs with IP and Port
 To instantiate environment class, we need IP and Port to connect to and communicate with V-REP server. More details on [Enabling the Remote API - server side](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) and [Enabling the Remote API - client side](http://www.coppeliarobotics.com/helpFiles/en/remoteApiClientSide.htm).
 1. IP address to connect V-REP server.
