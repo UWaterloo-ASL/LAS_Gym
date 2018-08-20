@@ -9,11 +9,11 @@ The public interface functions in these classes follow convention of [the Env cl
 
 ## How To Use
 ### Step 1. Run the Simulating Scene in V-REP
-1. Method 1: with GUI (Better for visulizing behavior) ####
+1. **Method 1: with GUI (Better for visulizing behavior)**
    1. Clone the whole repositry
    2. In V-REP: `File -> Open scene -> choose LAS_Gym/LAS-Scenes/livingArchitecture_ROM_exhibit.ttt `
       * Notes:In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases like training, please use **Method 2**. 
-2. Method 2: without any GUI (Faster) ####
+2. **Method 2: without any GUI (Faster)**
    1. Clone the whole repositry
    2. Open `Terminal` or `Command Prompt`
    3. Change directory to your vrep.exe. For example: `cd C:\Program Files\V-REP3\V-REP_PRO_EDU\`
