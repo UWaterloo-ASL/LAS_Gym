@@ -8,10 +8,7 @@ Living Architecture System simulated environment with OpenAi Gym APIs
 In our design, the interaction between LAS and Environment (i.e. `Interaction_LAS_and_Env.py`) is parallel with the interaction between Visitor and Environment (i.e. `Interaction_Visitor_and_Env.py`). These two scripts can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
 
 ## Organization
-### Interaction scripts
-   1. Interaction between LAS and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
-   2. Interaction between Visitor and Environment: `Interaction_Visitor_and_Env.py`
-   3. Interaction between **Extrinscially Motivated LASAgent** and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
+
    
 ### Class
    1. Environment class for LAS Agent: `LASEnv.py`
@@ -26,7 +23,10 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/ROM_Simulation_Scene.png" width="400" height="400" /> 
 
 ## How To Use
-
+### Demo Interaction scripts
+   1. Interaction between LAS and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
+   2. Interaction between Visitor and Environment: `Interaction_Visitor_and_Env.py`
+   3. Interaction between **Extrinscially Motivated LASAgent** and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
 ### Demo 1: Single Agent
    `interaction_Single_Agent_and_Env.py`
 ### Demo 2: Multi-Agents
