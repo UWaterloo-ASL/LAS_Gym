@@ -25,6 +25,11 @@ V-REP provide APIs to automatically loading and assembing models to create a sce
    * Python [API](http://www.coppeliarobotics.com/helpFiles/en/remoteApiFunctionsPython.htm) for load model `vrep.simxLoadModel` and set object position `vrep.simxSetObjectPosition`
 #### Our Script to Create ROM Exhibit Scene
 Here is our script to create ROM Exhibit scene `livingArchitecture_ROM_exhibit.ttt`.
-1. models: `las_scene_models`
-2. Python Script to load and assemble models: `load_sculpture.py`
-3. Position information of each model when assembling: `output.csv`
+* models: `las_scene_models`
+* Python Script to load and assemble models: `load_sculpture.py`
+* Position information of each model when assembling: `output.csv`
+With these files, to create a scene of living architecture environment:
+   1. Put the LAS_Gym\LAS-Scenes\las_scene_models\LAS_Model folder in your VREP model folder.  For example: C:\Program Files\V-REP3\V-REP_PRO_EDU\models\LAS_Model
+   2. Open VREP and load LAS_Gym\LAS-Scenes\livingArchitecture_load_model_test.ttt  This file has one copy of all LAS Models inside. This is to make sure that the models added later has correct suffix (#num). 
+   3. Run load_sculpture.py. This will read coordinates of actuators from output.csv file and set it in the scene.
+   4. Delete the models without suffix （#num) and save the scene as new scene
