@@ -10,7 +10,11 @@ To ensure reusability, we provides two intermediate classes for realistic intera
 
 ## Learning Agent Classes
 
-1. **Actor-Critic LASAgent**
+1. **Actor-Critic LASAgent** [Lillicrap et al. ICLR2016]
    * Implemented in `LASAgent_Actor_Critic.py`
 2. **Random action LASAgent**
    * Implememted in `RandomLASAgent.py`
+
+
+Reference:
+[Lillicrap, Timothy P., Jonathan J. Hunt, Alexander Pritzel, Nicolas Heess, Tom Erez, Yuval Tassa, David Silver, and Daan Wierstra. "Continuous control with deep reinforcement learning." arXiv preprint arXiv:1509.02971 (2015).](https://arxiv.org/pdf/1509.02971.pdf)
