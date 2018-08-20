@@ -9,16 +9,15 @@ This versatile reposity provides simulation environment with [OpenAi Gym APIs](h
 ## Interaction Pattern
 In our design, the interaction between LAS and Environment (i.e. `Interaction_LAS_and_Env.py`) is parallel with the interaction between Visitor and Environment (i.e. `Interaction_Visitor_and_Env.py`). These two scripts can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
 
-## Organization
-
-   
-### Class
-   1. Environment class for LAS Agent: `LASEnv.py`
-   2. LAS Agent class: 
-      * `RandomLASAgent.py`: random action
-      * `LASAgent_Actor_Critic.py`: extrinsically motivated behavior
-   3. Environment class for Visitor Agent: `VisitorEnv.py`
-   4. Visitor Agent class: 
+### Organization
+1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LAS-Scenes):**
+2. **Environment:**
+   1. Virtual Environment for LAS Agent: `LASEnv.py`
+   2. Virtual Environment for Visitor Agent: `VisitorEnv.py`
+3. **LASAgent:**
+   * `RandomLASAgent.py`: random action
+   * `LASAgent_Actor_Critic.py`: extrinsically motivated behavior
+4. **Visitor Agent class:** 
       * `RedLightExcitedVisitorAgent.py`: red light excited visitor
 ### Interaction paradigm and Simulator
 
