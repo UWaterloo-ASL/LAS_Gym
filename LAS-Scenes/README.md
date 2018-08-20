@@ -5,7 +5,7 @@ This folder contains all simulation scenes and python scripts to create a scene 
   1. V-REP Scene: `livingArchitecture_ROM_exhibit.ttt`
   2. Components of ROM Exhibit Scene:
   
-&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  | Nodes         | Actuator      | Sensor  |
+| Nodes         | Actuator      | Sensor  |
 | ------------- |:-------------:| -----:|
 | 24            | 1 Light       | $1600 |
 | col 2 is      | 6 SMA.        |   $12 |
