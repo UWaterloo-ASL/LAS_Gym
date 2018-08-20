@@ -16,5 +16,6 @@ To ensure reusability, we provides two intermediate classes for realistic intera
    * Implememted in `RandomLASAgent.py`
 
 
-Reference:
+## Reference:
+
 [Lillicrap, Timothy P., Jonathan J. Hunt, Alexander Pritzel, Nicolas Heess, Tom Erez, Yuval Tassa, David Silver, and Daan Wierstra. "Continuous control with deep reinforcement learning." arXiv preprint arXiv:1509.02971 (2015).](https://arxiv.org/pdf/1509.02971.pdf)
