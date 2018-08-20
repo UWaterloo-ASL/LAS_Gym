@@ -68,8 +68,8 @@ if __name__ == '__main__':
         #######################################################################
         #                          Instatiate LAS-Agent                       #
         #######################################################################
-        # Note: 1. Set load_pretrained_agent_flag to "True" only when you have and want 
-        #          to load pretrained agent.
+        # Note: 1. Set load_pretrained_agent_flag to "True" only when you have 
+        #           and want to load pretrained agent.
         #       2. Keep observation unchanged if using pretrained agent.
         agent_name = 'LAS_Single_Agent'
         observation_space = envLAS.observation_space
