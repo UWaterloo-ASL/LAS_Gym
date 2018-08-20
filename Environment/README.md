@@ -5,8 +5,12 @@ The public interface functions in these classes follow convention of [the Env cl
 
   1. `observation = env.reset()`
   2. `observation, rewward, done, info = env.step(action)`
-## 
-
+## Organization of Environment Classes
+* Living Architecture Environment:
+   1. LASEnv.py
+* Visitor Environment:
+   1. BrightLightExcitedVisitorEnv.py
+   2. RedLightExcitedVisitor_LAS_Env.py
 ## How To Use
 ### Step 1. Run the Simulating Scene in V-REP
 1. **Method 1: with GUI (Better for visulizing behavior)**
