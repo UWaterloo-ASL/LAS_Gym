@@ -8,13 +8,9 @@ The public interface functions in these classes follow convention of [the Env cl
 
 ## Step 1. Run the Simulating Scene in V-REP
 #### Method 1: with GUI (Better for visulizing behavior) ####
-   1. Clone the whole repositry
-   2. In V-REP: `File -> Open scene -> choose _LAS_Gym/LAS-Scenes/livingArchitecture_ROM_exhibit.ttt_ `
-
-Notes:
-  
-  * You should start with running `Interaction_LASAgentActorCritic_and_Env.py` first, then start running `Interaction_Visitor_and_Env.py`, because Visitor intertacts with Env by a different [temporary port in chiled-script](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) from defualt port.
-  * In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction dramatically due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases, please use **Method 2**. 
+1. Clone the whole repositry
+2. In V-REP: `File -> Open scene -> choose _LAS_Gym/LAS-Scenes/livingArchitecture_ROM_exhibit.ttt_ `
+   * Notes:In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction dramatically due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases, please use **Method 2**. 
 
 #### Method 2: without any GUI (Faster) ####
    1. Clone the whole repositry
