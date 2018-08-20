@@ -6,16 +6,7 @@ This folder contains all simulation scenes and python scripts to create a scene 
 2. Components of ROM Exhibit Scene:
    * Nodes: 24 in total
    * Each node:
-      * Actuator
-      * Sensor
-3. Item  
-| Nodes         | Actuator      | Sensor  |
-| ------------- |:-------------:| -----:|
-| 24            | 1 Light       | $1600 |
-| col 2 is      | 6 SMA.        |   $12 |
-| zebra stripes | are neat      |    $1 |
-  
-  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; * 24 nodes &nbsp; &nbsp; &nbsp; &nbsp; Each node:
-  
-  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 
+      * Actuator: 1 Light + 6 SMA
+      * Sensor: 1 IR Sensor
+
   
