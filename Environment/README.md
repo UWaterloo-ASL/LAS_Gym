@@ -26,5 +26,11 @@ The public interface functions in these classes follow convention of [the Env cl
 To instantiate environment class, we need IP and Port to connect to and communicate with V-REP server. More details on [Enabling the Remote API - server side](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) and [Enabling the Remote API - client side](http://www.coppeliarobotics.com/helpFiles/en/remoteApiClientSide.htm).
 1. IP address to connect V-REP server.
 2. Port to communicate with V-REP server.
-
 ### Step 3. Use Instantiated Environment Object As Using [OpenAI Gym.env](https://gym.openai.com/docs/)
+~~~~
+env = LASEnv('127.0.0.1', 19997)
+observation = env.reset()
+while not done:
+    action = env.action_space.sample()
+    observation, reward, done, info = env.step(action)
+~~~~
