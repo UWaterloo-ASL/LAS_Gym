@@ -20,10 +20,14 @@ This versatile reposity provides simulation environment with [OpenAi Gym APIs](h
       * BrightLightExcitedVisitorEnv.py
       * RedLightExcitedVisitor_LAS_Env.py
 3. **[LASAgent](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LASAgent):**
-   * **Actor-Critic LASAgent**
-      * Implemented in `LASAgent_Actor_Critic.py`
-   * **Random action LASAgent**
-      * Implememted in `RandomLASAgent.py`
+   * **Intermediate Internal Environment Classes**
+      1. **Internal Environment for Single Agent** 
+      2. **Internal Environment for Agent Community**
+   * **Learning Agent Classes**
+      * **Actor-Critic LASAgent**
+         * Implemented in `LASAgent_Actor_Critic.py`
+      * **Random action LASAgent**
+         * Implememted in `RandomLASAgent.py`
 4. **[Visitor Agent class](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/VisitorAgent):** 
       * **Bright-light-excited Visitor** who is excited when there is a bright light with intensity >=0.95 in LAS.
          * Implemented in: `BrightLightExcitedVisitorAgent.py`
