@@ -22,7 +22,9 @@ This versatile reposity provides simulation environment with [OpenAi Gym APIs](h
 3. **[LASAgent](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LASAgent):**
    * **Intermediate Internal Environment Classes**
       1. **Internal Environment for Single Agent** 
+         * Implemented in `InternalEnvOfAgent.py`
       2. **Internal Environment for Agent Community**
+         * Implemented in `InternalEnvOfCommunity.py`
    * **Learning Agent Classes**
       * **Actor-Critic LASAgent**
          * Implemented in `LASAgent_Actor_Critic.py`
