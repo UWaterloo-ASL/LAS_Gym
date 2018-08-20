@@ -18,7 +18,10 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
    * `RandomLASAgent.py`: random action
    * `LASAgent_Actor_Critic.py`: extrinsically motivated behavior
 4. **[Visitor Agent class](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/VisitorAgent):** 
-      * `RedLightExcitedVisitorAgent.py`: red light excited visitor
+      * **Bright-light-excited Visitor** who is excited when there is a bright light with intensity >=0.95 in LAS.
+         * Implemented in: `BrightLightExcitedVisitorAgent.py`
+      * **Red-light-excited Visitor** who is excited when there is a red light being trun on in LAS.
+         * Implemented in: `RedLightExcitedVisitorAgent.py`
 
 ### Interaction paradigm and Simulator
 
