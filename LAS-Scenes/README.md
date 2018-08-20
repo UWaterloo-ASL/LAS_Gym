@@ -8,5 +8,9 @@ This folder contains all simulation scenes and python scripts to create a scene 
    * Each node:
       * Actuator: 1 Light + 6 SMA
       * Sensor: 1 IR Sensor
+3. Overall:
+   * Observation Space: 1×24 dimensions (continuous value)
+   * Action Space : 7×24=168 dimensions (continuous value)
+
 
   
