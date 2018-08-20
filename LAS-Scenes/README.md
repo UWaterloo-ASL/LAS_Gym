@@ -2,12 +2,12 @@
 This folder contains all simulation scenes and python scripts to create a scene automatically.
 
 ### V-REP Scene For Royal Ontario Museum (ROM) Exhibit: Transforming Space
-  1. V-REP Scene: `livingArchitecture_ROM_exhibit.ttt`
-  2. Components of ROM Exhibit Scene:
-1. Item
-2. Item
-   * Mixed
-   * Mixed  
+1. V-REP Scene: `livingArchitecture_ROM_exhibit.ttt`
+2. Components of ROM Exhibit Scene:
+   * Nodes: 24 in total
+   * Each node:
+      * Actuator
+      * Sensor
 3. Item  
 | Nodes         | Actuator      | Sensor  |
 | ------------- |:-------------:| -----:|
