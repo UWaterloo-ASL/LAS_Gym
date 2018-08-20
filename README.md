@@ -23,6 +23,10 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/ROM_Simulation_Scene.png" width="400" height="400" /> 
 
 ## How To Use
+### For Interaction With Virtual Environment
+
+### For Interaction With Real Environment
+
 ### Demo Interaction scripts
    1. Interaction between LAS and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
    2. Interaction between Visitor and Environment: `Interaction_Visitor_and_Env.py`
