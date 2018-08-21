@@ -113,8 +113,8 @@ When interacting with real or virtual environment, all data will be saved in dir
             * interaction_data
             * models
             * summary
-* **Visualize Meta-Data**
-The visualization of meta-data is done by utilizing [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard).
+* **Visualize Meta-Data**: The visualization of meta-data is done by utilizing [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard).
+   * Example: `tensorboard --logdir agent_community_agent1:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_1/summary,agent_community_agent2:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_2/summary,agent_community_agent3:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_3/summary,agent_community_agent3:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_1/summary,agent_community_agent2:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_3/summary,single_agent:path/to/ROM_Experiment_results/LAS_Single_Agent/summary`
 
 ## Dependency
    1. [OpenAi gym](https://gym.openai.com/docs/#installation) package: `pip install gym`
