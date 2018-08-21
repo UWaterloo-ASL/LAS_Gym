@@ -42,13 +42,17 @@ In our design, the interaction between LAS and Environment is parallel with the 
       1. Instantiate LAS Environment Object
       2. Instantiate LAS Agent Object
       3. Interaction in while loop
-      Example Script:
+      * Example Script: 
+         * `Interaction_Single_Agent_and_Env.py` 
+         * `Interaction_Distributed_Agent_Community_and_Env.py`
+         * `Interaction_RandomLASAgent_and_Env.py`
 * **Step 3: Run Python Script - Interaction between Visitor-Agent and Environment**
    * General Framework
       1. Instantiate Visitor Environment Object
       2. Instantiate Visitor Agent Object
       3. Interaction in while loop
-      Example Scritp:
+      * Example Scritp:
+         * `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
 ### For Interaction With Real Environment
 
 ### Demo Interaction scripts
