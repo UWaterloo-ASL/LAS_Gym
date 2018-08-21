@@ -55,10 +55,10 @@ In our design, the interaction between LAS and Environment is parallel with the 
          * Bright-light-excited Visitor Agent: `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
 ### For Interaction With Real Environment
 For LAS Agent, the only difference when interacting with real environment is in the receiving of **observation** and delivering of **action**. And for real environment, visitor is physical humanbody. Therefore, we only need to consider **Python Script - Interaction between LAS-Agent and Environment**.
-   * General Framework:
-      1. Instantiate LAS Agent Object
-      2. Interaction in while loop
-      * Overall framework for this script:
+* General Framework:
+   1. Instantiate LAS Agent Object
+   2. Interaction in while loop
+   * Overall framework for this script:
 ```python
         # Instatiate LAS-Agent
         agent = InternalEnvOfAgent(...)
