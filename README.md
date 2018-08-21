@@ -86,7 +86,7 @@ For LAS Agent, the only difference when interacting with real environment is in 
             else:
                 raise Exception('Please choose a proper x_order_MDP!')
 ~~~~
-```css
+```python
         # Instatiate LAS-Agent
         agent = InternalEnvOfAgent(...)
         # Interaction loop
