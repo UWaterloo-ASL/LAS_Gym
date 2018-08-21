@@ -5,15 +5,7 @@ This versatile reposity provides simulation environment with [OpenAi Gym APIs](h
 At following, we overview what are included in this reposity, and detailed information is provided by each hyper-link.
 1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LAS-Scenes):**
    * **Royal Ontario Museum (ROM) Exhibit: Transforming Space**
-      1. V-REP Scene: `livingArchitecture_ROM_exhibit.ttt`
-      2. Components of ROM Exhibit Scene:
-         * Nodes: 24 in total
-         * Each node:
-            * Actuator: 1 Light + 6 SMA
-            * Sensor: 1 IR Sensor
-      3. Overall:
-         * Observation Space: 1×24 dimensions (continuous value)
-         * Action Space : 7×24=168 dimensions (continuous value)
+      * V-REP Scene: `livingArchitecture_ROM_exhibit.ttt`
 2. **[Environment](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/Environment):**
    * **Living Architecture Environment**
       * LASEnv.py
