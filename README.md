@@ -68,8 +68,8 @@ For LAS Agent, the only difference when interacting with real environment is in 
                 # Generate action
                 actionLAS = agent.interact(observation, reward, done)
                 # Take action in realy system, and retrive new observation
-                <Note: integration> take_action(actionLAS)
-                <Note: integration> observation = get_observation()
+                <Note: integration "take_action(actionLAS)" >
+                <Note: integration "observation = get_observation()" >
             elif x_order_MDP > 1:
                 # Feed (x_order_MDP-1) observation
                 for obs_temp_i in range(x_order_MDP-1):
@@ -77,14 +77,14 @@ For LAS Agent, the only difference when interacting with real environment is in 
                     if obs_temp_i == 0: 
                         agent.feed_observation(observation)
                     else:
-                        <Note: integration> observation = get_observation()
+                        <Note: integration "observation = get_observation()" >
                         agent.feed_observation(observation)
                 # The last obs is input into interact function.
                 observation = get_observation()
                 actionLAS = agent.interact(observation, reward, done)
                 # Take action in realy system, and retrive new observation
-                <Note: integration> take_action(actionLAS)
-                <Note: integration> observation = get_observation()
+                <Note: integration "take_action(actionLAS)" >
+                <Note: integration "observation = get_observation()" >
             else:
                 raise Exception('Please choose a proper x_order_MDP!')
 ```
