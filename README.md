@@ -86,7 +86,33 @@ For LAS Agent, the only difference when interacting with real environment is in 
             else:
                 raise Exception('Please choose a proper x_order_MDP!')
 ~~~~
-
+```css
+        # Instatiate LAS-Agent
+        agent = InternalEnvOfAgent(...)
+        # Interaction loop
+        while not done:
+            if x_order_MDP == 1:
+                # LAS interacts with environment.
+                actionLAS = agent.interact(observation_For_LAS, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            elif x_order_MDP > 1:
+                # Feed (x_order_MDP-1) observation
+                for obs_temp_i in range(x_order_MDP-1):
+                    # the first obs is the immediate obaservation afer taking action
+                    if obs_temp_i == 0: 
+                        agent.feed_observation(observation_For_LAS)
+                    else:
+                        observation = envLAS._self_observe()
+                        agent.feed_observation(observation)
+                # The last obs is input into interact function.
+                observation = envLAS._self_observe()
+                actionLAS = agent.interact(observation, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            else:
+                raise Exception('Please choose a proper x_order_MDP!')
+```
 
 ## Features
   1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
