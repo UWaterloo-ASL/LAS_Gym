@@ -43,28 +43,50 @@ In our design, the interaction between LAS and Environment is parallel with the 
       2. Instantiate LAS Agent Object
       3. Interaction in while loop
       * Example Script: 
-         * `Interaction_Single_Agent_and_Env.py` 
-         * `Interaction_Distributed_Agent_Community_and_Env.py`
-         * `Interaction_RandomLASAgent_and_Env.py`
+         * Non-distributed Single Giant LAS Agent: `Interaction_Single_Agent_and_Env.py` 
+         * Distributed Multi-agent: `Interaction_Distributed_Agent_Community_and_Env.py`
+         * Random LAS Agent: `Interaction_RandomLASAgent_and_Env.py`
 * **Step 3: Run Python Script - Interaction between Visitor-Agent and Environment**
    * General Framework
       1. Instantiate Visitor Environment Object
       2. Instantiate Visitor Agent Object
       3. Interaction in while loop
       * Example Scritp:
-         * `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
+         * Bright-light-excited Visitor Agent: `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
 ### For Interaction With Real Environment
+For LAS Agent, the only difference when interacting with real environment is in the receiving of **observation** and delivering of **action**. And for real environment, visitor is physical humanbody. Therefore, we only need to consider **Python Script - Interaction between LAS-Agent and Environment**.
+   * General Framework:
+      1. Instantiate LAS Agent Object
+      2. Interaction in while loop
+      * Overall framework for this script:
+~~~~
+        # Instatiate LAS-Agent
+        agent = InternalEnvOfAgent(...)
+        # Interaction loop
+        while not done:
+            if x_order_MDP == 1:
+                # LAS interacts with environment.
+                actionLAS = agent.interact(observation_For_LAS, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            elif x_order_MDP > 1:
+                # Feed (x_order_MDP-1) observation
+                for obs_temp_i in range(x_order_MDP-1):
+                    # the first obs is the immediate obaservation afer taking action
+                    if obs_temp_i == 0: 
+                        agent.feed_observation(observation_For_LAS)
+                    else:
+                        observation = envLAS._self_observe()
+                        agent.feed_observation(observation)
+                # The last obs is input into interact function.
+                observation = envLAS._self_observe()
+                actionLAS = agent.interact(observation, reward_for_LAS, done)
+                # delay the observing of consequence of LASAgent's action
+                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+            else:
+                raise Exception('Please choose a proper x_order_MDP!')
+~~~~
 
-### Demo Interaction scripts
-   1. Interaction between LAS and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
-   2. Interaction between Visitor and Environment: `Interaction_Visitor_and_Env.py`
-   3. Interaction between **Extrinscially Motivated LASAgent** and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
-### Demo 1: Single Agent
-   `interaction_Single_Agent_and_Env.py`
-### Demo 2: Multi-Agents
-   `interaction_Distributed_Agent_Community_and_Env.py`
-### Demo 3: Visitors
-   `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
 
 ## Features
   1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
