@@ -20,6 +20,7 @@ except:
 import gym
 from gym import spaces
 import numpy as np
+import numpy.matlib as matlib
 import warnings
 
 import time
@@ -27,13 +28,13 @@ import time
 from collections import deque
 import re
 
-from .UtilitiesForEnv import get_all_object_name_and_handle
+from .UtilitiesForEnv import get_all_object_name_and_handle, deprecated
 
 from IPython.core.debugger import Tracer
 
 class LASEnv(gym.Env):
     def __init__(self, IP = '127.0.0.1', Port = 19997,
-                 reward_function_type = 'red_light_dense'):
+                 reward_function_type = 'occupancy'):
         """
         Instantiate LASEnv. LASEnv is the interface between LAS and Environment. Thus, LASEnv is the internal environment of LAS.
         
@@ -45,11 +46,11 @@ class LASEnv(gym.Env):
         Port: int default = 19997
             Port to communicate with V-REP server.
         
-        reward_function_type: str default = 'red_light_dense'
+        reward_function_type: str default = 'occupancy'
             Choose reward function type.
             Options:
-                1. 'red_light_dense'
-                2. 'red_light_sparse'
+                1. 'occupancy'
+                
         """
         print ('Initialize LASEnv ...')
         # ========================================================================= #
@@ -88,8 +89,7 @@ class LASEnv(gym.Env):
         self.proxSensorHandles, self.proxSensorNames, \
         self.lightHandles, self.lightNames, \
         self.jointHandles, self.jointNames, \
-        self.visitorTargetNames, self.visitorTargetHandles, \
-        self.visitorBodyNames, self.visitorBodyHandles = get_all_object_name_and_handle(self.clientID, self._def_op_mode, vrep)
+        self.visitorNames, self.visitorHandles = get_all_object_name_and_handle(self.clientID, self._def_op_mode, vrep)
         # ========================================================================= #
         #               Initialize LAS action and observation space                 #
         # ========================================================================= # 
@@ -98,15 +98,14 @@ class LASEnv(gym.Env):
         self.smas_num = len(self.jointHandles)
         self.lights_num = len(self.lightHandles)
         # Sensor range:
-        #   prox sensor: 0 or 1 
-        #   light color: [0, 1] * 3
-        self.sensors_dim = self.prox_sensor_num + self.lights_num * (3)
+        #   prox sensor: 0 or 1 (Only Proximity Sensor, no light data)
+        self.sensors_dim = self.prox_sensor_num
         self.obs_max = np.array([1.]*self.sensors_dim)      
         self.obs_min = np.array([0.]*self.sensors_dim)
         # Actuator range:
         #   sma: not sure ??
-        #   light color: [0, 1] * 3
-        self.actuators_dim = self.smas_num + self.lights_num * (3) # light state & color
+        #   light intensity(only use B-color-channel): [0, 1]
+        self.actuators_dim = self.smas_num + self.lights_num 
         # Set action range to [-1, 1], when send command to V-REP useing 
         # (action + 1) / 2 to transform action to range [0,1]
         self.act_max = np.array([1]*self.actuators_dim)
@@ -116,17 +115,10 @@ class LASEnv(gym.Env):
         self.observation_space = spaces.Box(self.obs_min, self.obs_max, dtype = np.float32)
         self.action_space = spaces.Box(self.act_min, self.act_max, dtype = np.float32)
         print("Initialization of LAS done!")
-        # ========================================================================= #
-        #                       Initialize other variables                          #
-        # ========================================================================= #
-        self.time_reward = np.array([0]*self.prox_sensor_num) # Reward for each proximity sensor
-        self.action_history = deque(maxlen=500)
-        self.group_id, self.group_num = self._create_group()
-        self._create_group()
-        self.reward = 0
-        self.done = False
-        self.info = []
-        self.observation = []
+        # save the name of each entry in observation and action
+        light_name = matlib.repmat(np.reshape(self.lightNames,[len(self.lightNames),1]), 1,1).flatten()
+        self.observation_space_name = self.proxSensorNames # only proxSensor
+        self.action_space_name = np.concatenate((self.jointNames, light_name))
         # ========================================================================= #
         #                    Initialize Reward Function Type                        #
         # ========================================================================= #        
@@ -162,25 +154,19 @@ class LASEnv(gym.Env):
         action = np.clip(action, self.act_min, self.act_max)
         action = (action + 1) / 2.0
         # Split action for light and sma
+        action = np.ndarray.flatten(action)  # flatten array
         action_smas = action[:self.smas_num]
-        action_lights_color = action[self.smas_num:]
+        action_lights_intensity = action[self.smas_num:]
         # Taking action
 
         #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
         self._set_all_joint_position(action_smas)
         # Actually only set light color
-        self._set_all_light_state_and_color(action_lights_color)
+        self._set_all_light_intensity(action_lights_intensity)
         #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
 
         # Set a small sleep time to avoid getting nan sensor data
         time.sleep(0.01)
-
-        #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
-        self._set_all_joint_position(action_smas)
-        # Actually only set light color
-        self._set_all_light_state_and_color(action_lights_color)
-        #vrep.simxPauseCommunication(self.clientID,False)    #and evaluated at the same time
-        #self.action_history.append(action_lights_color)  # Only consider light actions for now
 
         # Observe current state
         try:
@@ -188,15 +174,15 @@ class LASEnv(gym.Env):
         except ValueError:
             self._nanObervationFlag = 1
             print("Observation has NAN value.")
-#        # Caculate reward
-#        self.reward = self._reward(self.observation)
         
         # This reward is non-interactive reward i.e. it's not affected by visitor.
         # Therefore, it's only used for tunning hyper-parameters of LASAgent
-        if self.reward_function_type == 'red_light_sparse':
-            self.reward = self._reward_red_light_sparse(self.observation)
-        elif self.reward_function_type == 'red_light_dense':
-            self.reward = self._reward_red_light_dense(self.observation)
+        if self.reward_function_type == 'occupancy':
+            #   1. 'IR_distance': based on IR distance from detected object to IR
+            #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+            #                        of IR sensors 
+            #   3. 'IR_state_number': the number of detected objects
+            self.reward = self._reward_occupancy(self.observation, 'IR_distance')
         else:
             raise ValueError('No reward function: {}'.format(self.reward_function_type))
         
@@ -208,156 +194,63 @@ class LASEnv(gym.Env):
     def _self_observe(self):
         """
         This observe function is for LAS:
-            proximity sensors
-            light color
+            distance from the detected object to proximity sensors (if no 
+            detected object, the value is 0)
             
         Returns
         -------
-        observation: ndarray (proxStates, lightStates, lightDiffsePart.flatten())
+        observation: ndarray (proxDistances)
         """
-        # Currently we only use proxStates, maby in the future we will need proxPosition
-
-        proxStates, proxPosition = self._get_all_prox_data()
-        lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
-
-        observation = np.concatenate((proxStates, lightDiffsePart.flatten()))
+        # For IRs only proxDistances is used in ROM Exhibit simulation
+        _, proxDistances, _ = self._get_all_prox_data()
+        # Combine observation (No light data)
+        observation = proxDistances
         return observation
 
-    def _reward(self, observation):
+    def _reward_occupancy(self, observation, reward_type = 'IR_distance'):
         """
-        Calculate reward based on observation of proximity sensor.
-
-        All sensors have accumulated time rewards. The longer it has been triggered, the greater
-        the reward will be. The reward function also uses memories of actions. For sensors with
-        zero accumulated rewards, if it detects a new trigger but an action belonging to its own
-        group CANNOT be found in the history, then this signal is ignored.
-
-        Use adjusted sigmoid function to calculate the individual reward r(t)_i based on accumulated
-        time reward (t)
-
-        r(t)_i = 2*sigmoid(t/ratio) -1
-
-        Final reward = avg(all sensors reward r(t)_i)
-        """
-        individual_action_summary = np.array([0]*self.lights_num)
-        if len(self.action_history) > 0:
-            for step_action in self.action_history:
-                individual_action_summary = individual_action_summary | step_action
-
-        group_action_summary = np.array([0]*self.group_num)
-        for j in range(0, self.lights_num):
-            # Notice here the group id (node number) starts from 1
-            group_action_summary[self.group_id[j]-1] = group_action_summary[self.group_id[j]-1] | \
-                                                       individual_action_summary[self.group_id[j]-1]
-
-        prox_obs = observation[:self.prox_sensor_num]
-        is_newly_triggered = prox_obs - self.time_reward > 0
-
-        for i in range(0, self.lights_num):
-            if prox_obs[i] == 1:
-                obs = 1
-                if is_newly_triggered[i] and group_action_summary[self.group_id[j]-1] == 0:
-                    obs = 0
-                self.time_reward[i] = self.time_reward[i] + obs
-            else:
-                self.time_reward[i] = 0
-
-        # prox_obs = observation[:self.prox_sensor_num]
-        # self.time_reward = (prox_obs + self.time_reward) * prox_obs
-
-        ratio = 1000
-        self.reward = np.mean(-1 + 2/(1+np.exp(-self.time_reward/ratio)))
-
-        return self.reward
-
-    def _create_group(self):
-        """
-        Create a list that maps actuator/sensor to its corresponding node number
-        Group number starts from 1
-        Return
-        ------
-        group_id: a group id list. e.x, a list = [1,4,3,2,1,2] means the first sensor belongs to node#1,
-        the second belongs to node#4, etc.
-
-        group_num: the total number of groups
-        """
-        group_id = np.array([0] * self.prox_sensor_num)
-        for i in range(0, self.prox_sensor_num):
-            node_num = re.search(r'\d+', self.proxSensorNames[i]).group()
-            group_id[i] = int(node_num)
-
-        group_num = group_id.max()
-
-        return group_id, group_num
-
-    def _reward_red_light_sparse(self, observation):
-        """
-        This reward function is used in non-interactive model and only for testing and tuning hyper-parameters of LASAgent. Whenever this is a red light 
-        the agent will receive a reward, and the more the red lights are, the 
-        higher the reward will be.
+        Calculate reward based on occupancy i.e. the # of IRs been activated
         
-        If the RGB color of a light within the following thresholds, we regard
-        it as a red light.
+        Parameters
+        ----------
+        observation: array
+            observation array
+            
+        reward_type: string default='IR_distance'
+            1. 'IR_distance': based on IR distance from detected object to IR
+            2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                                 of IR sensors 
+            3. 'IR_state_number': the number of detected objects
         
-        Threshould for red lights:
-            Red:    0.70 - 1.00
-            Green:  0.00 - 0.30
-            Blue:   0.00 - 0.30
-        
+        Returns
+        -------
+        reward: float
+            the value of reward
         """
-        light_color_start_index = self.prox_sensor_num
-        red_light_index = []
-        for i in range(self.lights_num):
-            R = observation[light_color_start_index + i*3]
-            G = observation[light_color_start_index + i*3 + 1]
-            B = observation[light_color_start_index + i*3 + 2]
-            #print("Light: {}, R={}, G={}, B={}".format(i, R,G,B))
-            if 0.7<= R <=1 and 0<=G<=0.3 and 0<=B<=0.3:
-                #print("Find one red light!!")
-                red_light_index.append(i)
-        
-        red_light_num = len(red_light_index)
-        if (self.lights_num * 0.8) <= red_light_num:
-            reward = 1
-        elif (self.lights_num * 0.5) <= red_light_num :
-            reward = 0.3
-        elif (self.lights_num * 0.1) <= red_light_num:
-            reward = 0.1
+        prox_distances = observation[:self.prox_sensor_num]
+        # Make here insistent with IR data
+        #   1. 'IR_distance': based on IR distance from detected object to IR
+        #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+        #                        of IR sensors 
+        #   3. 'IR_state_number': the number of detected objects
+        reward_temp = 0.0
+        if reward_type == 'IR_distance':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1/distance
+        elif reward_type == 'IR_state_ratio':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1
+            reward_temp = reward_temp / len(prox_distances)
+        elif reward_type == 'IR_state_number':
+            for distance in prox_distances:
+                if distance != 0:
+                    reward_temp += 1
         else:
-            reward = 0
-        #reward = red_light_num / self.lights_num
-        return reward
-    
-    def _reward_red_light_dense(self, observation):
-        """
-        This reward function is used in non-interactive model and only for testing and tuning hyper-parameters of LASAgent. Whenever this is a red light 
-        the agent will receive a reward, and the more the red lights are, the 
-        higher the reward will be.
-        
-        If the RGB color of a light within the following thresholds, we regard
-        it as a red light.
-        
-        Threshould for red lights:
-            Red:    0.70 - 1.00
-            Green:  0.00 - 0.30
-            Blue:   0.00 - 0.30
-        
-        """
-        light_color_start_index = self.prox_sensor_num
-        red_light_index = []
-        for i in range(self.lights_num):
-            R = observation[light_color_start_index + i*3]
-            G = observation[light_color_start_index + i*3 + 1]
-            B = observation[light_color_start_index + i*3 + 2]
-            #print("Light: {}, R={}, G={}, B={}".format(i, R,G,B))
-            if 0.7<= R <=1 and 0<=G<=0.3 and 0<=B<=0.3:
-                #print("Find one red light!!")
-                red_light_index.append(i)
-        
-        red_light_num = len(red_light_index)
-        reward = red_light_num / self.lights_num
-        
-        return reward
+            raise Exception('Please choose a proper reward type!')
+        self.reward = reward_temp
+        return self.reward
 
     def reset(self):
         """
@@ -378,7 +271,7 @@ class LASEnv(gym.Env):
         vrep.simxStartSimulation(self.clientID, self._def_op_mode)
         
         self.observation = self._self_observe()
-        self.reward = self._reward(self.observation)
+        self.reward = self._reward_occupancy(self.observation)
         
         done = False
         return self.observation#, self.reward, done
@@ -415,7 +308,23 @@ class LASEnv(gym.Env):
 
         for i in range(jointNum):
             res = vrep.simxSetJointTargetPosition(self.clientID, self.jointHandles[i], targetPosition[i], self._set_joint_op_mode)
-
+    
+    def _set_all_light_intensity(self, action_lights_intensity):
+        """
+        Set all light intensity which actually only set the B-color-channel of
+        light.
+        
+        Parameters
+        ----------
+        action_lights_intensity: array
+            the value of light intensity
+        """
+        # R = 1 & G = 1
+        action_lights_color = np.ones((len(action_lights_intensity), 3))
+        for i, B_color in enumerate(action_lights_intensity):
+            action_lights_color[i,2] = B_color
+        self._set_all_light_state_and_color(action_lights_color)
+    
     def _set_all_light_state_and_color(self, targetColor):
         
         """
@@ -423,17 +332,15 @@ class LASEnv(gym.Env):
         
         Parameters
         ----------
-        targetColor ndarray
+        targetColor: (n,3) ndarray
             target color of each light
         """
         lightNum = self.lights_num
-        if len(targetColor) != (lightNum*3):
+        if len(targetColor) != (lightNum):
             raise ValueError('len(targetColor) != lightNum*3')
         
-        # Inner function: remote function call to set light state
-        targetState = np.ones(self.lights_num, dtype = int)
+        ######## Inner function: remote function call to set light state #######
         def _set_light_state_and_color(clientID, name, handle, targetState, targetColor, opMode):
-
             emptyBuff = bytearray()
             res,retInts,retFloats,retStrings,retBuffer = vrep.simxCallScriptFunction(clientID,
                                                                            name,
@@ -442,9 +349,11 @@ class LASEnv(gym.Env):
                                                                            [handle, targetState],targetColor,[],emptyBuff,
                                                                            opMode)
             return res
-        # inner function end
-        for i in range(lightNum):
-           res = _set_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], targetState[i], targetColor[i*3:(i+1)*3], self._set_light_op_mode)
+        ########################       inner function end       ###############
+        # light state is always on.
+        targetState = np.ones(self.lights_num, dtype = int) 
+        for i, lightColor in enumerate(targetColor):
+           res = _set_light_state_and_color(self.clientID, str(self.lightNames[i]), self.lightHandles[i], targetState[i], targetColor[i,:], self._set_light_op_mode)
     # ========================================================================= #
     #                                                                           #         
     #                    Get Proximity Sensor and Light Data                    #
@@ -452,17 +361,51 @@ class LASEnv(gym.Env):
     # ========================================================================= # 
     def _get_all_prox_data(self):
         """
-        Get all proximity sensory data
+        Get all proximity sensory data.
+        
+        Returns
+        -------
+        proxStates: array (Not used in ROM System)
+            state of each IR sensor
+        
+        proxDistances: array
+            distance from IR to detected object i.e. the less the distance, the
+            closer the obeject is to IR, but the exception is when no object being
+            dected the distance is 0.
+            
+        proxPosition: (n,3) ndarray (Not used in ROM System)
+            position of detected object relative to the sensor reference frame
         """
         proxSensorNum = len(self.proxSensorHandles)
         proxStates = np.zeros(proxSensorNum)
+        proxDistances = np.zeros(proxSensorNum)
         proxPosition = np.zeros([proxSensorNum, 3])
         for i in range(proxSensorNum):
             code, proxStates[i], proxPosition[i,:], handle, snv = vrep.simxReadProximitySensor(self.clientID, self.proxSensorHandles[i], self._get_prox_op_mode)
+            proxPosition[i,:] = np.multiply(proxPosition[i,:], proxStates[i])
+            proxDistances[i] = np.sqrt(np.sum(np.square(proxPosition[i,:])))
+            #print('code:{}, proxState:{}, proxPosition:{}'.format(code,proxStates[i],np.multiply(proxPosition[i,:], proxStates[i])))
             if np.sum(np.isnan(proxStates[i])) != 0:
                 raise ValueError("Find nan value in proximity sensor data!")
-        return proxStates, proxPosition
-  
+        return proxStates, proxDistances, proxPosition
+    
+    def _get_all_light_intensity(self):
+        """
+        This function is used to get all lights intensity which is indicated by
+        B-color channel from original RGB clolor.
+        
+        Returns
+        -------
+        lightIntensity: array
+            each entry corresponds to one intensity of illumination of one light
+        """
+        lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
+        lightNum = len(self.lightHandles)
+        lightIntensity = np.zeros(lightNum)
+        for i, lightColor in enumerate(lightDiffsePart):
+            lightIntensity[i] = lightColor[2] # 0:R 1:G 2:B
+        return lightIntensity
+    
     def _get_all_light_data(self):
         """
         Get all light data.

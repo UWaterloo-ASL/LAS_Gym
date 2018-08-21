@@ -29,8 +29,7 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
         #                   joint:  vrep.sim_object_joint_type
         #        proximity sensor:  vrep.sim_object_proximitysensor_type
         #                   light:  vrep.sim_object_light_type
-        # visitor target position:  vrep.sim_object_dummy_type
-        #            visitor body:  vrep.sim_object_shape_type
+        #        visitor position:  vrep.sim_object_dummy_type
     """
     dataType = 0    # 0: retrieves the object names (in stringData.)
     print("Get objects' names and handles ...")
@@ -42,7 +41,7 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
         if rc==vrep.simx_return_ok:
             print ('Get Prox Sensor Success!!!!!') # display the reply from V-REP (in this case, just a string)
             for i, name in enumerate(proxSensorNames):
-                if "_node#" in name:
+                if "_node" in name:
                     print("Proximity Sensor: {}, and handle: {}".format(name, proxSensorHandles[i]))
                     proxSensorIndex.append(i)
             break
@@ -56,7 +55,7 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
         if rc==vrep.simx_return_ok:
             print ('Get Lihgt Success!!!!!') # display the reply from V-REP (in this case, just a string)
             for i, name in enumerate(lightNames):
-                if "_node#" in name:
+                if "_node" in name:
                     print("Light: {}, and handle: {}".format(name, lightHandles[i]))
                     lightIndex.append(i)
             break
@@ -70,7 +69,7 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
         if rc==vrep.simx_return_ok:
             print ('Get Joint Success!!!!!') # display the reply from V-REP (in this case, just a string)
             for i, name in enumerate(jointNames):
-                if "_node#" in name:
+                if "_node" in name:
                     print("Joint: {}, and handle: {}".format(name, jointHandles[i]))
                     jointIndex.append(i)
             break
@@ -85,26 +84,13 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
         if rc==vrep.simx_return_ok:
             print ('Get Visitor Target Objest Success!!!!!') # display the reply from V-REP (in this case, just a string)
             for i, name in enumerate(visitorNames):
-                if "TargetPosition_Visitor#" in name:
+                if "Visitor" in name:
                     print("Visitor Target: {}, and handle: {}".format(name, visitorHandles[i]))
                     visitorIndex.append(i)
             break
         else:
             print ('Fail to get visitors!!!')
-    # Visitor body
-    visitorBodyIndex = []
-    rc = vrep.simx_return_initialize_error_flag
-    while rc != vrep.simx_return_ok:
-        rc, visitorBodyHandles, intData, floatData, visitorBodyNames = vrep.simxGetObjectGroupData(clientID,vrep.sim_object_shape_type, dataType, opMode)
-        if rc==vrep.simx_return_ok:
-            print ('Get Visitor Body Success!!!!!') # display the reply from V-REP (in this case, just a string)
-            for i, name in enumerate(visitorBodyNames):
-                if "Body_Visitor#" in name:
-                    print("Visitor body: {}, and handle: {}".format(name, visitorBodyHandles[i]))
-                    visitorBodyIndex.append(i)
-            break
-        else:
-            print ('Fail to get visitors body!!!')
+
     
     proxSensorHandles = np.array(proxSensorHandles)
     proxSensorNames = np.array(proxSensorNames)
@@ -114,8 +100,7 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
     jointNames = np.array(jointNames)
     visitorHandles = np.array(visitorHandles)
     visitorNames = np.array(visitorNames)
-    visitorBodyHandles = np.array(visitorBodyHandles)
-    visitorBodyNames = np.array(visitorBodyNames)
+    
     # All objects handels and names
     proxSensorHandles = proxSensorHandles[proxSensorIndex]
     proxSensorNames = proxSensorNames[proxSensorIndex]
@@ -125,13 +110,11 @@ def get_all_object_name_and_handle(clientID, opMode, vrep):
     jointNames = jointNames[jointIndex]
     visitorTargetNames = visitorNames[visitorIndex]
     visitorTargetHandles = visitorHandles[visitorIndex]
-    visitorBodyNames = visitorBodyNames[visitorBodyIndex]
-    visitorBodyHandles = visitorBodyHandles[visitorBodyIndex]
+    
     return proxSensorHandles, proxSensorNames, \
            lightHandles, lightNames, \
            jointHandles, jointNames, \
-           visitorTargetNames, visitorTargetHandles, \
-           visitorBodyNames, visitorBodyHandles
+           visitorTargetNames, visitorTargetHandles
 
 def deprecated(msg=''):
     def dep(func):

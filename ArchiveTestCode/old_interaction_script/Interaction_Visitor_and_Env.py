@@ -14,12 +14,12 @@ from Environment.VisitorEnv import VisitorEnv
 if __name__ == '__main__':
     
     # Instantiate a red light excited visitor
-    visitor = RedLightExcitedVisitorAgent("Visitor#0")
+    visitor0 = RedLightExcitedVisitorAgent("Visitor#0")
     
     # Instantiate visitor environment object
-    envVisitor = VisitorEnv('127.0.0.1', 19999)
+    envVisitor = VisitorEnv('127.0.0.1', 19997)
     
-    observationForVisitor = envVisitor._self_observe(visitor._bodayName)
+    observationForVisitor0 = envVisitor._self_observe(visitor0._visitorName)
     done = False
     rewardVisitor = 0
     
@@ -27,10 +27,10 @@ if __name__ == '__main__':
     i = 1
     last_time = time.time()
     while not done:
-            
-        targetPositionName, bodyName, action = visitor.perceive_and_act(observationForVisitor,rewardVisitor,done)
-        observationForVisitor, reward, done, [] = envVisitor.step(targetPositionName, bodyName, action)
-        print("Visitor Step: {}, Red light number: {}".format(i, visitor.red_light_num))
+        
+        visitorName, action = visitor0.perceive_and_act(observationForVisitor0,rewardVisitor,done)
+        observationForVisitor, reward, done, [] = envVisitor.step(visitorName, action)
+        print("Visitor Step: {}, Red light number: {}".format(i, visitor0.red_light_num))
         i += 1
 
     envVisitor.close_connection()

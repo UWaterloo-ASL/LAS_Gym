@@ -17,7 +17,7 @@ if __name__ == '__main__':
     observationForLAS= envLAS.reset()
 
     # Iinstantiate LAS-agent
-    LASAgent1 = RandomLASAgent(envLAS.observation_space, envLAS.action_space)
+    LASAgent1 = RandomLASAgent(envLAS)
     
     # Step counter
     i = 1
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     rewardLAS = 0
     while not done:
 
-        actionLAS = LASAgent1.interact(observationForLAS, rewardLAS, done)
+        actionLAS = LASAgent1.perceive_and_act(observationForLAS, rewardLAS, done)
         observationForLAS, rewardLAS, done, info = envLAS.step(actionLAS)
         print("LAS Step: {}, reward: {}".format(i, rewardLAS))
         i += 1

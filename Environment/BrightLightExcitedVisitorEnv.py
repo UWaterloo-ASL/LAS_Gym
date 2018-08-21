@@ -25,7 +25,7 @@ import warnings
 
 from .UtilitiesForEnv import get_all_object_name_and_handle, deprecated
 
-class VisitorEnv(gym.Env):
+class BrightLightExcitedVisitorEnv(gym.Env):
     def __init__(self, IP = '127.0.0.1',Port = 19999):
         """
         Instantiate LASEnv. LASEnv is the interface between LAS and Environment. Thus, LASEnv is the internal environment of LAS.
@@ -93,12 +93,11 @@ class VisitorEnv(gym.Env):
         #   target position: (x, y, z)
         self.actuators_dim = 1 + self.visitor_num * 3
         # Sensor range:
-        #   light state: 0 or 1
-        #   light color: [0, 1] * 3 
+        #   light intensity: [0, 1]
         #   light position: [width, length, height] depends on the size of floor
         #   visitorBodyPosition: [width, length, height] depends on the size of floor
-        obs_light_max = np.array([1.] * self.lights_num * (1+3))
-        obs_light_min = np.array([0.] * self.lights_num * (1+3))
+        obs_light_max = np.array([1.] * self.lights_num)
+        obs_light_min = np.array([0.] * self.lights_num)
         obs_light_pos_max = np.array([9., 9., 9.] * self.lights_num)
         obs_light_pos_min = -np.array([9., 9., 9.] * self.lights_num)
         obs_visitor_tar_pos_max = np.array([9., 9., 9.] * self.visitor_num)
@@ -179,16 +178,32 @@ class VisitorEnv(gym.Env):
             light position: observation[lightNum * 4:lightNum * 5]
             visitor position: observation[lightNum*5:]
         """
-        lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
+        lightIntensity = self._get_all_light_intensity()
         lightPositions = self._get_all_light_position()
         visitorBodyPosition = self._get_single_visitor_body_position(visitorName)
-        obser_for_red_light_excited_visitor = np.concatenate((lightStates,
-                                                                   lightDiffsePart.flatten(),
-                                                                   lightPositions.flatten(),
-                                                                   visitorBodyPosition.flatten()))
+        obser_for_red_light_excited_visitor = np.concatenate((lightIntensity,
+                                                              lightPositions.flatten(),
+                                                              visitorBodyPosition.flatten()))
         
         return obser_for_red_light_excited_visitor        
+    
+    def _get_all_light_intensity(self):
+        """
+        This function is used to get all lights intensity which is indicated by
+        B-color channel from original RGB clolor.
         
+        Returns
+        -------
+        lightIntensity: array
+            each entry corresponds to one intensity of illumination of one light
+        """
+        lightStates, lightDiffsePart, lightSpecularPart = self._get_all_light_data()
+        lightNum = len(self.lightHandles)
+        lightIntensity = np.zeros(lightNum)
+        for i, lightColor in enumerate(lightDiffsePart):
+            lightIntensity[i] = lightColor[2] # 0:R 1:G 2:B
+        return lightIntensity
+    
     def _get_all_light_data(self):
         """
         Get all light data.

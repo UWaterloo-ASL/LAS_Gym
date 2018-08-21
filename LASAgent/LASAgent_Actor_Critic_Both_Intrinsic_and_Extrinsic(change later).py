@@ -91,8 +91,6 @@ class ActorNetwork(object):
         
         self.restore_model_flag = restore_model_flag
         self.restore_model_version = self._find_the_most_recent_model_version() 
-        if self.restore_model_flag and self.restore_model_version == -1:
-            raise Exception('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
         
         with tf.variable_scope(self.name) as self.scope:
             # Initialize or Restore Actor Network
@@ -199,7 +197,7 @@ class ActorNetwork(object):
         Returns
         -------
         the_most_recent_model_version: int
-            the most recent model version. If no saved model, return -1.
+            the most recent model version
         """
         # Find the most recent version
         model_version = []
@@ -207,10 +205,7 @@ class ActorNetwork(object):
             if self.name+'_target_' in file_name_temp:
                 _, version_temp = file_name_temp.split('.')[0].split(self.name+'_target_')
                 model_version.append(version_temp)
-        if len(model_version) != 0:
-            the_most_recent_model_version = max([int(i) for i in model_version])
-        else:
-            the_most_recent_model_version = -1
+        the_most_recent_model_version = int(max(model_version))
         return the_most_recent_model_version
 
 class CriticNetwork(object):
@@ -269,8 +264,6 @@ class CriticNetwork(object):
         
         self.restore_model_flag = restore_model_flag
         self.restore_model_version = self._find_the_most_recent_model_version()
-        if self.restore_model_flag and self.restore_model_version == -1:
-            raise Exception('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
         
         with tf.variable_scope(self.name) as self.scope:
             # Create the critic network
@@ -403,10 +396,7 @@ class CriticNetwork(object):
             if self.name+'_target_' in file_name_temp:
                 _, version_temp = file_name_temp.split('.')[0].split(self.name+'_target_')
                 model_version.append(version_temp)
-        if len(model_version) != 0:
-            the_most_recent_model_version = max([int(i) for i in model_version])
-        else:
-            the_most_recent_model_version = -1
+        the_most_recent_model_version = int(max(model_version))
         return the_most_recent_model_version
 # ===========================
 #   Environment Model DNNs
@@ -958,65 +948,65 @@ class LASAgent_Actor_Critic():
         # motivation to know the structure of environment model.
         self.saved_env_model_counter += 1
         self.environment_model.save_environment_model_network(self.saved_env_model_counter)
-        # =================================================================== #
-        #                     Initialize Knowledge-based                      #
-        #               Intrinsically Motivated Actor-Critic Model            #
-        # =================================================================== #
-        # Initialize Knowledge-based Intrinsic Motivation Component
-        self.knowledge_based_intrinsic_reward = 0
-        # Note; actual window size = sliding window size * save_env_model_every_xxx_steps
-        self.knowledge_based_intrinsic_reward_sliding_window_size = 4 
-        self.update_newest_env_model_every_xxx_steps = 200
-        self.knowledge_based_intrinsic_motivation_model = KnowledgeBasedIntrinsicMotivationComponent(self.models_dir,
-                                                                                                     self.knowledge_based_intrinsic_reward_sliding_window_size)
-        # Intrinsically Motivated Actor
-        self.knowledge_based_intrinsic_actor_name = self.agent_name+'_knowledge_based_intrinsic_actor_name'
-        self.knowledge_based_intrinsic_actor_lr = actor_lr
-        self.knowledge_based_intrinsic_actor_tau = actor_tau
-        # Restore Pre-trained Actor Motivated by Knowledge-based Intrinsic Motivation
-        
-        self.knowledge_based_intrinsic_actor_model_save_path = self.models_dir
-        self.target_knowledge_based_intrinsic_actor_model_save_path = self.models_dir
-        
-        self.restore_knowledge_based_intrinsic_actor_model_flag = False
-        self.restore_knowledge_based_intrinsic_actor_model_version = restore_model_version
-        
-        self.knowledge_based_intrinsic_actor_model = ActorNetwork(self.knowledge_based_intrinsic_actor_name,
-                                                                  self.sess,
-                                                                  self.observation_space,
-                                                                  self.action_space,
-                                                                  self.knowledge_based_intrinsic_actor_lr,
-                                                                  self.knowledge_based_intrinsic_actor_tau,
-                                                                  self.minibatch_size,
-                                                                  self.knowledge_based_intrinsic_actor_model_save_path,
-                                                                  self.target_knowledge_based_intrinsic_actor_model_save_path,
-                                                                  self.restore_knowledge_based_intrinsic_actor_model_flag,
-                                                                  self.restore_knowledge_based_intrinsic_actor_model_version)
-        # Intrinsically Motivated Critic
-        self.knowledge_based_intrinsic_critic_name = self.agent_name+'_knowledge_based_intrinsic_critic_name'
-        self.knowledge_based_intrinsic_critic_lr = critic_lr
-        self.knowledge_based_intrinsic_critic_tau = critic_tau
-        self.knowledge_based_intrinsic_critic_gamma = gamma
-        
-        # Restore Pre-trained Critic Model
-        
-        self.knowledge_based_intrinsic_critic_model_save_path = self.models_dir
-        self.target_knowledge_based_intrinsic_critic_model_save_path = self.models_dir
-        
-        self.restore_knowledge_based_intrinsic_critic_model_flag = False
-        self.restore_knowledge_based_intrinsic_critic_model_version = restore_model_version
-        
-        self.knowledge_based_intrinsic_critic_model = CriticNetwork(self.knowledge_based_intrinsic_critic_name,
-                                                                    self.sess,
-                                                                    self.observation_space,
-                                                                    self.action_space,
-                                                                    self.knowledge_based_intrinsic_critic_lr,
-                                                                    self.knowledge_based_intrinsic_critic_tau,
-                                                                    self.knowledge_based_intrinsic_critic_gamma,
-                                                                    self.knowledge_based_intrinsic_critic_model_save_path,
-                                                                    self.target_knowledge_based_intrinsic_critic_model_save_path,
-                                                                    self.restore_knowledge_based_intrinsic_critic_model_flag,
-                                                                    self.restore_knowledge_based_intrinsic_critic_model_version)
+#        # =================================================================== #
+#        #                     Initialize Knowledge-based                      #
+#        #               Intrinsically Motivated Actor-Critic Model            #
+#        # =================================================================== #
+#        # Initialize Knowledge-based Intrinsic Motivation Component
+#        self.knowledge_based_intrinsic_reward = 0
+#        # Note; actual window size = sliding window size * save_env_model_every_xxx_steps
+#        self.knowledge_based_intrinsic_reward_sliding_window_size = 4 
+#        self.update_newest_env_model_every_xxx_steps = 200
+#        self.knowledge_based_intrinsic_motivation_model = KnowledgeBasedIntrinsicMotivationComponent(self.models_dir,
+#                                                                                                     self.knowledge_based_intrinsic_reward_sliding_window_size)
+#        # Intrinsically Motivated Actor
+#        self.knowledge_based_intrinsic_actor_name = self.agent_name+'_knowledge_based_intrinsic_actor_name'
+#        self.knowledge_based_intrinsic_actor_lr = actor_lr
+#        self.knowledge_based_intrinsic_actor_tau = actor_tau
+#        # Restore Pre-trained Actor Motivated by Knowledge-based Intrinsic Motivation
+#        
+#        self.knowledge_based_intrinsic_actor_model_save_path = self.models_dir
+#        self.target_knowledge_based_intrinsic_actor_model_save_path = self.models_dir
+#        
+#        self.restore_knowledge_based_intrinsic_actor_model_flag = False
+#        self.restore_knowledge_based_intrinsic_actor_model_version = restore_model_version
+#        
+#        self.knowledge_based_intrinsic_actor_model = ActorNetwork(self.knowledge_based_intrinsic_actor_name,
+#                                                                  self.sess,
+#                                                                  self.observation_space,
+#                                                                  self.action_space,
+#                                                                  self.knowledge_based_intrinsic_actor_lr,
+#                                                                  self.knowledge_based_intrinsic_actor_tau,
+#                                                                  self.minibatch_size,
+#                                                                  self.knowledge_based_intrinsic_actor_model_save_path,
+#                                                                  self.target_knowledge_based_intrinsic_actor_model_save_path,
+#                                                                  self.restore_knowledge_based_intrinsic_actor_model_flag,
+#                                                                  self.restore_knowledge_based_intrinsic_actor_model_version)
+#        # Intrinsically Motivated Critic
+#        self.knowledge_based_intrinsic_critic_name = self.agent_name+'_knowledge_based_intrinsic_critic_name'
+#        self.knowledge_based_intrinsic_critic_lr = critic_lr
+#        self.knowledge_based_intrinsic_critic_tau = critic_tau
+#        self.knowledge_based_intrinsic_critic_gamma = gamma
+#        
+#        # Restore Pre-trained Critic Model
+#        
+#        self.knowledge_based_intrinsic_critic_model_save_path = self.models_dir
+#        self.target_knowledge_based_intrinsic_critic_model_save_path = self.models_dir
+#        
+#        self.restore_knowledge_based_intrinsic_critic_model_flag = restore_critic_model_flag
+#        self.restore_knowledge_based_intrinsic_critic_model_version = restore_model_version
+#        
+#        self.knowledge_based_intrinsic_critic_model = CriticNetwork(self.knowledge_based_intrinsic_critic_name,
+#                                                                    self.sess,
+#                                                                    self.observation_space,
+#                                                                    self.action_space,
+#                                                                    self.knowledge_based_intrinsic_critic_lr,
+#                                                                    self.knowledge_based_intrinsic_critic_tau,
+#                                                                    self.knowledge_based_intrinsic_critic_gamma,
+#                                                                    self.knowledge_based_intrinsic_critic_model_save_path,
+#                                                                    self.target_knowledge_based_intrinsic_critic_model_save_path,
+#                                                                    self.restore_knowledge_based_intrinsic_critic_model_flag,
+#                                                                    self.restore_knowledge_based_intrinsic_critic_model_version)
         # =================================================================== #
         #                    Initialize Competence-based                      #
         #               Intrinsically Motivated Actor-Critic Model            #

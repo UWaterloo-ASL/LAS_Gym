@@ -1,66 +1,120 @@
 # LAS_Gym
-Living Architecture System simulated environment with OpenAi Gym APIs
-
-## To run the simulating environment
-### Method 1: with GUI (Only for visulizing behavior)
-   1. Clone the whole repositry
-   2. In V-REP: File -> Open scene -> choose _LAS-Scenes/livingArchitecture_singleVisitor_nondistributed.ttt_ 
-   3. Run: `Interaction_LASAgentActorCritic_and_Env.py` to start interaction between LAS and Environment
-   4. Run: `Interaction_Visitor_and_Env.py` to start interaction between Visitor and Environment.
-
-Notes:
-  
-  * You should start with running `Interaction_LASAgentActorCritic_and_Env.py` first, then start running `Interaction_Visitor_and_Env.py`, because Visitor intertacts with Env by a different [temporary port in chiled-script](http://www.coppeliarobotics.com/helpFiles/en/remoteApiServerSide.htm) from defualt port.
-  * In this manner, you can visualize the interactions among LAS, Env and Visitor. However, this visualization will slow down interaction dramatically due to vision render. We recommend you only use this method when you examine your agents' behavior. For other cases, please use **Method 2**. 
-
-### Method 2: without any GUI (Recommended)
-   1. Clone the whole repositry
-   2. Open `Terminal` or `Command Prompt`
-   3. Change directory to your vrep.exe. For example: `cd C:\Program Files\V-REP3\V-REP_PRO_EDU\`
-   4. start V-REP via the command line: `vrep -h -s C:\LAS_Gym\LAS-Scenes\livingArchitecture_singleVisitor_nondistributed.ttt`
-
-Notes:
-  
-  * For details on starting V-REP via the command line, please visit [here](http://www.coppeliarobotics.com/helpFiles/en/commandLine.htm).
-  * You can also add path of vrep.exe to environment variable. If there is error to load scene, please firmly follow **Method 2**.
-  * Compared with **Method 1**, **Method 2** is faster. Therefore, this method is preferred when you training your learning algorithm.
-
-## Interaction Pattern
-In our design, the interaction between LAS and Environment (i.e. `Interaction_LAS_and_Env.py`) is parallel with the interaction between Visitor and Environment (i.e. `Interaction_Visitor_and_Env.py`). These two scripts can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
+This versatile reposity provides simulation environment with [OpenAi Gym APIs](https://gym.openai.com/docs/) for Living Architecture System developed by a colaboration with [Living Architecture System Group](http://livingarchitecturesystems.com).
 
 ## Organization
-### Interaction scripts
-   1. Interaction between LAS and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
-   2. Interaction between Visitor and Environment: `Interaction_Visitor_and_Env.py`
-   3. Interaction between **Extrinscially Motivated LASAgent** and Environment: `Interaction_LASAgentActorCritic_and_Env.py`
-   
-### Class
-   1. Environment class for LAS Agent: `LASEnv.py`
-   2. LAS Agent class: 
-      * `RandomLASAgent.py`: random action
-      * `LASAgent_Actor_Critic.py`: extrinsically motivated behavior
-   3. Environment class for Visitor Agent: `VisitorEnv.py`
-   4. Visitor Agent class: 
-      * `RedLightExcitedVisitorAgent.py`: red light excited visitor
-### Interaction paradigm and Simulator
+At following, we overview what are included in this reposity, and detailed information is provided by each hyper-link.
+1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LAS-Scenes):**
+   * **Royal Ontario Museum (ROM) Exhibit: Transforming Space**
+      * V-REP Scene: `livingArchitecture_ROM_exhibit.ttt`
+2. **[Environment](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/Environment):**
+   * **Living Architecture Environment**
+      * LASEnv.py
+   * **Visitor Environment**
+      * BrightLightExcitedVisitorEnv.py
+      * RedLightExcitedVisitor_LAS_Env.py
+3. **[LASAgent](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LASAgent):**
+   * **Intermediate Internal Environment Classes**
+      1. **Internal Environment for Single Agent** 
+         * Implemented in `InternalEnvOfAgent.py`
+      2. **Internal Environment for Agent Community**
+         * Implemented in `InternalEnvOfCommunity.py`
+   * **Learning Agent Classes**
+      * **Actor-Critic LASAgent**
+         * Implemented in `LASAgent_Actor_Critic.py`
+      * **Random action LASAgent**
+         * Implememted in `RandomLASAgent.py`
+4. **[Visitor Agent class](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/VisitorAgent):** 
+      * **Bright-light-excited Visitor** who is excited when there is a bright light with intensity >=0.95 in LAS.
+         * Implemented in: `BrightLightExcitedVisitorAgent.py`
+      * **Red-light-excited Visitor** who is excited when there is a red light being trun on in LAS.
+         * Implemented in: `RedLightExcitedVisitorAgent.py`
+## Interaction Pattern
+In our design, the interaction between LAS and Environment is parallel with the interaction between Visitor and Environment, as shown in **Figure 1**. These two interactions can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
 
-<img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/ROM_Simulation_Scene.png" width="400" height="400" /> 
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/ROM_Agent_Community_LM/InitialDesignIdeas/DesignFigures/Interaction_Pattern.png"  /> 
 
-## How To Use
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; **Figure 1.** Interaction Pattern
+## How To Interact With Environment
+1. **For Interaction With Virtual Environment**
+   * **Step 1: Run the Simulating Scene in V-REP**
+   * **Step 2: Run Python Script - Interaction between LAS-Agent and Environment**
+      * General Framework
+         1. Instantiate LAS Environment Object
+         2. Instantiate LAS Agent Object
+         3. Interaction in while loop
+         * Example Script: 
+            * Non-distributed Single Giant LAS Agent: `Interaction_Single_Agent_and_Env.py` 
+            * Distributed Multi-agent: `Interaction_Distributed_Agent_Community_and_Env.py`
+            * Random LAS Agent: `Interaction_RandomLASAgent_and_Env.py`
+   * **Step 3: Run Python Script - Interaction between Visitor-Agent and Environment**
+      * General Framework
+         1. Instantiate Visitor Environment Object
+         2. Instantiate Visitor Agent Object
+         3. Interaction in while loop
+         * Example Scritp:
+            * Bright-light-excited Visitor Agent: `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
+2. **For Interaction With Real Environment**: For LAS Agent, the only difference when interacting with real environment is in the receiving of **observation** and delivering of **action**. And for real environment, visitor is physical humanbody. Therefore, we only need to consider **Python Script - Interaction between LAS-Agent and Environment**.
+   * General Framework:
+      1. Instantiate LAS Agent Object
+      2. Interaction in while loop
+   * Overall framework for this script:
+```python
+        # Instatiate LAS-Agent
+        agent = InternalEnvOfAgent(...)
+        # Interaction loop
+        while not done:
+            if x_order_MDP == 1:
+                # Generate action
+                actionLAS = agent.interact(observation, reward, done)
+                # Take action in realy system, and retrive new observation
+                $$$$<Note: integration "take_action(actionLAS)">$$$$
+                $$$$<Note: integration "observation = get_observation()">$$$$
+            elif x_order_MDP > 1:
+                # Feed (x_order_MDP-1) observation
+                for obs_temp_i in range(x_order_MDP-1):
+                    # the first obs is the immediate obaservation afer taking action
+                    if obs_temp_i == 0: 
+                        agent.feed_observation(observation)
+                    else:
+                        $$$$<Note: integration "observation = get_observation()">$$$$
+                        agent.feed_observation(observation)
+                # The last obs is input into interact function.
+                observation = get_observation()
+                actionLAS = agent.interact(observation, reward, done)
+                # Take action in realy system, and retrive new observation
+                $$$$<Note: integration "take_action(actionLAS)">$$$$
+                $$$$<Note: integration "observation = get_observation()">$$$$
+            else:
+                raise Exception('Please choose a proper x_order_MDP!')
+```
 
-### Demo 1: Single Agent
-   `interaction_Single_Agent_and_Env.py`
-### Demo 2: Multi-Agents
-   `interaction_Distributed_Agent_Community_and_Env.py`
-### Demo 3: Visitors
-   `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
-
-## Features
-  1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
-  2. The interactions among Environment, LAS and Visitor can run in parallel.
+## Meta-Data Organization Produced by LAS Learning Algorithm
+When interacting with real or virtual environment, all data will be saved in directory `../ROM_Experiment_results/` i.e. sub-directory `ROM_Experiment_results` of the parent directory of `interaction_script`.
+1. For non-distributed single giant agent:
+   * ROM_Experiment_results
+      * LAS_Single_Agent
+         * interaction_data
+         * models
+         * summary
+2. For distributed multi-agent:
+   * ROM_Experiment_results
+      * LAS_Agent_Community
+         * interaction_data
+      * LAS_Agent_Community_agent_1
+         * interaction_data
+         * models
+         * summary
+      * LAS_Agent_Community_agent_2
+         * interaction_data
+         * models
+         * summary
+      * LAS_Agent_Community_agent_3
+         * interaction_data
+         * models
+         * summary
 
 ## Dependency
-   1. OpenAi gym package: `pip install gym`
-   2. keras
-   3. Tensorflow
-   4. tflearn
+   1. [OpenAi gym](https://gym.openai.com/docs/#installation) package: `pip install gym`
+   2. [Tensorflow](https://www.tensorflow.org/install/)
+   3. [Keras](https://keras.io/#installation): `sudo pip install keras`
+   4. [tflearn](http://tflearn.org/installation/)

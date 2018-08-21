@@ -15,11 +15,13 @@ class RedLightExcitedVisitorAgent():
             action: [move, x, y, z] if move = 0, don't move, else move.
     """
     def __init__(self, name):
-        self._targetPositionName = "TargetPosition_"+name
-        self._bodayName = "Body_"+name
+        """
+        
+        """
+        self._visitorName = name
         self.red_light_num = 0
         # threshold distance between last destination and current location
-        self._distanceThreshold = np.sqrt((0.1**2) + (0.1**2))
+        self._distanceThreshold = np.sqrt((0.5**2) + (0.5**2))
         self._lastTargetPositionMaintainThreshold = 1000 # at least maintain 25 steps
         
         self._lastTargetPositionMaintainCounter = 0 # count how may step have elapsed for last target position
@@ -60,8 +62,8 @@ class RedLightExcitedVisitorAgent():
         
         self._actionNew = self._act()
         #print("_actionNew = {}".format(self._actionNew))
-        return self._targetPositionName, self._bodayName, self._actionNew
-    
+        return self._visitorName, self._actionNew
+
     def _act(self):
         """
         Calculate visitor's action. The action depends on three conditions:
@@ -76,52 +78,20 @@ class RedLightExcitedVisitorAgent():
         action: ndarray [moveFlag, x, y, z]
                 
         """
-        # for first step there is no lastDestination
-        if self._firstStep:
-            distance = 0
-        else:
-            # distance between lastDestination and current location
-            distance = self._distance_lastDestination_currLocation(self._lastDestination, self._currLocation)
-        
         red_light_positions = self._red_light_position()
         
         # only when there is red light and close to target position and maintain a maximum number to approach to target
-        if self.red_light_num > 0 and \
-            distance <= self._distanceThreshold and \
-            self._lastTargetPositionMaintainCounter > self._lastTargetPositionMaintainThreshold:
-            
+        if self.red_light_num > 0:
             #print("Red light number: {}".format(self.red_light_num))
             random_red_light = np.random.randint(0,self.red_light_num)
             position = red_light_positions[random_red_light,:]
-            newTargetPosition = position[0:2]
-            # if new target position is very close to last target location, do
-            # not move.
-            if not self._firstStep:
-                distanceBetweenOldAndNewTargetPosition = self._distance_lastDestination_currLocation(newTargetPosition,self._lastDestination)
-            if (not self._firstStep) and (distanceBetweenOldAndNewTargetPosition < self._distanceThreshold):
-                move = 0
-                action = [move, 0, 0, 0]
-                self._lastTargetPositionMaintainCounter += 1 # increase one
-            else:
-                move = 1
-                # each time change destination, _lastDestination will be updated 
-                self._lastDestination = position[0:2] #ignore z coordinate
-                self._lastTargetPositionMaintainCounter = 1
-                #print("Visitor Destination:{}".format(self._lastDestination))
-                action = np.concatenate(([move], position.flatten()))    
+            move = 1
+            action = np.concatenate(([move], position.flatten()))    
         else:
-            move = 0
-            action = [move, 0, 0, 0]
-            self._lastTargetPositionMaintainCounter += 1 # increase one
+            move = 1
+            action = [move, -6, np.random.randint(-3,0), 0]
     
         return action
-    
-    def _distance_lastDestination_currLocation(self, lastDestination, currLocation):
-        """
-        Calculate the distance from the visitor's current position to his/her
-        target position.
-        """
-        return np.sqrt(np.sum((np.array(lastDestination) - np.array(currLocation))**2))
     
     def _red_light_position(self):
         """
