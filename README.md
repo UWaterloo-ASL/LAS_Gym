@@ -88,9 +88,11 @@ In our design, the interaction between LAS and Environment is parallel with the 
                 raise Exception('Please choose a proper x_order_MDP!')
 ```
 
-## Features
-  1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
-  2. The interactions among Environment, LAS and Visitor can run in parallel.
+## Meta-Data Organization Produced by LAS Learning Algorithm
+When interacting with real or virtual environment, all data will be saved in directory `../ROM_Experiment_results/` i.e. sub-directory `ROM_Experiment_results` of the parent directory of `interaction_script`.
+1. For non-distributed single giant agent:
+
+2. For distributed multi-agent:
 
 ## Dependency
    1. [OpenAi gym](https://gym.openai.com/docs/#installation) package: `pip install gym`
