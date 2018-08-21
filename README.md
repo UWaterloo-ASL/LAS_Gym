@@ -35,24 +35,24 @@ In our design, the interaction between LAS and Environment is parallel with the 
 
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; **Figure 1.** Interaction Pattern
 ## How To Interact With Environment
-### For Interaction With Virtual Environment
-* **Step 1: Run the Simulating Scene in V-REP**
-* **Step 2: Run Python Script - Interaction between LAS-Agent and Environment**
-   * General Framework
-      1. Instantiate LAS Environment Object
-      2. Instantiate LAS Agent Object
-      3. Interaction in while loop
-      * Example Script: 
-         * Non-distributed Single Giant LAS Agent: `Interaction_Single_Agent_and_Env.py` 
-         * Distributed Multi-agent: `Interaction_Distributed_Agent_Community_and_Env.py`
-         * Random LAS Agent: `Interaction_RandomLASAgent_and_Env.py`
-* **Step 3: Run Python Script - Interaction between Visitor-Agent and Environment**
-   * General Framework
-      1. Instantiate Visitor Environment Object
-      2. Instantiate Visitor Agent Object
-      3. Interaction in while loop
-      * Example Scritp:
-         * Bright-light-excited Visitor Agent: `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
+1. **For Interaction With Virtual Environment**
+   * **Step 1: Run the Simulating Scene in V-REP**
+   * **Step 2: Run Python Script - Interaction between LAS-Agent and Environment**
+      * General Framework
+         1. Instantiate LAS Environment Object
+         2. Instantiate LAS Agent Object
+         3. Interaction in while loop
+         * Example Script: 
+            * Non-distributed Single Giant LAS Agent: `Interaction_Single_Agent_and_Env.py` 
+            * Distributed Multi-agent: `Interaction_Distributed_Agent_Community_and_Env.py`
+            * Random LAS Agent: `Interaction_RandomLASAgent_and_Env.py`
+   * **Step 3: Run Python Script - Interaction between Visitor-Agent and Environment**
+      * General Framework
+         1. Instantiate Visitor Environment Object
+         2. Instantiate Visitor Agent Object
+         3. Interaction in while loop
+         * Example Scritp:
+            * Bright-light-excited Visitor Agent: `Interaction_Multi_BrightLightExcitedVisitor_and_Env.py`
 ### For Interaction With Real Environment
 For LAS Agent, the only difference when interacting with real environment is in the receiving of **observation** and delivering of **action**. And for real environment, visitor is physical humanbody. Therefore, we only need to consider **Python Script - Interaction between LAS-Agent and Environment**.
 * General Framework:
