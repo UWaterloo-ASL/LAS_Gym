@@ -91,8 +91,27 @@ In our design, the interaction between LAS and Environment is parallel with the 
 ## Meta-Data Organization Produced by LAS Learning Algorithm
 When interacting with real or virtual environment, all data will be saved in directory `../ROM_Experiment_results/` i.e. sub-directory `ROM_Experiment_results` of the parent directory of `interaction_script`.
 1. For non-distributed single giant agent:
-
+   * ROM_Experiment_results
+      * LAS_Single_Agent
+         * interaction_data
+         * models
+         * summary
 2. For distributed multi-agent:
+   * ROM_Experiment_results
+      * LAS_Agent_Community
+         * interaction_data
+      * LAS_Agent_Community_agent_1
+         * interaction_data
+         * models
+         * summary
+      * LAS_Agent_Community_agent_2
+         * interaction_data
+         * models
+         * summary
+      * LAS_Agent_Community_agent_3
+         * interaction_data
+         * models
+         * summary
 
 ## Dependency
    1. [OpenAi gym](https://gym.openai.com/docs/#installation) package: `pip install gym`
