@@ -88,30 +88,33 @@ In our design, the interaction between LAS and Environment is parallel with the 
                 raise Exception('Please choose a proper x_order_MDP!')
 ```
 
-## Meta-Data Organization Produced by LAS Learning Algorithm
+## Meta-Data Produced by LAS Learning Algorithm
 When interacting with real or virtual environment, all data will be saved in directory `../ROM_Experiment_results/` i.e. sub-directory `ROM_Experiment_results` of the parent directory of `interaction_script`.
-1. For non-distributed single giant agent:
-   * ROM_Experiment_results
-      * LAS_Single_Agent
-         * interaction_data
-         * models
-         * summary
-2. For distributed multi-agent:
-   * ROM_Experiment_results
-      * LAS_Agent_Community
-         * interaction_data
-      * LAS_Agent_Community_agent_1
-         * interaction_data
-         * models
-         * summary
-      * LAS_Agent_Community_agent_2
-         * interaction_data
-         * models
-         * summary
-      * LAS_Agent_Community_agent_3
-         * interaction_data
-         * models
-         * summary
+* **Organization Meta-Data**
+   1. For non-distributed single giant agent:
+      * ROM_Experiment_results
+         * LAS_Single_Agent
+            * interaction_data
+            * models
+            * summary
+   2. For distributed multi-agent:
+      * ROM_Experiment_results
+         * LAS_Agent_Community
+            * interaction_data
+         * LAS_Agent_Community_agent_1
+            * interaction_data
+            * models
+            * summary
+         * LAS_Agent_Community_agent_2
+            * interaction_data
+            * models
+            * summary
+         * LAS_Agent_Community_agent_3
+            * interaction_data
+            * models
+            * summary
+* **Visualize Meta-Data**
+The visualization of meta-data is done by utilizing [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard).
 
 ## Dependency
    1. [OpenAi gym](https://gym.openai.com/docs/#installation) package: `pip install gym`
