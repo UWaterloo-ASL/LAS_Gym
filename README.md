@@ -114,6 +114,7 @@ When interacting with real or virtual environment, all data will be saved in dir
             * models
             * summary
 * **Visualize Meta-Data**: The visualization of meta-data is done by utilizing [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard).
+   * General: `tensorboard --logdir name1:/path/to/logs/1,name2:/path/to/logs/2` (For more details on how to use tensorboard, please check `tensorboard --helpfull`)
    * Example: `tensorboard --logdir agent_community_agent1:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_1/summary,agent_community_agent2:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_2/summary,agent_community_agent3:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_3/summary,agent_community_agent3:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_1/summary,agent_community_agent2:path/to/ROM_Experiment_results/LAS_Agent_Community_agent_3/summary,single_agent:path/to/ROM_Experiment_results/LAS_Single_Agent/summary`
 
 ## Dependency
