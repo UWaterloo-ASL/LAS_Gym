@@ -37,7 +37,8 @@ At following, we overview what are included in this reposity, and detailed infor
       * **Red-light-excited Visitor** who is excited when there is a red light being trun on in LAS.
          * Implemented in: `RedLightExcitedVisitorAgent.py`
 ## Interaction Pattern
-In our design, the interaction between LAS and Environment is parallel with the interaction between Visitor and Environment. These two interactions can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
+In our design, the interaction between LAS and Environment is parallel with the interaction between Visitor and Environment, as shown in **Figure 1**. These two interactions can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
+
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/ROM_Simulation_Scene.png" width="400" height="400" /> 
 
 ## How To Use
