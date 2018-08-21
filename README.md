@@ -37,11 +37,16 @@ In our design, the interaction between LAS and Environment is parallel with the 
 ## How To Use
 ### For Interaction With Virtual Environment
 * **Step 1: Run the Simulating Scene in V-REP**
-* **Step 2: Run Python Script `Interaction between LAS-Agent and Environment `**
+* **Step 2: Run Python Script - Interaction between LAS-Agent and Environment**
    * General Framework for Python Interaction Script
       1. Instantiate Environment Object
       2. Instantiate Agent Object
       3. Interaction in while loop
+      * ~~~~
+This is a 
+piece of code 
+in a block
+~~~~
 ### For Interaction With Real Environment
 
 ### Demo Interaction scripts
