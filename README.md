@@ -84,13 +84,11 @@ For LAS Agent, the only difference when interacting with real environment is in 
                 actionLAS = agent.interact(observation, reward, done)
                 # Take action in realy system, and retrive new observation
                 [^1] take_action(actionLAS)
-                [^1] observation = get_observation()
+                <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/ROM_Agent_Community_LM/InitialDesignIdeas/DesignFigures/Interaction_Pattern.png"  />  observation = get_observation()
             else:
                 raise Exception('Please choose a proper x_order_MDP!')
 ```
-I have more [^1] to say up here.
 
-[^1]: test.
 ## Features
   1. Environment class can automatically load object names and handles as long as the scene follows the naming method with `_node#` substring.
   2. The interactions among Environment, LAS and Visitor can run in parallel.
