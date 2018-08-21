@@ -93,7 +93,7 @@ In our design, the interaction between LAS and Environment is parallel with the 
   2. The interactions among Environment, LAS and Visitor can run in parallel.
 
 ## Dependency
-   1. OpenAi gym package: `pip install gym`
-   2. keras
-   3. Tensorflow
-   4. tflearn
+   1. [OpenAi gym](https://gym.openai.com/docs/#installation) package: `pip install gym`
+   2. [Tensorflow](https://www.tensorflow.org/install/)
+   3. [Keras](https://keras.io/#installation): `sudo pip install keras`
+   4. [tflearn](http://tflearn.org/installation/)
