@@ -36,7 +36,7 @@ In our design, the interaction between LAS and Environment is parallel with the 
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; **Figure 1.** Interaction Pattern
 ## How To Use
 ### For Interaction With Virtual Environment
-
+**Step 1: Run the Simulating Scene in V-REP**
 ### For Interaction With Real Environment
 
 ### Demo Interaction scripts
