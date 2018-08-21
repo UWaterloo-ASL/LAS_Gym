@@ -58,7 +58,7 @@ For LAS Agent, the only difference when interacting with real environment is in 
 * General Framework:
    1. Instantiate LAS Agent Object
    2. Interaction in while loop
-   * Overall framework for this script:
+* Overall framework for this script:
 ```python
         # Instatiate LAS-Agent
         agent = InternalEnvOfAgent(...)
