@@ -11,6 +11,7 @@ import os
 import numpy as np
 from collections import deque
 import csv
+import tensorflow as tf
 
 from LASAgent.LASAgent_Actor_Critic import LASAgent_Actor_Critic
 
@@ -19,7 +20,7 @@ class InternalEnvOfAgent(object):
     """
     This class provides Internal Environment for an agent.
     """
-    def __init__(self, sess, agent_name, 
+    def __init__(self, agent_name, 
                  observation_space, action_space,
                  observation_space_name, action_space_name,
                  x_order_MDP = 1,
@@ -74,7 +75,8 @@ class InternalEnvOfAgent(object):
         load_pretrained_agent_flag: boolean default = False
             if == True: load pretrained agent, otherwise randomly initialize.
         """
-        self.tf_session = sess
+        # self.tf_session is released in self.stop()
+        self.tf_session = tf.Session() 
         
         self.x_order_MDP = x_order_MDP
         self.x_order_MDP_observation_sequence = deque(maxlen = self.x_order_MDP)
@@ -304,9 +306,11 @@ class InternalEnvOfAgent(object):
         
     def stop(self):
         """
-        This interface function is to save trained models for the agent:
-            1. actor-critic model
-            2. environment model
+        This interface function is to:
+            1. save trained models for the agent:
+               * actor-critic model
+               * environment model
+            2. release tensorflow.Session resources
         
         (Try to call this function before shut down learning to maintain most
         recently trained agent, although there is a periodic saving which cannot
@@ -320,8 +324,8 @@ class InternalEnvOfAgent(object):
         self.agent.environment_model.save_environment_model_network(self.agent.saved_env_model_counter)
         # Save Replay Buffer ?? (not really necessary)
         
-        # Save
-        
+        # Release TensorFlow.Session resources
+        self.tf_session.close()
         
     def feed_observation(self, observation):
         """

@@ -60,79 +60,78 @@ total_bright_light_number_sum = _init_summarize_total_bright_light_number()
 
 if __name__ == '__main__':
     
-    with tf.Session() as sess:
-        # Instantiate LAS environment object
-        envLAS = LASEnv('127.0.0.1', 19997, reward_function_type = 'occupancy')
-        observation_For_LAS= envLAS.reset()
+    # Instantiate LAS environment object
+    envLAS = LASEnv('127.0.0.1', 19997, reward_function_type = 'occupancy')
+    observation_For_LAS= envLAS.reset()
+    
+    #######################################################################
+    #                          Instatiate LAS-Agent                       #
+    #######################################################################
+    # Note: 1. Set load_pretrained_agent_flag to "True" only when you have 
+    #           and want to load pretrained agent.
+    #       2. Keep observation unchanged if using pretrained agent.
+    agent_name = 'LAS_Single_Agent'
+    observation_space = envLAS.observation_space
+    action_space = envLAS.action_space
+    observation_space_name = [], 
+    action_space_name = []
+    x_order_MDP = 5
+    x_order_MDP_observation_type = 'concatenate_observation'
+    occupancy_reward_type = 'IR_distance'
+    interaction_mode = 'virtual_interaction'
+    load_pretrained_agent_flag = True
+    
+    agent = InternalEnvOfAgent(agent_name, 
+                               observation_space, 
+                               action_space,
+                               observation_space_name, 
+                               action_space_name,
+                               x_order_MDP,
+                               x_order_MDP_observation_type,
+                               occupancy_reward_type,
+                               interaction_mode,
+                               load_pretrained_agent_flag)
+    #######################################################################
+    
+    # Step counter
+    i = 1
+    done = False
+    reward_for_LAS = 0
+    while not done:
+        if x_order_MDP == 1:
+            # LAS interacts with environment.
+            actionLAS = agent.interact(observation_For_LAS, reward_for_LAS, done)
+            # delay the observing of consequence of LASAgent's action
+            observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+        elif x_order_MDP > 1:
+            # Feed (x_order_MDP-1) observation
+            for obs_temp_i in range(x_order_MDP-1):
+                # the first obs is the immediate obaservation afer taking action
+                if obs_temp_i == 0: 
+                    agent.feed_observation(observation_For_LAS)
+                else:
+                    observation = envLAS._self_observe()
+                    agent.feed_observation(observation)
+            # The last obs is input into interact function.
+            observation = envLAS._self_observe()
+            actionLAS = agent.interact(observation, reward_for_LAS, done)
+            # delay the observing of consequence of LASAgent's action
+            observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
+        else:
+            raise Exception('Please choose a proper x_order_MDP!')
+        ###################################################################
+        #                          Summary                                #
+        ###################################################################
+        # This is a cheating function and only for analysis, because light
+        # intensity is not perceived by any sensor.
+        light_intensity = envLAS._get_all_light_intensity()
+        bright_light_number = calculate_total_bright_light_number(light_intensity)
+        # Summary total bright light number
+        summary_str_bright_light_number = sess.run(total_bright_light_number_sum_op, 
+                                                   feed_dict={total_bright_light_number_sum:bright_light_number})
+        tf_writer.add_summary(summary_str_bright_light_number, i)
+        ###################################################################
         
-        #######################################################################
-        #                          Instatiate LAS-Agent                       #
-        #######################################################################
-        # Note: 1. Set load_pretrained_agent_flag to "True" only when you have 
-        #           and want to load pretrained agent.
-        #       2. Keep observation unchanged if using pretrained agent.
-        agent_name = 'LAS_Single_Agent'
-        observation_space = envLAS.observation_space
-        action_space = envLAS.action_space
-        observation_space_name = [], 
-        action_space_name = []
-        x_order_MDP = 5
-        x_order_MDP_observation_type = 'concatenate_observation'
-        occupancy_reward_type = 'IR_distance'
-        interaction_mode = 'virtual_interaction'
-        load_pretrained_agent_flag = True
-        
-        agent = InternalEnvOfAgent(sess, agent_name, 
-                                   observation_space, 
-                                   action_space,
-                                   observation_space_name, 
-                                   action_space_name,
-                                   x_order_MDP,
-                                   x_order_MDP_observation_type,
-                                   occupancy_reward_type,
-                                   interaction_mode,
-                                   load_pretrained_agent_flag)
-        #######################################################################
-        
-        # Step counter
-        i = 1
-        done = False
-        reward_for_LAS = 0
-        while not done:
-            if x_order_MDP == 1:
-                # LAS interacts with environment.
-                actionLAS = agent.interact(observation_For_LAS, reward_for_LAS, done)
-                # delay the observing of consequence of LASAgent's action
-                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
-            elif x_order_MDP > 1:
-                # Feed (x_order_MDP-1) observation
-                for obs_temp_i in range(x_order_MDP-1):
-                    # the first obs is the immediate obaservation afer taking action
-                    if obs_temp_i == 0: 
-                        agent.feed_observation(observation_For_LAS)
-                    else:
-                        observation = envLAS._self_observe()
-                        agent.feed_observation(observation)
-                # The last obs is input into interact function.
-                observation = envLAS._self_observe()
-                actionLAS = agent.interact(observation, reward_for_LAS, done)
-                # delay the observing of consequence of LASAgent's action
-                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
-            else:
-                raise Exception('Please choose a proper x_order_MDP!')
-            ###################################################################
-            #                          Summary                                #
-            ###################################################################
-            # This is a cheating function and only for analysis, because light
-            # intensity is not perceived by any sensor.
-            light_intensity = envLAS._get_all_light_intensity()
-            bright_light_number = calculate_total_bright_light_number(light_intensity)
-            # Summary total bright light number
-            summary_str_bright_light_number = sess.run(total_bright_light_number_sum_op, 
-                                                       feed_dict={total_bright_light_number_sum:bright_light_number})
-            tf_writer.add_summary(summary_str_bright_light_number, i)
-            ###################################################################
-            
-            i += 1
-        
-        envLAS.destroy()
+        i += 1
+    
+    envLAS.destroy()

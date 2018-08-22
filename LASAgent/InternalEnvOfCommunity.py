@@ -20,7 +20,7 @@ class InternalEnvOfCommunity(object):
     This class provides an internal environment for a community of agents to 
     interact with external environment.
     """
-    def __init__(self, sess, community_name, community_size,
+    def __init__(self, community_name, community_size,
                  observation_space, action_space, 
                  observation_space_name, action_space_name,
                  x_order_MDP = 1,
@@ -75,7 +75,6 @@ class InternalEnvOfCommunity(object):
         load_pretrained_agent_flag: boolean default = False
             if == True: load pretrained agent, otherwise randomly initialize.
         """
-        self.tf_session = sess
         
         self.x_order_MDP = x_order_MDP
         self.x_order_MDP_observation_sequence = deque(maxlen = self.x_order_MDP)
@@ -406,8 +405,7 @@ class InternalEnvOfCommunity(object):
                 x_order_MDP_observation_type = 'concatenate_observation' # doesn't matter
                 occupancy_reward_type = 'IR_distance'                    # doesn't matter
                 interaction_mode = 'virtual_interaction'
-                agent_community[agent_name] = InternalEnvOfAgent(self.tf_session,\
-                                                                 agent_name, 
+                agent_community[agent_name] = InternalEnvOfAgent(agent_name, 
                                                                  observation_space, 
                                                                  action_space,
                                                                  observation_space_name, 
@@ -632,6 +630,9 @@ class InternalEnvOfCommunity(object):
         """
         This interface function is to save trained models.
         """
+        # Safely stop each agent living in the agent_community
+        for agent_name in self.agent_community.keys():
+            self.agent_community[agent_name].stop()
         
     def feed_observation(self, observation):
         """
