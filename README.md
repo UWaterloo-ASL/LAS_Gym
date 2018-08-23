@@ -64,10 +64,10 @@ In our design, the interaction between LAS and Environment is parallel with the 
         try:
             # Interaction loop
             while True:
-                $$$$<Note: integration "observation = get_observation()">$$$$
+                $$$$<Note(Integration):  "observation = get_observation()">$$$$
                 take_action_flag, action = agent.feed_observation(observation)
                 if take_action_flag == True:
-                    $$$$<Note: integration "take_action(actionLAS)">$$$$
+                    $$$$<Note(Integration): "take_action(action)">$$$$
         except KeyboardInterrupt:
             agent.stop()
 ```
