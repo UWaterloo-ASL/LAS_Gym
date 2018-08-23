@@ -76,7 +76,7 @@ class InternalEnvOfAgent(object):
             if == True: load pretrained agent, otherwise randomly initialize.
         """
         # self.tf_session is released in self.stop()
-        self.tf_session = tf.Session() 
+        self.tf_session = tf.Session()
         
         self.x_order_MDP = x_order_MDP
         self.x_order_MDP_observation_sequence = deque(maxlen = self.x_order_MDP)
@@ -156,11 +156,7 @@ class InternalEnvOfAgent(object):
         action: ndarray
             the action chosen by intelligent agent
         """
-        # Add the (x_order_MDP)th observation
-        self.x_order_MDP_observation_sequence.append(observation)
-        if len(self.x_order_MDP_observation_sequence) != self.x_order_MDP:
-            raise Exception('Feeded observation size is not equal to x_order_MDP!')
-        # Generate partitioned observation for x_order_MDP with multiple-agents
+        # Generate observation for x_order_MDP
         #   Note: use shallow copy:
         #             self.x_order_MDP_observation_sequence.copy(),
         #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
@@ -327,21 +323,48 @@ class InternalEnvOfAgent(object):
         # Release TensorFlow.Session resources
         self.tf_session.close()
         
-    def feed_observation(self, observation):
+    def feed_observation(self, observation, external_reward = 0, done = False):
         """
-        This interface function only receives observation from environment, but
-        not return action.
+        This interface function receives observation from environment, but
+        produce an action with a different frequency.
+        
+        If take_action_flag == Ture, there is a valid action can be taken.
         
         (Training could also be done when feeding observation.)
         
         Parameters
+        ----------
         observation: ndarray
             the observation received from external environment
-        """
-        self.x_order_MDP_observation_sequence.append(observation)
         
-        # Train all agent when feeding observation
-        self.agent._train()
+        external_reward: float default = 0
+            only provied when using virtual environment 
+            (ignore when interact with real system)
+        
+        done: bool default = False
+            only provied when using virtual environment
+            (ignore when interact with real system)
+        
+        Returns
+        -------
+        take_action_flag: bool
+            indicate whether to take an action
+        
+        action: array
+            the action value
+        """
+        # If x_order_MDP_observation_sequence is not filled, keep filling.
+        # After filled, take an action.
+        if len(self.x_order_MDP_observation_sequence) != self.x_order_MDP:
+            self.x_order_MDP_observation_sequence.append(observation)
+            action = []
+            take_action_flag = False
+            # Train all agent when feeding observation (Optional)
+            self.agent._train()
+        else:
+            action = self.interact(observation, external_reward, done)
+            take_action_flag = True
+        return take_action_flag, action
 
     def _logging_interaction_data(self, observation_for_x_order_MDP,
                                   reward,
