@@ -139,14 +139,15 @@ class InternalEnvOfAgent(object):
             writer = csv.DictWriter(csv_datafile, fieldnames = fieldnames)
             writer.writeheader()
         
-    def interact(self, observation, external_reward = 0, done = False):
+    def interact(self, observation_for_x_order_MDP, external_reward = 0, done = False):
         """
         The interface function interacts with external environment.
         
         Parameters
         ----------
-        observation: ndarray
+        observation_for_x_order_MDP: ndarray
             the observation received from external environment
+            
         external_reward: float (optional)
             this parameter is used only when external reward is provided by 
             simulating environment
@@ -156,13 +157,6 @@ class InternalEnvOfAgent(object):
         action: ndarray
             the action chosen by intelligent agent
         """
-        # Generate observation for x_order_MDP
-        #   Note: use shallow copy:
-        #             self.x_order_MDP_observation_sequence.copy(),
-        #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
-        #         after call this function.
-        observation_for_x_order_MDP = self._generate_observation_for_x_order_MDP(self.x_order_MDP_observation_sequence.copy(),
-                                                                                 self.x_order_MDP_observation_type)
         if self.interaction_mode == 'real_interaction':
             reward = self._reward_occupancy(observation_for_x_order_MDP)
         elif self.interaction_mode == 'virtual_interaction':
@@ -362,7 +356,14 @@ class InternalEnvOfAgent(object):
             # Train all agent when feeding observation (Optional)
             self.agent._train()
         else:
-            action = self.interact(observation, external_reward, done)
+            # Generate observation for x_order_MDP
+            #   Note: use shallow copy:
+            #             self.x_order_MDP_observation_sequence.copy(),
+            #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
+            #         after call this function.
+            observation_for_x_order_MDP = self._generate_observation_for_x_order_MDP(self.x_order_MDP_observation_sequence.copy(),
+                                                                                     self.x_order_MDP_observation_type)
+            action = self.interact(observation_for_x_order_MDP, external_reward, done)
             take_action_flag = True
         return take_action_flag, action
 

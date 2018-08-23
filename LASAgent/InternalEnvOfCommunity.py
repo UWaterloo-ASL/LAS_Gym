@@ -176,42 +176,30 @@ class InternalEnvOfCommunity(object):
             writer.writeheader()
         
         
-    def interact(self, observation, external_reward = 0, done = False):
+    def interact(self, observation_partition, reward_partition = 0, done_partition = False):
         """
         The interface function interacts with external environment.
         
         Parameters
         ----------
-        observation: ndarray
-            the observation received from external environment
-        external_reward: float (optional)
-            this parameter is used only when external reward is provided by 
-            simulating environment
+        observation_partition: dict
+            a dist of observation where each value corresponds to the observation
+            of one agent:
+                observation_partition = {'agent_name': observation}
+        
+        reward_partition: dict
+            a dict of reward:
+                reward_partition = {'agent_name': reward}
+        
+        done_partition: dict
+            a dict of done:
+                reward_partition = {'agent_name': done}
             
         Returns
         -------
         action: ndarray
-            the action chosen by intelligent agent
+            the combined action chosen by intelligent agent
         """
-        # Generate partitioned observation for x_order_MDP with multiple-agents
-        #   Note: use shallow copy:
-        #             self.x_order_MDP_observation_sequence.copy(),
-        #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
-        #         after call this function.
-        observation_partition = self._generate_observation_for_x_order_MDP(self.x_order_MDP_observation_sequence.copy(),
-                                                                           self.x_order_MDP_observation_type,
-                                                                           self.agent_community_partition_config)
-        # Partition reward
-        #   1. 'IR_distance': based on IR distance from detected object to IR
-        #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
-        #                        of IR sensors 
-        #   3. 'IR_state_number': the number of detected objects
-        reward_partition = self._partition_reward(observation_partition,
-                                                  self.agent_community_partition_config,
-                                                  self.x_order_MDP,
-                                                  self.occupancy_reward_type)
-        for agent_name in reward_partition.keys():
-            print('Reward of {} is: {}'.format(agent_name,reward_partition[agent_name]))
         # Collect actions from each agent
         action_partition = self._collect_action(observation_partition,
                                                 reward_partition,
@@ -226,7 +214,6 @@ class InternalEnvOfCommunity(object):
                                        reward_partition,
                                        action_partition,
                                        action)
-        
         return action
     
     def _create_community_partition_from_config(self, community_name,
@@ -466,7 +453,9 @@ class InternalEnvOfCommunity(object):
         
         Returns
         -------
-        observation
+        observation_partition: dict
+            a dict of observation:
+                observation_partition = {'agent_name': observation}
         """
         observation_partition = {}
         if x_order_MDP_observation_type == 'concatenate_observation':
@@ -575,7 +564,6 @@ class InternalEnvOfCommunity(object):
         action_partition: dict
             a dict of actions:
                 action_partition = {'agent_name': action}
-        
         """
         done = False
         action_partition = {}
@@ -670,7 +658,27 @@ class InternalEnvOfCommunity(object):
             for agent_name in self.agent_community.keys():
                 self.agent_community[agent_name].agent._train()
         else:
-            action = self.interact(observation, external_reward, done)
+            # Generate partitioned observation for x_order_MDP with multiple-agents
+            #   Note: use shallow copy:
+            #             self.x_order_MDP_observation_sequence.copy(),
+            #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
+            #         after call this function.
+            observation_partition = self._generate_observation_for_x_order_MDP(self.x_order_MDP_observation_sequence.copy(),
+                                                                               self.x_order_MDP_observation_type,
+                                                                               self.agent_community_partition_config)
+            # Partition reward
+            #   1. 'IR_distance': based on IR distance from detected object to IR
+            #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+            #                        of IR sensors 
+            #   3. 'IR_state_number': the number of detected objects
+            reward_partition = self._partition_reward(observation_partition,
+                                                      self.agent_community_partition_config,
+                                                      self.x_order_MDP,
+                                                      self.occupancy_reward_type)
+            for agent_name in reward_partition.keys():
+                print('Reward of {} is: {}'.format(agent_name,reward_partition[agent_name]))
+            # Get an action
+            action = self.interact(observation_partition, reward_partition, done)
             take_action_flag = True
         return take_action_flag, action
     
