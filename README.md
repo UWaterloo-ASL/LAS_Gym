@@ -63,29 +63,10 @@ In our design, the interaction between LAS and Environment is parallel with the 
         agent = InternalEnvOfAgent(...)
         # Interaction loop
         while not done:
-            if x_order_MDP == 1:
-                # Generate action
-                actionLAS = agent.interact(observation, reward, done)
-                # Take action in realy system, and retrive new observation
+            $$$$<Note: integration "observation = get_observation()">$$$$
+            take_action_flag, action = agent.feed_observation(observation)
+            if take_action_flag == True:
                 $$$$<Note: integration "take_action(actionLAS)">$$$$
-                $$$$<Note: integration "observation = get_observation()">$$$$
-            elif x_order_MDP > 1:
-                # Feed (x_order_MDP-1) observation
-                for obs_temp_i in range(x_order_MDP-1):
-                    # the first obs is the immediate obaservation afer taking action
-                    if obs_temp_i == 0: 
-                        agent.feed_observation(observation)
-                    else:
-                        $$$$<Note: integration "observation = get_observation()">$$$$
-                        agent.feed_observation(observation)
-                # The last obs is input into interact function.
-                observation = get_observation()
-                actionLAS = agent.interact(observation, reward, done)
-                # Take action in realy system, and retrive new observation
-                $$$$<Note: integration "take_action(actionLAS)">$$$$
-                $$$$<Note: integration "observation = get_observation()">$$$$
-            else:
-                raise Exception('Please choose a proper x_order_MDP!')
 ```
 
 ## Meta-Data Produced by LAS Learning Algorithm
