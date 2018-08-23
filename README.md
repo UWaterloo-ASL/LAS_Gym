@@ -61,12 +61,15 @@ In our design, the interaction between LAS and Environment is parallel with the 
 ```python
         # Instatiate LAS-Agent
         agent = InternalEnvOfAgent(...)
-        # Interaction loop
-        while not done:
-            $$$$<Note: integration "observation = get_observation()">$$$$
-            take_action_flag, action = agent.feed_observation(observation)
-            if take_action_flag == True:
-                $$$$<Note: integration "take_action(actionLAS)">$$$$
+        try:
+            # Interaction loop
+            while True:
+                $$$$<Note: integration "observation = get_observation()">$$$$
+                take_action_flag, action = agent.feed_observation(observation)
+                if take_action_flag == True:
+                    $$$$<Note: integration "take_action(actionLAS)">$$$$
+        except KeyboardInterrupt:
+            agent.stop()
 ```
 
 ## Meta-Data Produced by LAS Learning Algorithm
