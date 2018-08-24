@@ -15,8 +15,6 @@ from threading import Timer
 
 import os
 
-
-
 from Environment.LASEnv import LASEnv
 from LASAgent.InternalEnvOfAgent import InternalEnvOfAgent
 from LASAgent.InternalEnvOfCommunity import InternalEnvOfCommunity
@@ -103,67 +101,134 @@ logging.info('Instantiate LAS-Agent-Community done!')
 #      threads to do Single_Agent.stop() and Agent_Community.stop().
 #######################################################################
 
-def interact_with_learning_agent(agent, env, end_time = '143000'):
+def interact_with_learning_agent(agent, end_time = '143000'):
     """
-    
+    When integrate with master_script, replease:
+        1. envLAS._self_observe() -> get_obseravtion()
+        2. envLAS.step(action) -> take_action(action)
     """
     logging.info('{}: Start interaction. Default End_time: {}'.format(agent.name, end_time))
-    # Interact untill end_time or interrupted by 'Ctrl+c'
+    # Interact untill end_time
     while not datetime.now().strftime("%H%M%S") > end_time:
-        observation = env._self_observe()
+        observation = envLAS._self_observe()
         take_action_flag, action = agent.feed_observation(observation)
         if take_action_flag == True:
-            observation, _, _, _ = env.step(action)
+            observation, _, _, _ = envLAS.step(action)
     # Save learned model
     logging.info('{}: Interaction is done. Saving learned models...'.format(agent.name))
     agent.stop()
     logging.info('{}: Saving learned models done.'.format(agent.name))
     
 
-def interact_with_prescribed_behavior():
+def interact_with_prescribed_behavior(agent = 'prescribed_behavior', end_time = '130000'):
     """
-    TODO: Please put prescribe behavior in this function.
+    TODO: Please put prescribed behavior in this function.
     """
-    pass
+    logging.info('{}: Start interaction. Default End_time: {}'.format(agent, end_time))
+    # Interact untill end_time
+    while not datetime.now().strftime("%H%M%S") > end_time:
+        observation = envLAS._self_observe()
+        action = envLAS.action_space.sample()
+        observation, _, _, _ = envLAS.step(action)
+    
+    logging.info('{}: Interaction is done.'.format(agent))
 
+def interaction_mode_scheduler(interaction_mode, agent, 
+                                start_time, end_time, schedule_start_time):
+    """
+    Parameters
+    ----------
+    interaction_mode: func
+        function
+    
+    agent: depends on interaction mode
+        1. agent object: for learning agent
+        2. 'priscribed_behavior': for priscribed behavior
+        
+    start_time: str (with format'hhmmss')
+        
+    end_time: str (with format'hhmmss')
+    
+    schedule_start_time: datetime object
+        
+    Returns
+    -------
+    interaction_thread
+        a delayed thread for an interaction mode which will start at a given time.
+    """
+    start_delay = (datetime.strptime(date.today().strftime("%Y%m%d")+'-'+start_time, '%Y%m%d-%H%M%S') - schedule_start_time).total_seconds()
+    if start_delay < 0:
+        logging.error('{} starts earlier than schedualing time!'.format(interaction_mode.__name__))
 
-open_time = datetime.now()
+    interaction_thread = Timer(interval = start_delay,
+                               function = interaction_mode,
+                                    kwargs={'agent': agent,
+                                            'end_time': end_time})
+    return interaction_thread
+
+# Get current time to calculate interaction start-time-delay
+schedule_start_time = datetime.now()
 
 # Schedule first experiment
-first_experiment_start_time = '225500'  # format: %H%M%S e.g. 1:00pm is 130000
-first_experiment_end_time = '225800'    # format: %H%M%S e.g. 2:30pm is 143000
+first_experiment_start_time = '101800'  # format: %H%M%S e.g. 1:00pm is 130000
+first_experiment_end_time = '102500'    # format: %H%M%S e.g. 2:30pm is 143000
+first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent,
+                                                     single_agent,
+                                                     first_experiment_start_time, 
+                                                     first_experiment_end_time, 
+                                                     schedule_start_time)
 
-first_experiment_start_delay = (datetime.strptime(date.today().strftime("%Y%m%d")+'-'+first_experiment_start_time, '%Y%m%d-%H%M%S') - open_time).total_seconds()
-if first_experiment_start_delay < 0:
-    logging.error('First Experiment starts earlier than the open-time of ROM!')
-
-first_experiment_thread = Timer(interval = first_experiment_start_delay,
-                                function = interact_with_learning_agent,
-                                kwargs={'agent': single_agent,
-                                        'env': envLAS,
-                                        'end_time': first_experiment_end_time})
 
 # Schedule second experiment
-second_experiment_start_time = '225801' # format: %H%M%S e.g. 2:30pm is 143000
-second_experiment_end_time = '230500'   # format: %H%M%S e.g. 4:00pm is 160000
+second_experiment_start_time = '102501' # format: %H%M%S e.g. 2:30pm is 143000
+second_experiment_end_time = '103500'   # format: %H%M%S e.g. 4:00pm is 160000
+second_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent, 
+                                                      LAS_agent_community,
+                                                      second_experiment_start_time, 
+                                                      second_experiment_end_time, 
+                                                      schedule_start_time)
 
-second_experiment_start_delay = (datetime.strptime(date.today().strftime("%Y%m%d")+'-'+second_experiment_start_time, '%Y%m%d-%H%M%S') - open_time).total_seconds()
-if second_experiment_start_delay < 0:
-    logging.error('Second Experiment starts earlier than the end of First Experiment!')
+# Schedule prescribed-behavior 1
+# Note: 
+#   Make sure to leave an, at least 10 minuts, time-gap between the time you 
+#   start thsi script and the start time for the first interaction. 
+#   (This is because instantiating learning agent takes around 8 minutes.)
+prescribed_behavior_start_time_1 = '101501' # format: %H%M%S e.g. 10:00am is 100000
+prescribed_behavior_end_time_1 = '101800'   # format: %H%M%S e.g. 1:00pm is 130000
+prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescribed_behavior,
+                                                          'prescribed_behavior',
+                                                          prescribed_behavior_start_time_1,
+                                                          prescribed_behavior_end_time_1, 
+                                                          schedule_start_time)
 
-second_experiment_thread = Timer(interval = second_experiment_start_delay,
-                                 function = interact_with_learning_agent,
-                                 kwargs={'agent': LAS_agent_community,
-                                         'env': envLAS,
-                                         'end_time': second_experiment_end_time})
+# Schedule prescribed-behavior 2
+prescribed_behavior_start_time_2 = '103501' # format: %H%M%S e.g. 4:00pm is 160000
+prescribed_behavior_end_time_2 = '103800'   # format: %H%M%S e.g. 5:30pm is 173000
+prescribed_behavior_thread_2 = interaction_mode_scheduler(interact_with_prescribed_behavior,
+                                                          'prescribed_behavior',
+                                                          prescribed_behavior_start_time_2, 
+                                                          prescribed_behavior_end_time_2, 
+                                                          schedule_start_time)
     
 if __name__ == '__main__':
     
-    # Run two experiments
+    
+    # Schedule interaction with learning agent
     first_experiment_thread.start()
-    logging.info('first_experiment_thread started...')
+    logging.info('first_experiment_thread scheduled...')
     second_experiment_thread.start()
-    logging.info('second_experiment_thread started...')
-
-        
+    logging.info('second_experiment_thread scheduled...')
+    # Schedule interaction with presribed-behavior
+    prescribed_behavior_thread_1.start()
+    logging.info('prescribed_behavior_thread_1 scheduled...')
+    prescribed_behavior_thread_2.start()
+    logging.info('prescribed_behavior_thread_2 scheduled...')
+    
+    while True:
+        if not first_experiment_thread.is_alive()\
+                and not second_experiment_thread.is_alive()\
+                and not prescribed_behavior_thread_1.is_alive()\
+                and not prescribed_behavior_thread_2.is_alive():
+           logging.info('All interactions are done.')
+           break
   
