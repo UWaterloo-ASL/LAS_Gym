@@ -1127,21 +1127,21 @@ class LASAgent_Actor_Critic():
         # 2. Save Episode Summaries
         self.episode_rewards += self.reward_new
         if self.steps_counter == self.max_episode_len or done == True:
-            # *********************************** # 
-            #  Save Trained Models episodically   #
-            # *********************************** #
-            # Save trained models every xxx_episodes 
-            if self.episode_counter % self.save_actor_critic_models_every_xxx_episodes == 0:
-                self.extrinsic_actor_model.save_actor_network(self.episode_counter)
-                self.extrinsic_critic_model.save_critic_network(self.episode_counter)
-            # Save Environment Model to disk every "xxx_episodes"
-            if (self.episode_counter % self.save_env_model_every_xxx_episodes) == 0:
-                self.saved_env_model_counter += 1
-                self.environment_model.save_environment_model_network(self.saved_env_model_counter)
-                print('Saved {}th environment model.'.format(self.saved_env_model_counter))
-            # Save data for visualize extrinsic state action value
-            if self.episode_counter % self.embedding_extrinsic_state_action_value_episodic_frequency == 0:
-                self.peoriodically_save_extrinsic_state_action_value_embedding(self.episode_counter)
+#            # *********************************** # 
+#            #  Save Trained Models episodically   #
+#            # *********************************** #
+#            # Save trained models every xxx_episodes 
+#            if self.episode_counter % self.save_actor_critic_models_every_xxx_episodes == 0:
+#                self.extrinsic_actor_model.save_actor_network(self.episode_counter)
+#                self.extrinsic_critic_model.save_critic_network(self.episode_counter)
+#            # Save Environment Model to disk every "xxx_episodes"
+#            if (self.episode_counter % self.save_env_model_every_xxx_episodes) == 0:
+#                self.saved_env_model_counter += 1
+#                self.environment_model.save_environment_model_network(self.saved_env_model_counter)
+#                print('Saved {}th environment model.'.format(self.saved_env_model_counter))
+#            # Save data for visualize extrinsic state action value
+#            if self.episode_counter % self.embedding_extrinsic_state_action_value_episodic_frequency == 0:
+#                self.peoriodically_save_extrinsic_state_action_value_embedding(self.episode_counter)
 #            # Save data for visualize extrinsic action values given a state
 #            if self.episode_counter % self.embedding_extrinsic_action_value_given_a_state_episodic_frequency == 0:
 #                self.peoriodically_save_extrinsic_action_value_given_a_state(self.observation_new,
@@ -1282,35 +1282,35 @@ class LASAgent_Actor_Critic():
             # Update target networks
             self.extrinsic_actor_model.update_target_network()
             self.extrinsic_critic_model.update_target_network()
-        # ************************************************** # 
-        #               Train Environment Model              #
-        # ************************************************** #
-        if self.env_model_train_buffer.size() > self.env_model_minibatch_size:
-            # Train env model every step
-            s_batch, a_batch, r_batch, t_batch, s2_batch = self.env_model_train_buffer.sample_batch(int(self.env_model_minibatch_size))
-            self.environment_model.train(s_batch,
-                                         a_batch,
-                                         s2_batch,
-                                         np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
-            # Every "update_newest_env_model_every_xxx_steps" steps, replace the
-            # oldeest env model in knowledge-based intrinsic motiavtion compoent
-            # with the newest env model.
-            if (self.total_step_counter % self.update_newest_env_model_every_xxx_steps) == 0: 
-                newest_env_weights = self.environment_model.get_environment_model_weights()
-                self.knowledge_based_intrinsic_motivation_model.set_weights_of_oldest_env_model_with_newest_env_model(newest_env_weights)
-                
-            # Evaluate on test buffer every step
-            if self.env_model_test_buffer.size() > self.env_model_test_samples_size:
-                s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test =\
-                        self.env_model_test_buffer.sample_batch(int(self.env_model_test_samples_size))
-                env_loss = self.environment_model.evaluate(s_batch_test,
-                                                           a_batch_test,
-                                                           s2_batch_test,
-                                                           np.reshape(r_batch_test, (int(self.env_model_test_samples_size), 1)))
-                # Summaries of Training Environment Model
-                summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
-                                                     feed_dict = {self.summary_env_loss: env_loss})
-                self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
+#        # ************************************************** # 
+#        #               Train Environment Model              #
+#        # ************************************************** #
+#        if self.env_model_train_buffer.size() > self.env_model_minibatch_size:
+#            # Train env model every step
+#            s_batch, a_batch, r_batch, t_batch, s2_batch = self.env_model_train_buffer.sample_batch(int(self.env_model_minibatch_size))
+#            self.environment_model.train(s_batch,
+#                                         a_batch,
+#                                         s2_batch,
+#                                         np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
+#            # Every "update_newest_env_model_every_xxx_steps" steps, replace the
+#            # oldeest env model in knowledge-based intrinsic motiavtion compoent
+#            # with the newest env model.
+#            if (self.total_step_counter % self.update_newest_env_model_every_xxx_steps) == 0: 
+#                newest_env_weights = self.environment_model.get_environment_model_weights()
+#                self.knowledge_based_intrinsic_motivation_model.set_weights_of_oldest_env_model_with_newest_env_model(newest_env_weights)
+#                
+#            # Evaluate on test buffer every step
+#            if self.env_model_test_buffer.size() > self.env_model_test_samples_size:
+#                s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test =\
+#                        self.env_model_test_buffer.sample_batch(int(self.env_model_test_samples_size))
+#                env_loss = self.environment_model.evaluate(s_batch_test,
+#                                                           a_batch_test,
+#                                                           s2_batch_test,
+#                                                           np.reshape(r_batch_test, (int(self.env_model_test_samples_size), 1)))
+#                # Summaries of Training Environment Model
+#                summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
+#                                                     feed_dict = {self.summary_env_loss: env_loss})
+#                self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
         # ********************************************************************* # 
         #  Train Knowledge-based Intrinsically Motivated Actor-Critic Model     #
         # ********************************************************************* #
