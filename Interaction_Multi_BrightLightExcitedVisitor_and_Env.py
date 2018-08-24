@@ -86,8 +86,9 @@ if __name__ == '__main__':
             # Plot bright_light_number
     
             plt.scatter(i, visitor3.bright_light_num, c="r")
-            plt.show()
-            plt.pause(0.05)
+            if i % 200 == 0:
+                plt.show()
+                plt.pause(0.05)
             
             # reset all visitors out of the range of LAS
             move = 1
