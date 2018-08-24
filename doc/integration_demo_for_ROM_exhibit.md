@@ -11,8 +11,18 @@ def get_observation()
 2. `take_action(action)`: a function to take action(an array where each entry corresponds to a value for that actuator.)
 ```python
 def take_action(action)
+    """
+    Parameters
+    ----------
+    action:
+    """
     # execute action
 ```
+3. Four variables are needed:
+   * `observation_space`: a gym.spaces.Box object
+   * `observation_space_name`: an array where each entroy corresponds to the name of that sensor.
+   * `action_space`: a gym.spaces.Box object
+   * `action_space_name`: an array where each entroy corresponds to the name of that actuator.
 
 ## Instructions on How to Integrate
 1. Download 
