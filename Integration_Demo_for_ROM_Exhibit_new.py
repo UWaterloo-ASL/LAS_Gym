@@ -107,7 +107,7 @@ def interact_with_learning_agent(agent, env, end_time = '143000'):
     """
     
     """
-    logging.info('Run {}, Start_time: {}, End_time: {}'.format(agent.name, datetime.now().strftime("%H%M%S"), end_time))
+    logging.info('{}: Start interaction. Default End_time: {}'.format(agent.name, end_time))
     # Interact untill end_time or interrupted by 'Ctrl+c'
     while not datetime.now().strftime("%H%M%S") > end_time:
         observation = env._self_observe()
@@ -115,8 +115,9 @@ def interact_with_learning_agent(agent, env, end_time = '143000'):
         if take_action_flag == True:
             observation, _, _, _ = env.step(action)
     # Save learned model
+    logging.info('{}: Interaction is done. Saving learned models...'.format(agent.name))
     agent.stop()
-    logging.info('{}, Actual_End_time: {}'.format(agent.name, datetime.now().strftime("%H%M%S")))
+    logging.info('{}: Saving learned models done.'.format(agent.name))
     
 
 def interact_with_prescribed_behavior():
