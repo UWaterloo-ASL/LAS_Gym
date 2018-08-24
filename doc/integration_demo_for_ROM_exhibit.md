@@ -36,5 +36,6 @@ def take_action(action)
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; **Figure 1.** The Name of Each Node in ROM Exhibit
 
 ## Instructions on How to Integrate
-1. Download `LASAgent` folder
+1. Download `LASAgent` and `Integration_Demo_for_ROM_Exhibit_new.py` into the same foler.
+2. Use learning agent as demonstrated in `Integration_Demo_for_ROM_Exhibit_new.py`.
 
