@@ -78,7 +78,7 @@ if __name__ == '__main__':
     x_order_MDP = 5
     x_order_MDP_observation_type = 'concatenate_observation'
     occupancy_reward_type = 'IR_distance'
-    interaction_mode = 'virtual_interaction'
+    interaction_mode = 'real_interaction'
     load_pretrained_agent_flag = False
     
     agent = InternalEnvOfAgent(agent_name, 
