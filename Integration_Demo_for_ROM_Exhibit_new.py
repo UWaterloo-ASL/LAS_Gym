@@ -20,7 +20,7 @@ from LASAgent.InternalEnvOfAgent import InternalEnvOfAgent
 from LASAgent.InternalEnvOfCommunity import InternalEnvOfCommunity
 
 # Logging
-logging.basicConfig(filename = '../ROM_Experiment_results/ROM_experiment_'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.log', 
+logging.basicConfig(filename = '../ROM_Experiment_results/ROM_experiment_'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.log', 
                     level = logging.DEBUG,
                     format='%(asctime)s:%(levelname)s: %(message)s')
 
@@ -170,8 +170,8 @@ def interaction_mode_scheduler(interaction_mode, agent,
 schedule_start_time = datetime.now()
 
 # Schedule first experiment
-first_experiment_start_time = '101800'  # format: %H%M%S e.g. 1:00pm is 130000
-first_experiment_end_time = '102500'    # format: %H%M%S e.g. 2:30pm is 143000
+first_experiment_start_time = '111801'  # format: %H%M%S e.g. 1:00pm is 130000
+first_experiment_end_time = '112500'    # format: %H%M%S e.g. 2:30pm is 143000
 first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent,
                                                      single_agent,
                                                      first_experiment_start_time, 
@@ -180,8 +180,8 @@ first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agen
 
 
 # Schedule second experiment
-second_experiment_start_time = '102501' # format: %H%M%S e.g. 2:30pm is 143000
-second_experiment_end_time = '103500'   # format: %H%M%S e.g. 4:00pm is 160000
+second_experiment_start_time = '112501' # format: %H%M%S e.g. 2:30pm is 143000
+second_experiment_end_time = '113500'   # format: %H%M%S e.g. 4:00pm is 160000
 second_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent, 
                                                       LAS_agent_community,
                                                       second_experiment_start_time, 
@@ -193,8 +193,8 @@ second_experiment_thread = interaction_mode_scheduler(interact_with_learning_age
 #   Make sure to leave an, at least 10 minuts, time-gap between the time you 
 #   start thsi script and the start time for the first interaction. 
 #   (This is because instantiating learning agent takes around 8 minutes.)
-prescribed_behavior_start_time_1 = '101501' # format: %H%M%S e.g. 10:00am is 100000
-prescribed_behavior_end_time_1 = '101800'   # format: %H%M%S e.g. 1:00pm is 130000
+prescribed_behavior_start_time_1 = '111501' # format: %H%M%S e.g. 10:00am is 100000
+prescribed_behavior_end_time_1 = '111800'   # format: %H%M%S e.g. 1:00pm is 130000
 prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescribed_behavior,
                                                           'prescribed_behavior',
                                                           prescribed_behavior_start_time_1,
@@ -202,8 +202,8 @@ prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescrib
                                                           schedule_start_time)
 
 # Schedule prescribed-behavior 2
-prescribed_behavior_start_time_2 = '103501' # format: %H%M%S e.g. 4:00pm is 160000
-prescribed_behavior_end_time_2 = '103800'   # format: %H%M%S e.g. 5:30pm is 173000
+prescribed_behavior_start_time_2 = '113501' # format: %H%M%S e.g. 4:00pm is 160000
+prescribed_behavior_end_time_2 = '113800'   # format: %H%M%S e.g. 5:30pm is 173000
 prescribed_behavior_thread_2 = interaction_mode_scheduler(interact_with_prescribed_behavior,
                                                           'prescribed_behavior',
                                                           prescribed_behavior_start_time_2, 
