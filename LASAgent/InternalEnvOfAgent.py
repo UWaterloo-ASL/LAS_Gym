@@ -110,7 +110,7 @@ class InternalEnvOfAgent(object):
                                                max_episodes = 50000, max_episode_len = 1000,
                                                # Exploration Strategies
                                                exploration_action_noise_type = 'ou_0.2',
-                                               exploration_epsilon_greedy_type = 'none',
+                                               exploration_epsilon_greedy_type = 'epsilon-greedy-max_1_min_0.05_decay_0.999',
                                                # Save Summaries
                                                save_dir = self.agent_model_save_dir,
                                                experiment_runs = datetime.now().strftime("%Y%m%d-%H%M%S"),

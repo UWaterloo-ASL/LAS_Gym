@@ -1228,7 +1228,8 @@ class LASAgent_Actor_Critic():
                 action = np.reshape(self.action_space.sample(), [1,self.action_space.shape[0]])
                 if self.epsilon > self.epsilon_min:
                     self.epsilon *= self.epsilon_decay
-                print("epsilon:{}".format(self.epsilon))
+                if self.total_step_counter % 2000 == 0:
+                    print("epsilon:{}".format(self.epsilon))
                 return action
         # Action Noise
         if self.exploration_action_noise_type != 'none':
@@ -1361,7 +1362,7 @@ class LASAgent_Actor_Critic():
         else:
             _, epsilon_max, _, epsilon_min, _, epsilon_decay = exploration_epsilon_greedy_type.split('_')
         
-        return epsilon_max, epsilon_min, epsilon_decay
+        return float(epsilon_max), float(epsilon_min), float(epsilon_decay)
     
     def _init_action_noise(self, action_noise_type='ou_0.2', nb_actions=1):
         """
