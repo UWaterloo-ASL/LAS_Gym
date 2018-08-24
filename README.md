@@ -3,16 +3,16 @@ This versatile reposity provides simulation environment with [OpenAi Gym APIs](h
 
 ## Organization
 At following, we overview what are included in this reposity, and detailed information is provided by each hyper-link.
-1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LAS-Scenes):**
+1. **[LAS-Scenes](https://github.com/UWaterloo-ASL/LAS_Gym/tree/master/LAS-Scenes):**
    * **Royal Ontario Museum (ROM) Exhibit: Transforming Space**
       * V-REP Scene: `livingArchitecture_ROM_exhibit.ttt`
-2. **[Environment](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/Environment):**
+2. **[Environment](https://github.com/UWaterloo-ASL/LAS_Gym/tree/master/Environment):**
    * **Living Architecture Environment**
       * LASEnv.py
    * **Visitor Environment**
       * BrightLightExcitedVisitorEnv.py
       * RedLightExcitedVisitor_LAS_Env.py
-3. **[LASAgent](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/LASAgent):**
+3. **[LASAgent](https://github.com/UWaterloo-ASL/LAS_Gym/tree/master/LASAgent):**
    * **Intermediate Internal Environment Classes**
       1. **Internal Environment for Single Agent** 
          * Implemented in `InternalEnvOfAgent.py`
@@ -23,7 +23,7 @@ At following, we overview what are included in this reposity, and detailed infor
          * Implemented in `LASAgent_Actor_Critic.py`
       * **Random action LASAgent**
          * Implememted in `RandomLASAgent.py`
-4. **[Visitor Agent class](https://github.com/UWaterloo-ASL/LAS_Gym/tree/ROM_Agent_Community_LM/VisitorAgent):** 
+4. **[Visitor Agent class](https://github.com/UWaterloo-ASL/LAS_Gym/tree/master/VisitorAgent):** 
       * **Bright-light-excited Visitor** who is excited when there is a bright light with intensity >=0.95 in LAS.
          * Implemented in: `BrightLightExcitedVisitorAgent.py`
       * **Red-light-excited Visitor** who is excited when there is a red light being trun on in LAS.
@@ -31,7 +31,7 @@ At following, we overview what are included in this reposity, and detailed infor
 ## Interaction Pattern
 In our design, the interaction between LAS and Environment is parallel with the interaction between Visitor and Environment, as shown in **Figure 1**. These two interactions can run in different process, and the stop of interaction between Visitor and Environment will not affect the interaction between LAS and Environment.
 
-&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/ROM_Agent_Community_LM/InitialDesignIdeas/DesignFigures/Interaction_Pattern.png"  /> 
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/Interaction_Pattern.png"  /> 
 
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; **Figure 1.** Interaction Pattern
 ## How To Interact With Environment
