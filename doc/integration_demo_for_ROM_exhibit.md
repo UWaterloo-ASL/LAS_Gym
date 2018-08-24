@@ -21,7 +21,7 @@ def take_action(action)
 4. In our simulation, we also assume the physical exhibit is like this:
    [V-REP Scene For Royal Ontario Museum (ROM) Exhibit: Transforming Space](https://github.com/UWaterloo-ASL/LAS_Gym/tree/master/LAS-Scenes#v-rep-scene-for-royal-ontario-museum-rom-exhibit-transforming-space)
    
-&nbsp; &nbsp; <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/ROM_Exhibit/Single_Giant_Agent.png" width="300"  />     &nbsp;  <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/ROM_Exhibit/Agent_Community_Partition.png" width="300"  /> 
+&nbsp; &nbsp; <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/ROM_Exhibit/Single_Giant_Agent.png" width="400"  />     &nbsp;  <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/ROM_Exhibit/Agent_Community_Partition.png" width="400"  /> 
 
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; **Figure 1.** The Name of Each Node in ROM Exhibit
 
