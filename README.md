@@ -61,31 +61,15 @@ In our design, the interaction between LAS and Environment is parallel with the 
 ```python
         # Instatiate LAS-Agent
         agent = InternalEnvOfAgent(...)
-        # Interaction loop
-        while not done:
-            if x_order_MDP == 1:
-                # Generate action
-                actionLAS = agent.interact(observation, reward, done)
-                # Take action in realy system, and retrive new observation
-                $$$$<Note: integration "take_action(actionLAS)">$$$$
-                $$$$<Note: integration "observation = get_observation()">$$$$
-            elif x_order_MDP > 1:
-                # Feed (x_order_MDP-1) observation
-                for obs_temp_i in range(x_order_MDP-1):
-                    # the first obs is the immediate obaservation afer taking action
-                    if obs_temp_i == 0: 
-                        agent.feed_observation(observation)
-                    else:
-                        $$$$<Note: integration "observation = get_observation()">$$$$
-                        agent.feed_observation(observation)
-                # The last obs is input into interact function.
-                observation = get_observation()
-                actionLAS = agent.interact(observation, reward, done)
-                # Take action in realy system, and retrive new observation
-                $$$$<Note: integration "take_action(actionLAS)">$$$$
-                $$$$<Note: integration "observation = get_observation()">$$$$
-            else:
-                raise Exception('Please choose a proper x_order_MDP!')
+        try:
+            # Interaction loop
+            while True:
+                $$$$<Note(Integration):  "observation = get_observation()">$$$$
+                take_action_flag, action = agent.feed_observation(observation)
+                if take_action_flag == True:
+                    $$$$<Note(Integration): "take_action(action)">$$$$
+        except KeyboardInterrupt:
+            agent.stop()
 ```
 
 ## Meta-Data Produced by LAS Learning Algorithm
@@ -120,5 +104,4 @@ When interacting with real or virtual environment, all data will be saved in dir
 ## Dependency
    1. [OpenAi gym](https://gym.openai.com/docs/#installation) package: `pip install gym`
    2. [Tensorflow](https://www.tensorflow.org/install/)
-   3. [Keras](https://keras.io/#installation): `sudo pip install keras`
-   4. [tflearn](http://tflearn.org/installation/)
+   3. [tflearn](http://tflearn.org/installation/)

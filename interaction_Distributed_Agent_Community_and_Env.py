@@ -59,67 +59,48 @@ total_bright_light_number_sum = _init_summarize_total_bright_light_number()
 ###############################################################################
 
 if __name__ == '__main__':
+    sess = tf.Session()
+    # Instantiate LAS environment object
+    envLAS = LASEnv('127.0.0.1', 19997, reward_function_type = 'occupancy')
+    observation = envLAS.reset()
     
-    with tf.Session() as sess:
-        # Instantiate LAS environment object
-        envLAS = LASEnv('127.0.0.1', 19997, reward_function_type = 'occupancy')
-        observation_For_LAS= envLAS.reset()
-        
-        #######################################################################
-        #                    Instatiate LAS-Agent-Community                   #
-        #######################################################################
-        # Note: 1. Set load_pretrained_agent_flag to "True" only when you have and want 
-        #          to load pretrained agent.
-        #       2. Keep observation unchanged if using pretrained agent.
-        community_name = 'LAS_Agent_Community'
-        community_size = 3
-        x_order_MDP = 5
-        x_order_MDP_observation_type = 'concatenate_observation'
-        occupancy_reward_type = 'IR_distance'
-        interaction_mode = 'virtual_interaction'
-        load_pretrained_agent_flag = True
-        
-        LAS_agent_community = InternalEnvOfCommunity(sess, 
-                                                     community_name, 
-                                                     community_size,
-                                                     envLAS.observation_space,
-                                                     envLAS.action_space, 
-                                                     envLAS.observation_space_name,
-                                                     envLAS.action_space_name,
-                                                     x_order_MDP,
-                                                     x_order_MDP_observation_type,
-                                                     occupancy_reward_type,
-                                                     interaction_mode,
-                                                     load_pretrained_agent_flag)
-        #######################################################################
-        
-        
-        # Step counter
-        i = 1
-        done = False
-        reward_for_LAS = 0
-        while not done:
-            if x_order_MDP == 1:
-                # LAS_community interacts with environment.
-                actionLAS = LAS_agent_community.interact(observation_For_LAS, reward_for_LAS, done)
-                # delay the observing of consequence of LASAgent's action
-                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
-            elif x_order_MDP > 1:
-                # Feed (x_order_MDP-1) observation
-                for obs_temp_i in range(x_order_MDP-1):
-                    # the first obs is the immediate obaservation afer taking action
-                    if obs_temp_i == 0: 
-                        LAS_agent_community.feed_observation(observation_For_LAS)
-                    else:
-                        observation = envLAS._self_observe()
-                        LAS_agent_community.feed_observation(observation)
-                # LAS_community interacts with environment.
-                observation = envLAS._self_observe()
-                actionLAS = LAS_agent_community.interact(observation, reward_for_LAS, done)
-                # delay the observing of consequence of LASAgent's action
-                observation_For_LAS, reward_for_LAS, done, info = envLAS.step(actionLAS)
-            else:
-                raise Exception('Please choose a proper x_order_MDP!')
+    #######################################################################
+    #                    Instatiate LAS-Agent-Community                   #
+    #######################################################################
+    # Note: 1. Set load_pretrained_agent_flag to "True" only when you have and want 
+    #          to load pretrained agent.
+    #       2. Keep observation unchanged if using pretrained agent.
+    community_name = 'LAS_Agent_Community'
+    community_size = 3
+    x_order_MDP = 5
+    x_order_MDP_observation_type = 'concatenate_observation'
+    occupancy_reward_type = 'IR_distance'
+    interaction_mode = 'virtual_interaction'
+    load_pretrained_agent_flag = False
+    
+    LAS_agent_community = InternalEnvOfCommunity(community_name, 
+                                                 community_size,
+                                                 envLAS.observation_space,
+                                                 envLAS.action_space, 
+                                                 envLAS.observation_space_name,
+                                                 envLAS.action_space_name,
+                                                 x_order_MDP,
+                                                 x_order_MDP_observation_type,
+                                                 occupancy_reward_type,
+                                                 interaction_mode,
+                                                 load_pretrained_agent_flag)
+    #######################################################################
+    
+    
+    # Step counter
+    i = 1
+    done = False
+    reward = 0
+    try:
+        while True:
+            take_action_flag, action = LAS_agent_community.feed_observation(observation, reward, done)
+            if take_action_flag == True:
+                observation, reward, done, info = envLAS.step(action)
             
             ###################################################################
             #                          Summary                                #
@@ -135,5 +116,7 @@ if __name__ == '__main__':
             ###################################################################
             
             i += 1
-        
+    except KeyboardInterrupt:
+        LAS_agent_community.stop()
+        sess.close()
         envLAS.destroy()

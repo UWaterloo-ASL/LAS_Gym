@@ -5,12 +5,14 @@ Created on Wed Aug  8 17:12:06 2018
 
 @author: jack.lingheng.meng
 """
+import logging
 from gym import spaces
 from datetime import datetime
 import os
 import numpy as np
 from collections import deque
 import csv
+import tensorflow as tf
 
 from LASAgent.LASAgent_Actor_Critic import LASAgent_Actor_Critic
 
@@ -19,7 +21,7 @@ class InternalEnvOfAgent(object):
     """
     This class provides Internal Environment for an agent.
     """
-    def __init__(self, sess, agent_name, 
+    def __init__(self, agent_name, 
                  observation_space, action_space,
                  observation_space_name, action_space_name,
                  x_order_MDP = 1,
@@ -74,7 +76,8 @@ class InternalEnvOfAgent(object):
         load_pretrained_agent_flag: boolean default = False
             if == True: load pretrained agent, otherwise randomly initialize.
         """
-        self.tf_session = sess
+        # self.tf_session is released in self.stop()
+        self.tf_session = tf.Session()
         
         self.x_order_MDP = x_order_MDP
         self.x_order_MDP_observation_sequence = deque(maxlen = self.x_order_MDP)
@@ -85,6 +88,7 @@ class InternalEnvOfAgent(object):
         #####################################################################
         #                       Initialize agent                            #
         #####################################################################
+        self.name = agent_name
         self.agent_name = agent_name
         
         self.observation_space = observation_space
@@ -137,14 +141,15 @@ class InternalEnvOfAgent(object):
             writer = csv.DictWriter(csv_datafile, fieldnames = fieldnames)
             writer.writeheader()
         
-    def interact(self, observation, external_reward = 0, done = False):
+    def interact(self, observation_for_x_order_MDP, external_reward = 0, done = False):
         """
         The interface function interacts with external environment.
         
         Parameters
         ----------
-        observation: ndarray
+        observation_for_x_order_MDP: ndarray
             the observation received from external environment
+            
         external_reward: float (optional)
             this parameter is used only when external reward is provided by 
             simulating environment
@@ -154,24 +159,15 @@ class InternalEnvOfAgent(object):
         action: ndarray
             the action chosen by intelligent agent
         """
-        # Add the (x_order_MDP)th observation
-        self.x_order_MDP_observation_sequence.append(observation)
-        if len(self.x_order_MDP_observation_sequence) != self.x_order_MDP:
-            raise Exception('Feeded observation size is not equal to x_order_MDP!')
-        # Generate partitioned observation for x_order_MDP with multiple-agents
-        #   Note: use shallow copy:
-        #             self.x_order_MDP_observation_sequence.copy(),
-        #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
-        #         after call this function.
-        observation_for_x_order_MDP = self._generate_observation_for_x_order_MDP(self.x_order_MDP_observation_sequence.copy(),
-                                                                                 self.x_order_MDP_observation_type)
         if self.interaction_mode == 'real_interaction':
-            reward = self._reward_occupancy(observation_for_x_order_MDP)
+            reward = self._reward_occupancy(observation_for_x_order_MDP,
+                                            self.x_order_MDP)
         elif self.interaction_mode == 'virtual_interaction':
             reward = external_reward
         else:
             raise Exception('Please choose right interaction mode!')
-        print('Reward of {} is: {}'.format(self.agent_name, reward))
+        logging.debug('Reward of {} is: {}'.format(self.agent_name, reward))
+        
         done = False
         action = self.agent.perceive_and_act(observation_for_x_order_MDP, reward, done)
         # Logging interaction data
@@ -240,7 +236,7 @@ class InternalEnvOfAgent(object):
         reward: float
             the value of reward
         """
-        prox_distances = observation[:self.prox_sensor_num]
+        prox_distances = observation
         # Make here insistent with IR data
         #   1. 'IR_distance': based on IR distance from detected object to IR
         #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
@@ -304,9 +300,11 @@ class InternalEnvOfAgent(object):
         
     def stop(self):
         """
-        This interface function is to save trained models for the agent:
-            1. actor-critic model
-            2. environment model
+        This interface function is to:
+            1. save trained models for the agent:
+               * actor-critic model
+               * environment model
+            2. release tensorflow.Session resources
         
         (Try to call this function before shut down learning to maintain most
         recently trained agent, although there is a periodic saving which cannot
@@ -320,24 +318,62 @@ class InternalEnvOfAgent(object):
         self.agent.environment_model.save_environment_model_network(self.agent.saved_env_model_counter)
         # Save Replay Buffer ?? (not really necessary)
         
-        # Save
+        # Release TensorFlow.Session resources
+        self.tf_session.close()
         
-        
-    def feed_observation(self, observation):
+    def feed_observation(self, observation, external_reward = 0, done = False):
         """
-        This interface function only receives observation from environment, but
-        not return action.
+        This interface function receives observation from environment, but
+        produce an action with a different frequency.
+        
+        If take_action_flag == Ture, there is a valid action can be taken.
         
         (Training could also be done when feeding observation.)
         
         Parameters
+        ----------
         observation: ndarray
             the observation received from external environment
-        """
-        self.x_order_MDP_observation_sequence.append(observation)
         
-        # Train all agent when feeding observation
-        self.agent._train()
+        external_reward: float default = 0
+            only provied when using virtual environment 
+            (ignore when interact with real system)
+        
+        done: bool default = False
+            only provied when using virtual environment
+            (ignore when interact with real system)
+        
+        Returns
+        -------
+        take_action_flag: bool
+            indicate whether to take an action
+        
+        action: array
+            the action value
+        """
+        # If x_order_MDP_observation_sequence is not filled, keep filling.
+        # After filled, take an action.
+        if len(self.x_order_MDP_observation_sequence) != self.x_order_MDP:
+            self.x_order_MDP_observation_sequence.append(observation)
+            action = []
+            take_action_flag = False
+            # Train all agent when feeding observation (Optional)
+            self.agent._train()
+        else:
+            # Generate observation for x_order_MDP
+            #   Note: 
+            #       1. use shallow copy:
+            #             self.x_order_MDP_observation_sequence.copy(),
+            #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
+            #         after call this function.
+            #       2. clear the observation queue after taking an action
+            observation_for_x_order_MDP = self._generate_observation_for_x_order_MDP(self.x_order_MDP_observation_sequence.copy(),
+                                                                                     self.x_order_MDP_observation_type)
+            action = self.interact(observation_for_x_order_MDP, external_reward, done)
+            take_action_flag = True
+            # Clear the observation queue
+            self.x_order_MDP_observation_sequence.clear()
+        return take_action_flag, action
 
     def _logging_interaction_data(self, observation_for_x_order_MDP,
                                   reward,

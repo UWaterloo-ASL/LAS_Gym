@@ -16,7 +16,7 @@ except:
     print ('or appropriately adjust the file "vrep.py"')
     print ('--------------------------------------------------------------')
     print ('')
-
+import logging
 import gym
 from gym import spaces
 import numpy as np
@@ -60,9 +60,9 @@ class LASEnv(gym.Env):
         vrep.simxFinish(-1) # just in case, close all opened connections
         self.clientID = vrep.simxStart(IP,Port,True,True,5000,5) # Connect to V-REP
         if self.clientID!=-1:
-            print ('LASEnv connected to remote V-REP API server')
+            logging.info('LASEnv connected to remote V-REP API server')
         else:
-            print ('LASEnv failed connecting to remote V-REP API server')
+            logging.error('LASEnv failed connecting to remote V-REP API server')
         
         # Initialize operation mode of communicated command in V-REP
         #   To get sensor data
@@ -93,7 +93,7 @@ class LASEnv(gym.Env):
         # ========================================================================= #
         #               Initialize LAS action and observation space                 #
         # ========================================================================= # 
-        print("Initialize LAS action and observation space...")
+        logging.info("Initialize LAS action and observation space...")
         self.prox_sensor_num = len(self.proxSensorHandles)
         self.smas_num = len(self.jointHandles)
         self.lights_num = len(self.lightHandles)
@@ -114,7 +114,7 @@ class LASEnv(gym.Env):
         # agent's observation and action dimension and value limitation.
         self.observation_space = spaces.Box(self.obs_min, self.obs_max, dtype = np.float32)
         self.action_space = spaces.Box(self.act_min, self.act_max, dtype = np.float32)
-        print("Initialization of LAS done!")
+        logging.info("Initialization of LAS done!")
         # save the name of each entry in observation and action
         light_name = matlib.repmat(np.reshape(self.lightNames,[len(self.lightNames),1]), 1,1).flatten()
         self.observation_space_name = self.proxSensorNames # only proxSensor
@@ -173,7 +173,7 @@ class LASEnv(gym.Env):
             self.observation = self._self_observe()
         except ValueError:
             self._nanObervationFlag = 1
-            print("Observation has NAN value.")
+            logging.error("Observation has NAN value.")
         
         # This reward is non-interactive reward i.e. it's not affected by visitor.
         # Therefore, it's only used for tunning hyper-parameters of LASAgent
