@@ -13,11 +13,14 @@ def get_observation()
 def take_action(action)
     # execute action
 ```
-3. Four variables are needed:
+3. Four variables are needed: (We can handle this, but need you to tell us which sensor or actuator corresponds to which entroy in an obervation array and action array.)
    * `observation_space`: a gym.spaces.Box object
    * `observation_space_name`: an array where each entroy corresponds to the name of that sensor.
    * `action_space`: a gym.spaces.Box object
    * `action_space_name`: an array where each entroy corresponds to the name of that actuator.
-
+4. In our simulation, we also assume the physical exhibit is like this:
+   [V-REP Scene For Royal Ontario Museum (ROM) Exhibit: Transforming Space](https://github.com/UWaterloo-ASL/LAS_Gym/tree/master/LAS-Scenes#v-rep-scene-for-royal-ontario-museum-rom-exhibit-transforming-space)
+   
 ## Instructions on How to Integrate
-1. Download 
+1. Download `LASAgent` folder
+
