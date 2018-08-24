@@ -6,14 +6,8 @@ Created on Thu Aug 23 00:37:13 2018
 @author: jack.lingheng.meng
 """
 import logging
-import tensorflow as tf
-import numpy as np
-import time
-
 from datetime import datetime, date
 from threading import Timer
-
-import os
 
 from Environment.LASEnv import LASEnv
 from LASAgent.InternalEnvOfAgent import InternalEnvOfAgent
@@ -26,6 +20,7 @@ logging.basicConfig(filename = '../ROM_Experiment_results/ROM_experiment_'+datet
 
 #######################################################################
 #                 Instatiate LAS virtual environment                  #
+#  TODO: This part is not needed when interacting with real exhibit   #
 #######################################################################
 # Instantiate LAS environment object
 envLAS = LASEnv('127.0.0.1', 19997, reward_function_type = 'occupancy')
@@ -38,10 +33,19 @@ observation = envLAS.reset()
 #           and want to load pretrained agent.
 #       2. Keep observation unchanged if using pretrained agent.
 agent_name = 'LAS_Single_Agent'
+
+# TODO: Adam provides information and we will define these variables.
+#   In realy system, there is no virtual environment. We need to define:
+#       1. observation_space: gym.spaces.Box object
+#       2. observation_space_name: each entry is the name of sensor
+#       3. action_space: gym.spaces.Box object
+#       4. action_space_name: ench entry is the name of actuator
+
 observation_space = envLAS.observation_space
 action_space = envLAS.action_space
-observation_space_name = [], 
-action_space_name = []
+observation_space_name = envLAS.observation_space_name, 
+action_space_name = envLAS.action_space_name
+
 x_order_MDP = 5
 x_order_MDP_observation_type = 'concatenate_observation'
 occupancy_reward_type = 'IR_distance'
@@ -75,10 +79,10 @@ load_pretrained_agent_flag = False
 
 LAS_agent_community = InternalEnvOfCommunity(community_name, 
                                              community_size,
-                                             envLAS.observation_space,
-                                             envLAS.action_space, 
-                                             envLAS.observation_space_name,
-                                             envLAS.action_space_name,
+                                             observation_space,
+                                             action_space, 
+                                             observation_space_name,
+                                             action_space_name,
                                              x_order_MDP,
                                              x_order_MDP_observation_type,
                                              occupancy_reward_type,
@@ -91,29 +95,38 @@ logging.info('Instantiate LAS-Agent-Community done!')
 #                      Schedual two experiments                       #
 # Note:
 #   1. Initialize Single_Agent and Agent_Community will take about 10 minutes.
-#      Thus, the master script should be run before 9:45am
-#   2. Single_Agent.stop() will take about 3 minutes. Thus, if first experiment
-#      is stopped at 2:30pm, the second experiment should start at 2:35pm
-#   3. Agent_Community.stop() will take about 10 minutes. Thus, if the second 
-#      experiment is stopped at 4:00pm, the baseline bahavior should start at 
-#      4:15pm.
-# Solution: to get rid of time-gap when switching behavior modes, use multiple
-#      threads to do Single_Agent.stop() and Agent_Community.stop().
+#      Thus, the master script should be run, at least, before 9:45am everyday.
+#   2. Single_Agent.stop() will take about 3 minutes to save learned models.
+#   3. Agent_Community.stop() will take about 10 minutes to save learned models.
+# Problem:
+#   We don't want visitors to feel the pause when saving learned models
+# Solution: 
+#   To get rid of time-gap when switching behavior modes, use multiple threads
+#   to interact with visitors with different interaction modes i.e. when one 
+#   interaction mode is done, another interaction mode starts interacting 
+#   immediately at the same time the previous thread keeps saving learned models.
 #######################################################################
 
 def interact_with_learning_agent(agent, end_time = '143000'):
     """
-    When integrate with master_script, replease:
-        1. envLAS._self_observe() -> get_obseravtion()
-        2. envLAS.step(action) -> take_action(action)
+    Note:
+        When integrate with master_script, replease:
+            1. envLAS._self_observe() -> get_obseravtion()
+            2. envLAS.step(action) -> take_action(action)
+    Parameters
+    ----------
+    agent: learning agent object
+    
+    end_time: str (in format %HH%MM%SS)
+        the end time of interaction
     """
     logging.info('{}: Start interaction. Default End_time: {}'.format(agent.name, end_time))
     # Interact untill end_time
     while not datetime.now().strftime("%H%M%S") > end_time:
-        observation = envLAS._self_observe()
+        observation = envLAS._self_observe()    # TODO: replace with get_observation()
         take_action_flag, action = agent.feed_observation(observation)
         if take_action_flag == True:
-            observation, _, _, _ = envLAS.step(action)
+            observation, _, _, _ = envLAS.step(action)  # TODO: replace with take_action(action)
     # Save learned model
     logging.info('{}: Interaction is done. Saving learned models...'.format(agent.name))
     agent.stop()
@@ -123,14 +136,21 @@ def interact_with_learning_agent(agent, end_time = '143000'):
 def interact_with_prescribed_behavior(agent = 'prescribed_behavior', end_time = '130000'):
     """
     TODO: Please put prescribed behavior in this function.
+    
+    Parameters
+    ----------
+    agent: str
+        not important paramter just for keeping the same format with interact_with_learning_agent
+    
+    end_time: str (in format %HH%MM%SS)
+        the end time of interaction
     """
     logging.info('{}: Start interaction. Default End_time: {}'.format(agent, end_time))
     # Interact untill end_time
     while not datetime.now().strftime("%H%M%S") > end_time:
-        observation = envLAS._self_observe()
-        action = envLAS.action_space.sample()
-        observation, _, _, _ = envLAS.step(action)
-    
+        observation = envLAS._self_observe()    # TODO: replace with get_observation()
+        action = envLAS.action_space.sample()   # TODO: replace with prescribed-behavior
+        observation, _, _, _ = envLAS.step(action) # TODO: replace with take_action(action)
     logging.info('{}: Interaction is done.'.format(agent))
 
 def interaction_mode_scheduler(interaction_mode, agent, 
@@ -170,6 +190,7 @@ def interaction_mode_scheduler(interaction_mode, agent,
 schedule_start_time = datetime.now()
 
 # Schedule first experiment
+# TODO: set start and end times to '130002' and '143000'
 first_experiment_start_time = '111801'  # format: %H%M%S e.g. 1:00pm is 130000
 first_experiment_end_time = '112500'    # format: %H%M%S e.g. 2:30pm is 143000
 first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent,
@@ -177,9 +198,8 @@ first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agen
                                                      first_experiment_start_time, 
                                                      first_experiment_end_time, 
                                                      schedule_start_time)
-
-
 # Schedule second experiment
+# TODO: set start and end times to '143002' and '160000'
 second_experiment_start_time = '112501' # format: %H%M%S e.g. 2:30pm is 143000
 second_experiment_end_time = '113500'   # format: %H%M%S e.g. 4:00pm is 160000
 second_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent, 
@@ -187,12 +207,12 @@ second_experiment_thread = interaction_mode_scheduler(interact_with_learning_age
                                                       second_experiment_start_time, 
                                                       second_experiment_end_time, 
                                                       schedule_start_time)
-
 # Schedule prescribed-behavior 1
 # Note: 
 #   Make sure to leave an, at least 10 minuts, time-gap between the time you 
 #   start thsi script and the start time for the first interaction. 
 #   (This is because instantiating learning agent takes around 8 minutes.)
+# TODO: set start and end times to '093000' and '130000'
 prescribed_behavior_start_time_1 = '111501' # format: %H%M%S e.g. 10:00am is 100000
 prescribed_behavior_end_time_1 = '111800'   # format: %H%M%S e.g. 1:00pm is 130000
 prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescribed_behavior,
@@ -200,8 +220,8 @@ prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescrib
                                                           prescribed_behavior_start_time_1,
                                                           prescribed_behavior_end_time_1, 
                                                           schedule_start_time)
-
 # Schedule prescribed-behavior 2
+# TODO: set start and end times to '160002' and '173000'
 prescribed_behavior_start_time_2 = '113501' # format: %H%M%S e.g. 4:00pm is 160000
 prescribed_behavior_end_time_2 = '113800'   # format: %H%M%S e.g. 5:30pm is 173000
 prescribed_behavior_thread_2 = interaction_mode_scheduler(interact_with_prescribed_behavior,
@@ -209,9 +229,9 @@ prescribed_behavior_thread_2 = interaction_mode_scheduler(interact_with_prescrib
                                                           prescribed_behavior_start_time_2, 
                                                           prescribed_behavior_end_time_2, 
                                                           schedule_start_time)
-    
 if __name__ == '__main__':
     
+    # TODO: put initialization work for master script in here
     
     # Schedule interaction with learning agent
     first_experiment_thread.start()
@@ -224,6 +244,7 @@ if __name__ == '__main__':
     prescribed_behavior_thread_2.start()
     logging.info('prescribed_behavior_thread_2 scheduled...')
     
+    # Check if all interactions are done.
     while True:
         if not first_experiment_thread.is_alive()\
                 and not second_experiment_thread.is_alive()\
