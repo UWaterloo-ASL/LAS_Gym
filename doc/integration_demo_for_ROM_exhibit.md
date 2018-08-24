@@ -18,9 +18,16 @@ def take_action(action)
    * `observation_space_name`: an array where each entroy corresponds to the name of that sensor.
    * `action_space`: a gym.spaces.Box object
    * `action_space_name`: an array where each entroy corresponds to the name of that actuator.
-4. In our simulation, we also assume the physical exhibit is like this:
-   [V-REP Scene For Royal Ontario Museum (ROM) Exhibit: Transforming Space](https://github.com/UWaterloo-ASL/LAS_Gym/tree/master/LAS-Scenes#v-rep-scene-for-royal-ontario-museum-rom-exhibit-transforming-space)
-   
+4. In our simulation, we also assume the physical exhibit is like the one we created in simulator [V-REP Scene For Royal Ontario Museum (ROM) Exhibit: Transforming Space](https://github.com/UWaterloo-ASL/LAS_Gym/tree/master/LAS-Scenes#v-rep-scene-for-royal-ontario-museum-rom-exhibit-transforming-space):
+1. Components of ROM Exhibit Scene:
+   * Nodes: 24 in total
+   * Each node:
+      * Actuator: 1 Light + 6 SMA
+      * Sensor: 1 IR Sensor
+2. Overall:
+   * Observation Space: 1×24 dimensions (continuous value)
+   * Action Space : 7×24=168 dimensions (continuous value)
+3. The names and distribbution of nodes:
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/ROM_Exhibit/Single_Giant_Agent.png" width="400"  />     &nbsp;  <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/ROM_Exhibit/Agent_Community_Partition.png" width="400"  /> 
 
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; &nbsp; **(a)** Single Agent &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; **(b)** Agent Community
