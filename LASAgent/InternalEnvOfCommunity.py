@@ -5,6 +5,7 @@ Created on Wed Aug  8 21:47:50 2018
 
 @author: jack.lingheng.meng
 """
+import logging
 import os
 from datetime import datetime
 import numpy as np
@@ -86,6 +87,7 @@ class InternalEnvOfCommunity(object):
         self.load_pretrained_agent_flag = load_pretrained_agent_flag
         
         # Initialize community
+        self.name = community_name
         self.community_name = community_name
         self.community_size = community_size
         ####################################################################
@@ -375,7 +377,9 @@ class InternalEnvOfCommunity(object):
                 action_space = agent_community_partition_config[agent_name]['action_space']
                 observation_space_name = agent_community_partition_config[agent_name]['observation_space_name']
                 action_space_name = agent_community_partition_config[agent_name]['action_space_name']
-                # Instantiate LAS-agent
+                
+                # Note:
+                #   Instantiate LAS-agent
                 #   x_order_MDP = 1: 
                 #       observations have been combined, so use x_order_MDP=1
                 #   x_order_MDP_observation_type = 'concatenate_observation':
@@ -676,10 +680,12 @@ class InternalEnvOfCommunity(object):
                                                       self.x_order_MDP,
                                                       self.occupancy_reward_type)
             for agent_name in reward_partition.keys():
-                print('Reward of {} is: {}'.format(agent_name,reward_partition[agent_name]))
+                logging.debug('Reward of {} is: {}'.format(agent_name,reward_partition[agent_name]))
             # Get an action
             action = self.interact(observation_partition, reward_partition, done)
             take_action_flag = True
+            # Clear the observation queue
+            self.x_order_MDP_observation_sequence.clear()
         return take_action_flag, action
     
     def _logging_interaction_data(self, x_order_MDP_observation_sequence,

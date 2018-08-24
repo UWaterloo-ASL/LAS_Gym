@@ -5,6 +5,7 @@ Created on Wed Aug  8 17:12:06 2018
 
 @author: jack.lingheng.meng
 """
+import logging
 from gym import spaces
 from datetime import datetime
 import os
@@ -87,6 +88,7 @@ class InternalEnvOfAgent(object):
         #####################################################################
         #                       Initialize agent                            #
         #####################################################################
+        self.name = agent_name
         self.agent_name = agent_name
         
         self.observation_space = observation_space
@@ -158,12 +160,14 @@ class InternalEnvOfAgent(object):
             the action chosen by intelligent agent
         """
         if self.interaction_mode == 'real_interaction':
-            reward = self._reward_occupancy(observation_for_x_order_MDP)
+            reward = self._reward_occupancy(observation_for_x_order_MDP,
+                                            self.x_order_MDP)
         elif self.interaction_mode == 'virtual_interaction':
             reward = external_reward
         else:
             raise Exception('Please choose right interaction mode!')
-        print('Reward of {} is: {}'.format(self.agent_name, reward))
+        logging.debug('Reward of {} is: {}'.format(self.agent_name, reward))
+        
         done = False
         action = self.agent.perceive_and_act(observation_for_x_order_MDP, reward, done)
         # Logging interaction data
@@ -232,7 +236,7 @@ class InternalEnvOfAgent(object):
         reward: float
             the value of reward
         """
-        prox_distances = observation[:self.prox_sensor_num]
+        prox_distances = observation
         # Make here insistent with IR data
         #   1. 'IR_distance': based on IR distance from detected object to IR
         #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
@@ -357,14 +361,18 @@ class InternalEnvOfAgent(object):
             self.agent._train()
         else:
             # Generate observation for x_order_MDP
-            #   Note: use shallow copy:
+            #   Note: 
+            #       1. use shallow copy:
             #             self.x_order_MDP_observation_sequence.copy(),
             #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
             #         after call this function.
+            #       2. clear the observation queue after taking an action
             observation_for_x_order_MDP = self._generate_observation_for_x_order_MDP(self.x_order_MDP_observation_sequence.copy(),
                                                                                      self.x_order_MDP_observation_type)
             action = self.interact(observation_for_x_order_MDP, external_reward, done)
             take_action_flag = True
+            # Clear the observation queue
+            self.x_order_MDP_observation_sequence.clear()
         return take_action_flag, action
 
     def _logging_interaction_data(self, observation_for_x_order_MDP,
