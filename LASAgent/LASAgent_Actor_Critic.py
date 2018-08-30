@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue May 15 09:41:09 2018
+Created on Tue Aug 28 10:57:28 2018
 
 @author: jack.lingheng.meng
 """
@@ -9,28 +9,24 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
 import os
 import glob
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
-from tensorflow import keras
+
+from tensorflow import layers
 import numpy as np
 import pandas as pd
-import gym
-from gym import wrappers
-import tflearn
-from tflearn.models.dnn import DNN
-import argparse
 import pprint as pp
-from collections import deque
 import time
 
 from IPython.core.debugger import Tracer
 
-from Environment.LASEnv import LASEnv
-
 from LASAgent.replay_buffer import ReplayBuffer
 from LASAgent.noise import AdaptiveParamNoiseSpec,NormalActionNoise,OrnsteinUhlenbeckActionNoise
+from LASAgent.environment_model.multilayer_nn_env_model import MultilayerNNEnvModel
+from LASAgent.intrinsic_motivation_model.knowledge_based_intrinsic_motivation import KnowledgeBasedIntrinsicMotivationComponent
 
 # ===========================
 #   Actor and Critic DNNs
@@ -92,107 +88,131 @@ class ActorNetwork(object):
         self.restore_model_flag = restore_model_flag
         self.restore_model_version = self._find_the_most_recent_model_version() 
         if self.restore_model_flag and self.restore_model_version == -1:
-            raise Exception('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
+            logging.error('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
         
-        with tf.variable_scope(self.name) as self.scope:
-            # Initialize or Restore Actor Network
-            self.inputs, self.out, self.scaled_out, self._actor_model = self.create_actor_network()
-            if self.restore_model_flag == True:
-                temp_name = os.path.join(self.actor_model_save_path,
-                                         self.name + '_' + str(self.restore_model_version)+'.ckpt')
-                self._actor_model.load(temp_name)
-                print('Restored actor model: {}'.format(temp_name))
+        with tf.name_scope(self.name):
             
-            self.network_params = tf.trainable_variables(scope=self.name)
-    
-            # Initialize or Restore Target Network
-            self.target_inputs, self.target_out, self.target_scaled_out, self._target_actor_model = self.create_actor_network()
-            if self.restore_model_flag == True:
-                temp_name = os.path.join(self.actor_model_save_path,
-                                         self.name + '_target_' + str(self.restore_model_version)+'.ckpt')
-                self._target_actor_model.load(temp_name)
-                print('Restored target actor model: {}'.format(temp_name))
+            with tf.variable_scope(self.name) as self.scope:
+                # Create Actor Model
+                self.inputs, self.out = self.create_actor_network()
+                self.network_params = tf.trainable_variables(scope=self.name)
+                self.actor_model_saver = tf.train.Saver(self.network_params) # Saver to save and restore model variables
                 
-            self.target_network_params = tf.trainable_variables(scope=self.name)[len(self.network_params):]
-    
-            # Op for periodically updating target network with online network
-            # weights
+                # Create Target Actor Model
+                self.target_inputs, self.target_out = self.create_actor_network()
+                self.target_network_params = tf.trainable_variables(scope=self.name)[len(self.network_params):]
+                self.target_actor_model_saver = tf.train.Saver(self.target_network_params) # Saver to save and restore model variables
+                
+            # Op for periodically updating target network
             self.update_target_network_params = \
                 [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) +
                                                       tf.multiply(self.target_network_params[i], 1. - self.tau))
                     for i in range(len(self.target_network_params))]
-    
-            # This gradient will be provided by the critic network
+                
+            # This gradient will be provided by the critic network: d[Q(s,a)]/d[a]
             self.action_gradient = tf.placeholder(tf.float32, [None, self.a_dim])
     
             # Combine the gradients here
             # The reason of negative self.action_gradient here is we want to do 
-            # gradient ascent, and AdamOptimizer will do gradient ascent when applying
+            # gradient ascent, and AdamOptimizer will do gradient descent when applying
             # a gradient.
-            self.unnormalized_actor_gradients = tf.gradients(
-                    self.scaled_out, self.network_params, -self.action_gradient) 
-            #Tracer()()
+            self.unnormalized_actor_gradients = tf.gradients(self.out, 
+                                                             self.network_params, 
+                                                             -self.action_gradient) 
+            # Normalized actor gradient
             self.actor_gradients = list(map(lambda x: tf.divide(x, self.batch_size), self.unnormalized_actor_gradients))
     
             # Optimization Op
-            self.optimize = tf.train.AdamOptimizer(self.learning_rate).\
-                apply_gradients(zip(self.actor_gradients, self.network_params))
-            # This is useless, since we use tf.variable_scope
-            self.num_trainable_vars = len(
-                self.network_params) + len(self.target_network_params)
-
+            self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(zip(self.actor_gradients, self.network_params))
+            
+            # Initialize variables in variable_scope: self.name
+            # Note: make sure initialize variables **after** defining all variable
+            self.sess.run(tf.variables_initializer(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.name)))
+            
+            # Restor Actor and Target-Actor Models
+            if self.restore_model_flag == True:
+                actor_filepath = os.path.join(self.actor_model_save_path,
+                                         self.name + '_' + str(self.restore_model_version)+'.ckpt')
+                target_actor_filepath = os.path.join(self.actor_model_save_path,
+                                         self.name + '_target_' + str(self.restore_model_version)+'.ckpt')
+                self.restore_actor_and_target_actor_network(actor_filepath, 
+                                                            target_actor_filepath)
+                    
     def create_actor_network(self):
         """
         
         """
-        inputs = tflearn.input_data(shape=[None, self.s_dim],name = 'ActorInput')
-        h1 = tflearn.fully_connected(inputs, 400)
-        h1 = tflearn.activations.relu(h1)
-        h1 = tflearn.layers.normalization.batch_normalization(h1)
-        h2 = tflearn.fully_connected(h1, 300)
-        h2 = tflearn.activations.relu(h2)
-        h2 = tflearn.layers.normalization.batch_normalization(h2)
-        # Final layer weights are init to Uniform[-3e-3, 3e-3]
-        w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
-        out = tflearn.fully_connected(
-            h2, self.a_dim, activation='tanh', weights_init=w_init, name = 'ActorOutput') # action space is shifted to [-1,1]
-        # Scale output to -action_bound to action_bound
-        scaled_out = tf.multiply(out, self.action_bound_high, name = 'ActorScaledOutput')
-        model = DNN(scaled_out, tensorboard_verbose = 3)
-
-        return inputs, out, scaled_out, model
+        inputs = tf.placeholder(tf.float32, shape=(None, self.s_dim), name = 'ActorInput')
+        h1 = layers.Dense(units = 100, activation = tf.nn.relu, 
+                          kernel_initializer = tf.initializers.truncated_normal)(inputs)
+        h1 = layers.BatchNormalization()(h1)
+        h1 = layers.Dropout(0.5)(h1)
         
-    def save_actor_network(self, actor_save_time = 0):
+        h2 = layers.Dense(units = 50, activation = tf.nn.relu, 
+                          kernel_initializer = tf.initializers.truncated_normal)(h1)
+        h2 = layers.BatchNormalization()(h2)
+        h2 = layers.Dropout(0.5)(h2)
+        
+        # Final layer weights are init to Uniform[-3e-3, 3e-3]
+        out = layers.Dense(units = self.a_dim, activation = tf.tanh, 
+                           kernel_initializer=tf.initializers.random_uniform(minval = -0.003, maxval = 0.003), 
+                           name = 'ActorOutput')(h2)
+        return inputs, out
+        
+    def save_actor_network(self, version_number = 0):
         """save actor and target actor model"""
-        self._actor_model.save(os.path.join(self.actor_model_save_path,
-                                            self.name + '_' + str(actor_save_time)+'.ckpt'))
-        self._target_actor_model.save(os.path.join(self.target_actor_model_save_path,
-                                                   self.name +'_target_' + str(actor_save_time)+'.ckpt'))
-        print('Save actor networks.')
+        actor_filepath = os.path.join(self.actor_model_save_path,
+                                      self.name + '_' + str(version_number)+'.ckpt')
+        target_actor_filepath = os.path.join(self.target_actor_model_save_path,
+                                             self.name +'_target_' + str(version_number)+'.ckpt')
+        
+        self.actor_model_saver.save(self.sess, actor_filepath)
+        self.target_actor_model_saver.save(self.sess, target_actor_filepath)
+        
+        logging.info('Actor model saved in path: {}.'.format(actor_filepath))
+        logging.info('Target Actor model saved in path: {}.'.format(target_actor_filepath))
+
+    def restore_actor_and_target_actor_network(self, actor_filepath, target_actor_filepath):
+        """ 
+        The following code is to inspect variables in a checkpoint:
+            from tensorflow.python.tools import inspect_checkpoint as chkp
+            chkp.print_tensors_in_checkpoint_file(file_path, tensor_name='', all_tensors=True, all_tensor_names=True)
+        """
+        # Initialize variables
+        self.sess.run(tf.variables_initializer(self.network_params, name='init_network_params'))
+        self.sess.run(tf.variables_initializer(self.target_network_params, name='init_target_network_params'))
+        
+        self.actor_model_saver.restore(self.sess, actor_filepath)
+        self.target_actor_model_saver.restore(self.sess, target_actor_filepath)
+        
+        
+        
+        logging.info('Restored acotor: {}'.format(actor_filepath))
+        logging.info('Restored target acotor: {}'.format(target_actor_filepath))
 
     def train(self, inputs, a_gradient):
-        self.sess.run(self.optimize, feed_dict={
-            self.inputs: inputs,
-            self.action_gradient: a_gradient
-        })
+        """Train actor"""
+        self.sess.run(self.optimize, 
+                      feed_dict={self.inputs: inputs,
+                                 self.action_gradient: a_gradient})
 
     def predict(self, inputs):
-        return self.sess.run(self.scaled_out, feed_dict={
-            self.inputs: inputs
-        })
-#        return self._actor_model.predict(inputs)
+        """
+        Prediction of Actor Model.
+        """
+        return self.sess.run(self.out, 
+                             feed_dict={self.inputs: inputs})
 
     def predict_target(self, inputs):
-        return self.sess.run(self.target_scaled_out, feed_dict={
-            self.target_inputs: inputs
-        })
-#        return self._target_actor_model.predict(inputs)
+        """
+        Prediction of Target Actor Model.
+        """
+        return self.sess.run(self.target_out, 
+                             feed_dict={self.target_inputs: inputs})
 
     def update_target_network(self):
+        """Update Target Actor Model"""
         self.sess.run(self.update_target_network_params)
-
-    def get_num_trainable_vars(self):
-        return self.num_trainable_vars
     
     def _find_the_most_recent_model_version(self):
         """
@@ -272,39 +292,33 @@ class CriticNetwork(object):
         if self.restore_model_flag and self.restore_model_version == -1:
             raise Exception('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
         
-        with tf.variable_scope(self.name) as self.scope:
-            # Create the critic network
-            self.inputs, self.action, self.out, self._critic_model = self.create_critic_network()
-            if self.restore_model_flag == True:
-                temp_name = os.path.join(self.critic_model_save_path,
-                                         self.name + '_' + str(self.restore_model_version)+'.ckpt')
-                self._critic_model.load(temp_name)
-                print('Restored critic model: {}'.format(temp_name))
-            # We should avoid using tf.trainable_variables(), since it will
-            # mix all trainable variables together.
-            self.network_params = tf.trainable_variables(scope=self.name)
-    
-            # Target Network
-            self.target_inputs, self.target_action, self.target_out, self._target_critic_model = self.create_critic_network()
-            if self.restore_model_flag == True:
-                temp_name = os.path.join(self.critic_model_save_path,
-                                         self.name + '_target_' + str(self.restore_model_version)+'.ckpt')
-                self._target_critic_model.load(temp_name)
-                print('Restore target critic model: {}'.format(temp_name))
-            self.target_network_params = tf.trainable_variables(scope=self.name)[len(self.network_params):]
+        with tf.name_scope(self.name):
+            
+            with tf.variable_scope(self.name) as self.scope:
+                # Create Critic Model
+                self.inputs, self.action, self.out = self.create_critic_network()
+                self.network_params = tf.trainable_variables(scope=self.name)
+                self.critic_model_saver = tf.train.Saver(self.network_params) # Saver to save and restore model variables  
+                
+                # Create Target Critic Model
+                self.target_inputs, self.target_action, self.target_out = self.create_critic_network()
+                self.target_network_params = tf.trainable_variables(scope=self.name)[len(self.network_params):]
+                self.target_critic_model_saver = tf.train.Saver(self.target_network_params)
+            
             #Tracer()()
             # Op for periodically updating target network with online network
             # weights with regularization
             self.update_target_network_params = \
                 [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) \
-                + tf.multiply(self.target_network_params[i], 1. - self.tau))
+                                                      + tf.multiply(self.target_network_params[i], 1. - self.tau))
                     for i in range(len(self.target_network_params))]
     
             # Network target (y_i)
-            self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
+            self.target_q_value = tf.placeholder(tf.float32, [None, 1])
     
             # Define loss and optimization Op
-            self.loss = tflearn.mean_square(self.predicted_q_value, self.out)
+            self.loss = tf.losses.mean_squared_error(labels = self.target_q_value,
+                                                     predictions = self.out)
             self.optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
     
             # Get the gradient of the net w.r.t. the action.
@@ -313,47 +327,81 @@ class CriticNetwork(object):
             # w.r.t. that action. Each output is independent of all
             # actions except for one.
             self.action_grads = tf.gradients(self.out, self.action)
+            
+            # Initialize variables in variable_scope: self.name
+            # Note: make sure initialize variables **after** defining all variable
+            self.sess.run(tf.variables_initializer(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = self.name)))
+            
+            # Restore Critic and Target Critic Models
+            if self.restore_model_flag == True:
+                critic_filepath = os.path.join(self.critic_model_save_path,
+                                               self.name + '_' + str(self.restore_model_version)+'.ckpt')
+                target_critic_filepath = os.path.join(self.critic_model_save_path,
+                                                      self.name + '_target_' + str(self.restore_model_version)+'.ckpt')
+                self.restore_critic_and_target_critic_network(critic_filepath, 
+                                                              target_critic_filepath)
 
     def create_critic_network(self):
-        inputs = tflearn.input_data(shape=[None, self.s_dim], name = 'CriticInputState')
-        action = tflearn.input_data(shape=[None, self.a_dim], name = 'CriticInputAction')
+        """Create critic network"""
+        obs = tf.placeholder(tf.float32, shape=(None, self.s_dim), name = 'CriticInputState')
+        act = tf.placeholder(tf.float32, shape=(None, self.a_dim), name = 'CriticInputAction')
         
-        h1_inputs = tflearn.fully_connected(inputs, 300)
-        h1_inputs = tflearn.activations.relu(h1_inputs)
-        h1_inputs = tflearn.layers.normalization.batch_normalization(h1_inputs)
+        h1_obs = layers.Dense(units = 400, activation = tf.nn.relu, 
+                          kernel_initializer = tf.initializers.truncated_normal)(obs)
+        h1_obs = layers.BatchNormalization()(h1_obs)
+        h1_obs = layers.Dropout(0.5)(h1_obs)
         
-        h1_action = tflearn.fully_connected(action, 300)
-        h1_action = tflearn.activations.relu(h1_action)
-        h1_action = tflearn.layers.normalization.batch_normalization(h1_action)
-        # Add the action tensor in the 2nd hidden layer
-        # Use two temp layers to get the corresponding weights and biases
-        merged1 = tflearn.layers.merge([h1_inputs, h1_action], mode='concat')
-        h2 = tflearn.fully_connected(merged1, 200)
-        h2 = tflearn.activations.relu(h2)
-        h2 = tflearn.layers.normalization.batch_normalization(h2)
+        h1_act = layers.Dense(units = 400, activation = tf.nn.relu, 
+                          kernel_initializer = tf.initializers.truncated_normal)(act)
+        h1_act = layers.BatchNormalization()(h1_act)
+        h1_act = layers.Dropout(0.5)(h1_act)
         
-        # linear layer connected to 1 output representing Q(s,a)
-        # Weights are init to Uniform[-3e-3, 3e-3]
-        w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
-        out = tflearn.fully_connected(h2, 1, weights_init=w_init, name = 'CriticOutput')
-        model = DNN(out, tensorboard_verbose = 3)
-        return inputs, action, out, model
+        merged = tf.concat([h1_obs, h1_act], axis=1)
+        
+        h2 = layers.Dense(units = 300, activation = tf.nn.relu, 
+                          kernel_initializer = tf.initializers.truncated_normal)(merged)
+        h2 = layers.BatchNormalization()(h2)
+        h2 = layers.Dropout(0.5)(h2)
+        
+        # Linear layer connected to 1 output representing Q(s,a)
+        # Final layer weights are init to Uniform[-3e-3, 3e-3]
+        out = layers.Dense(units = 1,
+                           kernel_initializer=tf.initializers.random_uniform(minval = -0.003, maxval = 0.003), 
+                           name = 'CriticOutput')(h2)
+        
+        return obs, act, out
 
-    def save_critic_network(self, critic_save_time = 0):
+    def save_critic_network(self, version_number = 0):
         """
         Function used to save critic and target critic model
         Parameters
         ----------
-        critic_save_time: int default = 0
+        version_number: int default = 0
             the time when save this ciritic and its target critic models.
         """
-        self._critic_model.save(model_file = os.path.join(self.critic_model_save_path,
-                                                          self.name + '_' + str(critic_save_time)+'.ckpt'))
-        self._target_critic_model.save(model_file = os.path.join(self.target_critic_model_save_path,
-                                                                 self.name + '_target_' + str(critic_save_time)+'.ckpt'))
-        print('Save critic networks.')
+        critic_filepath = os.path.join(self.critic_model_save_path,
+                                      self.name + '_' + str(version_number)+'.ckpt')
+        target_critic_filepath = os.path.join(self.target_critic_model_save_path,
+                                             self.name +'_target_' + str(version_number)+'.ckpt')
+        
+        self.critic_model_saver.save(self.sess, critic_filepath)
+        self.target_critic_model_saver.save(self.sess, target_critic_filepath)
+        
+        logging.info('Critic model saved in path: {}.'.format(critic_filepath))
+        logging.info('Target Critic model saved in path: {}.'.format(target_critic_filepath))
+        
+    def restore_critic_and_target_critic_network(self, critic_filepath, target_critic_filepath):
+        """ 
+        The following code is to inspect variables in a checkpoint:
+            from tensorflow.python.tools import inspect_checkpoint as chkp
+            chkp.print_tensors_in_checkpoint_file(file_path, tensor_name='', all_tensors=True, all_tensor_names=True)
+        """
+        self.critic_model_saver.restore(self.sess, critic_filepath)
+        self.target_critic_model_saver.restore(self.sess, target_critic_filepath)
+        logging.info('Restored acotor: {}'.format(critic_filepath))
+        logging.info('Restored target acotor: {}'.format(target_critic_filepath))
 
-    def train(self, inputs, action, predicted_q_value):
+    def train(self, observation, action, target_q_value):
         """
         Returns
         -------
@@ -363,29 +411,29 @@ class CriticNetwork(object):
             
         optimize: tf.operation
         """
-        return self.sess.run([self.loss, self.out, self.optimize], feed_dict={
-            self.inputs: inputs,
-            self.action: action,
-            self.predicted_q_value: predicted_q_value
-        })
+        return self.sess.run([self.loss, self.out, self.optimize], 
+                             feed_dict={self.inputs: observation,
+                                        self.action: action,
+                                        self.target_q_value: target_q_value})
 
-    def predict(self, inputs, action):
-        return self.sess.run(self.out, feed_dict={
-            self.inputs: inputs,
-            self.action: action
-        })
+    def predict(self, observation, action):
+        return self.sess.run(self.out, 
+                             feed_dict={self.inputs: observation,
+                                        self.action: action})
 
-    def predict_target(self, inputs, action):
-        return self.sess.run(self.target_out, feed_dict={
-            self.target_inputs: inputs,
-            self.target_action: action
-        })
+    def predict_target(self, observation, action):
+        """
+        Prediction of Target-Critic Model
+        """
+        return self.sess.run(self.target_out, 
+                             feed_dict={self.target_inputs: observation,
+                                        self.target_action: action})
 
     def action_gradients(self, inputs, actions):
-        return self.sess.run(self.action_grads, feed_dict={
-            self.inputs: inputs,
-            self.action: actions
-        })
+        return self.sess.run(self.action_grads, 
+                             feed_dict={
+                                     self.inputs: inputs,
+                                     self.action: actions})
 
     def update_target_network(self):
         self.sess.run(self.update_target_network_params)
@@ -408,307 +456,6 @@ class CriticNetwork(object):
         else:
             the_most_recent_model_version = -1
         return the_most_recent_model_version
-# ===========================
-#   Environment Model DNNs
-# ===========================
-class EnvironmentModelNetwork(object):
-    """
-    Environment Model is to learn the state trasition dynamics. Specifically,
-    it learns the maping:
-        from (observation_t, action_t) to (observation_t+1, reward_t)
-    """
-    def __init__(self, name, sess, observation_space, action_space,
-                 learning_rate = 0.0001,
-                 # Save Environment Model
-                 env_model_save_path = 'results/models/',
-                 # Restore Environment Model
-                 env_restore_flag = False,
-                 env_model_restore_path_and_name = 'results/models/env_model.ckpt'):
-        """
-        Initialize environment model.
-        
-        Parameters
-        ----------
-        name: str
-        
-        sess: tf.Session
-        
-        observation_space: gym.spaces.Box
-            
-        action_space: gym.spaces.Box
-            
-        learning_rate: float default = 0.0001
-            learning rate
-        env_model_save_path: str default = 'results/models/'
-            the path to save environment model
-                 # Restore Environment Model
-        env_restore_flag: bool default = False
-            idicate whether restore a previously trained environment model
-        env_model_restore_path_and_name: str default = 'results/models/env_model.ckpt'
-            the path and name of previously trained environment model that is 
-            going to restore
-        """
-        self.name = name
-        self.sess = sess
-        self.observation_dim = observation_space.shape[0]
-        self.action_dim = action_space.shape[0]
-        self.learning_rate = learning_rate
-        # Parameters for save environment model
-        self.env_model_save_path = env_model_save_path
-        # Parameters for restoring environment model
-        self.env_restore_flag = env_restore_flag
-        self.env_model_restore_path_and_name = env_model_restore_path_and_name
-        
-        # Create Environment Model
-        with tf.variable_scope(self.name) as self.scope:
-            self.obs_input, self.act_input, self.obs_output, self.reward_output, self.env_model = self.create_environment_model_network()
-            if self.env_restore_flag == True:
-                print('restore environment model')
-                self.env_model = keras.models.load_model(self.env_model_restore_path_and_name)
-       
-    def create_environment_model_network(self):
-        """
-        Create environment model network.
-        
-        Returns
-        -------
-        observation_inputs: tf.Tensor
-            tensor of observation input
-        action_inputs: tf.Tensor
-            tensor of action input
-        observation_output: tf.Tensor
-            tensor of observation output
-        reward_output: tf.Tensor
-            tensor of reward output
-        model: Keras model
-        """
-        observation_inputs = keras.Input(shape=(self.observation_dim,), name='EnvModel_observation_input')
-        obs_h1 = keras.layers.Dense(units = 400, activation='relu')(observation_inputs)
-        obs_h1 = keras.layers.BatchNormalization()(obs_h1)
-        action_inputs = keras.Input(shape=(self.action_dim,), name='EnvModel_action_input')
-        act_h1 = keras.layers.Dense(units = 400, activation='relu')(action_inputs)
-        act_h1 = keras.layers.BatchNormalization()(act_h1)
-        
-        merged_inputs = keras.layers.add([obs_h1, act_h1], name = 'EnvModel_merged_input')
-        merged_h1 = keras.layers.Dense(units=300, activation = 'relu')(merged_inputs)
-        merged_h1 = keras.layers.BatchNormalization()(merged_h1)
-        
-        observation_output = keras.layers.Dense(units = (self.observation_dim), activation = 'relu')(merged_h1)
-        reward_output = keras.layers.Dense(units = (1), activation = 'relu')(merged_h1)
-        
-        model = keras.Model(inputs = [observation_inputs, action_inputs],
-                            outputs = [observation_output, reward_output])
-        adam = keras.optimizers.Adam(lr = 0.001)
-        model.compile(optimizer = adam, loss = 'mse')
-        # Plot Environment Model
-        #keras.utils.plot_model(model, to_file = 'actor_model.png',show_shapes=True, show_layer_names=True)
-        
-        return observation_inputs, action_inputs, observation_output, reward_output, model 
-    
-    def train(self, observation_inputs, action_inputs, observation_output, reward_output):
-        """
-        Train environment model.
-        
-        Parameters
-        ----------
-        observation_inputs: ndarray
-            observation at time step t
-        action_inputs: ndarray
-            action at time step t
-        observation_output: ndarray
-            array combined of (observation,reward): 
-                observation at time step t+1
-                reward at time step t
-        """
-        self.env_model.fit(x=[observation_inputs,action_inputs],
-                           y=[observation_output, reward_output],
-                           verbose = 0)
-    
-    def evaluate(self, observation_inputs, action_inputs, observation_output, reward_output):
-        """
-        Evaluate environment model. The testing samples should be different from
-        training samples.
-        
-        Parameters
-        ----------
-        observation_inputs: ndarray
-            observation at time step t
-        action_inputs: ndarray
-            action at time step t
-        observation_output: ndarray
-            array combined of (observation,reward): 
-                observation at time step t+1
-                reward at time step t
-        
-        Returns
-        -------
-        np.sqrt(np.mean(loss)):
-            square root of mean squared error on the test set.
-        """
-        loss_all, obs_loss, r_loss = self.env_model.evaluate(x=[observation_inputs,action_inputs],
-                                                             y=[observation_output, reward_output],
-                                                             verbose = 0)
-        return np.sqrt(loss_all)
-    
-    def save_environment_model_network(self, env_save_time):
-        """
-        save environment model
-        Parameters
-        ----------
-        env_save_time: int
-            the time step when saving the environment model
-        """
-        keras.models.save_model(self.env_model,
-                                filepath = self.env_model_save_path + '/env_model_' + str(env_save_time) + '.ckpt')
-        
-    def predict_target(self, observation, action):
-        """
-        Predict next step observation and reward based on current observation
-        and action.
-        
-        Parameters
-        ----------
-        observation: ndarray
-            observation at time step t
-        action: ndarray
-            action taken at time step t
-        Returns
-        -------
-        prediction: list [predicted_observation, predicted_reward]
-            prediction of observation and reward resulted from taken action in 
-            observation.
-        """
-        return self.env_model.predict([observation, action])
-    def get_environment_model_weights(self):
-        """
-        
-        """
-        return self.env_model.get_weights()
-# ===========================
-#  Intrinsic Motivation Components
-# ===========================
-class KnowledgeBasedIntrinsicMotivationComponent():
-    def __init__(self, env_models_dir, sliding_window_size):
-        """
-        Parameters
-        ----------
-        env_models_dir: str
-            the directory where environment models are saved in.
-        sliding_window_size: int
-            the size of sliding window
-        """
-        self.env_models_dir = env_models_dir
-        
-        if int(sliding_window_size) < 2:
-            raise ValueError("sliding_window_size should be an int >= 2")
-        self.sliding_window_size = sliding_window_size
-        self.env_models = deque(maxlen=self.sliding_window_size)
-        
-    def load_env_models_from_disk(self):
-        """
-        Call when new environment model is saved, rather than calculate 
-        knowledge-based intrinsic motivation, to:
-            1. load newest environment model
-            2. reduce cost of reading disk
-        """
-        env_model_names = glob.glob(self.env_models_dir+"/env_model_*.ckpt")
-        nums_env_models = []
-        for i in range(len(env_model_names)):
-            model_num, _ = env_model_names[i].split('env_model_')[1].split('.ckpt')
-            nums_env_models.append(int(model_num))
-        
-        nums_env_models.sort()
-        #total_num_env_models = len(nums_env_models)
-        num_newest_env_model = nums_env_models[-1]
-        
-        self.env_models.append(keras.models.load_model(os.path.join(self.env_models_dir,
-                                                                    "env_model_"+ str(num_newest_env_model)+".ckpt")))
-        
-    def set_weights_of_oldest_env_model_with_newest_env_model(self, newest_weights):
-        """
-        Set the weights of oldest env model in self.env_models with the weights
-        of newest environment model.
-        
-        This function is used after self.env_models is fully filled with env 
-        models.
-        
-        Parameters
-        ----------
-        newest_weights: a list of all weight tensors in the model, as Numpy arrays
-            env_model.get_weights()
-        """
-        if len(self.env_models) == 0:
-            print('self.env_models is empty. Loading from disk ...')
-            self.load_env_models_from_disk()
-        elif len(self.env_models) != self.sliding_window_size:
-            print('Adding new env model ...')
-            temp_env_model = self.env_models[0]
-            temp_env_model.set_weights(newest_weights)
-            self.env_models.append(temp_env_model)
-        else:
-            print('Updating oldest env model to newest ...')
-            oldest_env_model = self.env_models.popleft()
-            oldest_env_model.set_weights(newest_weights)
-            self.env_models.append(oldest_env_model)
-        
-    def knowledge_based_intrinsic_reward(self, obs_old, act_old,
-                                         r_new, obs_new):
-        """
-        Calculate knowledge-based intrinsic motivation.
-        Called every step.
-        
-        Parameters
-        ----------
-        obs_old: ndarray
-            observation at time step t
-        act_old:
-            action at time step t
-        r_new:
-            reward at time stem t
-        obs_new:
-            observation at time step t+1
-            
-        Returns
-        -------
-        knowledge_based_intrinsic_reward: float
-            knowledge based intrinsic rewward
-        """
-        if len(self.env_models) != self.sliding_window_size:
-            raise ValueError('self.env_models) != self.sliding_window_size')
-        
-        # Calculate Learning Progress
-        first_half_window = int(self.sliding_window_size/2)
-        first_half_norm_error = 0
-        second_half_norm_error = 0
-        for i in range(self.sliding_window_size):
-            prediction = self.env_models[i].predict([obs_old, act_old])
-            obs_error = obs_new - prediction[0]
-            r_error = r_new - prediction[1]
-            pred_error = np.concatenate((obs_error, r_error), axis = 1)
-#            sr_mse = np.sqrt(np.mean(pred_error ** 2))
-            norm_error = np.linalg.norm(pred_error, ord = 2)
-            if i <= first_half_window:
-                first_half_norm_error += norm_error
-            else:
-                second_half_norm_error += norm_error
-        learning_progress = abs(first_half_norm_error - second_half_norm_error) / (self.sliding_window_size/2)
-        
-        return learning_progress
-        
-    def visualize_knowledge_based_intrinsic_motivation(self, intrinsically_motivated_actor,
-                                                       intrinsically_motivated_critic):
-        """
-        visualize intrinsic motivation using T-SNE.
-        Our data has the form:
-            action = Actor(observation)
-            interest = Critic(observation, action)
-        Parameters
-        ----------
-        intrinsically_motivated_actor:
-            
-        intrinsically_motivated_critic:
-            
-        """
 
 # ===========================
 #   Living Architecture System Agent
@@ -740,6 +487,7 @@ class LASAgent_Actor_Critic():
                  # Save and Restore Actor-Critic Model
                  restore_actor_model_flag = False,
                  restore_critic_model_flag = False,
+                 restore_env_model_flag = False,
                  restore_model_version = 0):
         """
         Intialize LASAgent.
@@ -834,12 +582,7 @@ class LASAgent_Actor_Critic():
         self.steps_counter = 1      # Steps elapsed in one episode
         self.total_step_counter = 1 # Steps elapsed in whole life
         self.render_env = False
-        # Save trained models every 5 episodes (saving to disk is very 
-        # time-consuming, so we shouldn't save models so frequently.)
-        # If physical system run in 2Hz and each episode = 1000 steps,
-        # each episode takes 9 mins, we save models every 45 mins is enough
-        # if we need to shut down every one hour.
-        self.save_actor_critic_models_every_xxx_episodes = 5
+
         # =================================================================== #
         #                 Initialize Replay Buffers for                       #
         #         Extrinsic and Intrinsic Policy, and Environment Model        #
@@ -938,26 +681,21 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                     Initialize Environment Model                    #
         # =================================================================== #
-        self.environment_model_name = self.agent_name+'current_environment_model_name'
+        self.environment_model_name = self.agent_name+'_current_environment_model_name'
         self.env_model_lr = 0.0001
         self.env_model_minibatch_size = 200
         self.env_model_save_path = self.models_dir
         self.save_env_model_every_xxx_episodes = 5
-        self.saved_env_model_counter = 0
-        self.env_restore_flag = False
-        self.env_model_restore_path_and_name = 'results/models/env_model.ckpt'
-        self.environment_model = EnvironmentModelNetwork(self.environment_model_name,
-                                                         self.sess,
-                                                         self.observation_space,
-                                                         self.action_space,
-                                                         self.env_model_lr,
-                                                         self.env_model_save_path,
-                                                         self.env_restore_flag,
-                                                         self.env_model_restore_path_and_name)
-        # Immediately save one env model to allow knowledge-based intrinsic
-        # motivation to know the structure of environment model.
-        self.saved_env_model_counter += 1
-        self.environment_model.save_environment_model_network(self.saved_env_model_counter)
+        self.saved_env_model_version_number = 0
+        self.env_load_flag = restore_env_model_flag
+        
+        self.environment_model = MultilayerNNEnvModel(self.environment_model_name,
+                                                      self.sess,
+                                                      self.observation_space,
+                                                      self.action_space,
+                                                      self.env_model_lr,
+                                                      self.env_model_save_path,
+                                                      self.env_load_flag)
         # =================================================================== #
         #                     Initialize Knowledge-based                      #
         #               Intrinsically Motivated Actor-Critic Model            #
@@ -967,7 +705,8 @@ class LASAgent_Actor_Critic():
         # Note; actual window size = sliding window size * save_env_model_every_xxx_steps
         self.knowledge_based_intrinsic_reward_sliding_window_size = 4 
         self.update_newest_env_model_every_xxx_steps = 200
-        self.knowledge_based_intrinsic_motivation_model = KnowledgeBasedIntrinsicMotivationComponent(self.models_dir,
+        
+        self.knowledge_based_intrinsic_motivation_model = KnowledgeBasedIntrinsicMotivationComponent(self.environment_model, 
                                                                                                      self.knowledge_based_intrinsic_reward_sliding_window_size)
         # Intrinsically Motivated Actor
         self.knowledge_based_intrinsic_actor_name = self.agent_name+'_knowledge_based_intrinsic_actor_name'
@@ -1043,6 +782,9 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                       Initialize Summary Ops                        #
         # =================================================================== #        
+        # TODO: Make sure when restore pretrained models, summary will be writen
+        #       to new summary directory. (Maybe not necessary, because 
+        #       tensorboard can choose Relative Horizontal Axis.)
         self.summary_dir = os.path.join(self.save_dir,'summary',self.experiment_runs)
         if not os.path.isdir(self.summary_dir):
             os.makedirs(self.summary_dir)
@@ -1070,7 +812,8 @@ class LASAgent_Actor_Critic():
         # =================================================================== #
         #                    Initialize Tranable Variables                    #
         # =================================================================== #        
-        self.sess.run(tf.global_variables_initializer()) # Make sure to initialze tensors before use
+        # Note: Don't call self.sess.run(tf.global_variables_initializer()).
+        #       Otherwise, restoring pretrained models will fail.
         self.extrinsic_actor_model.update_target_network()
         self.extrinsic_critic_model.update_target_network()
 
@@ -1084,7 +827,7 @@ class LASAgent_Actor_Critic():
         
         Parameters
         ----------
-        observation: ndarray
+        observation: np.shape(observation) = (obs_dim,)
             observation
         reward: float
             reward of previous action
@@ -1093,52 +836,38 @@ class LASAgent_Actor_Critic():
             
         Returns
         -------
-        action: ndarray
+        action: np.shape(action) = (act_dim, )
             action generated by agent
         """
         self.observation_new = observation
         self.reward_new = reward
         self.done = done
-        #Tracer()()
-        
         # *********************************** # 
         #            Produce Action           #
         # *********************************** #
-        # If this is the first action, no one single complete experience to remember
+        # If this is the first action, no complete experience to remember.
         if self.first_experience:
-            action = self._act()
-            
+            action = self._act(self.observation_new)
             self.action_old = action
             self.observation_old = self.observation_new
             self.first_experience = False
             self.total_step_counter += 1
             return action
         # Action, added exploration noise
-        action = self._act()
+        action = self._act(self.observation_new)
         
         # *********************************** # 
         #    Write Summaries for Analysis     #
         # *********************************** #
         # 1. Save Step Summaries
-        summary_str_action_rewards = self.sess.run(self.summary_ops_action_reward,
-                                                   feed_dict = {self.summary_action: self.action_old,
-                                                                self.summary_reward: self.reward_new})
-        self.writer.add_summary(summary_str_action_rewards, self.total_step_counter)
+        # TODO: bugs are here
+#        summary_str_action_rewards = self.sess.run(self.summary_ops_action_reward,
+#                                                   feed_dict = {self.summary_action: self.action_old,
+#                                                                self.summary_reward: self.reward_new})
+#        self.writer.add_summary(summary_str_action_rewards, self.total_step_counter)
         # 2. Save Episode Summaries
         self.episode_rewards += self.reward_new
         if self.steps_counter == self.max_episode_len or done == True:
-#            # *********************************** # 
-#            #  Save Trained Models episodically   #
-#            # *********************************** #
-#            # Save trained models every xxx_episodes 
-#            if self.episode_counter % self.save_actor_critic_models_every_xxx_episodes == 0:
-#                self.extrinsic_actor_model.save_actor_network(self.episode_counter)
-#                self.extrinsic_critic_model.save_critic_network(self.episode_counter)
-#            # Save Environment Model to disk every "xxx_episodes"
-#            if (self.episode_counter % self.save_env_model_every_xxx_episodes) == 0:
-#                self.saved_env_model_counter += 1
-#                self.environment_model.save_environment_model_network(self.saved_env_model_counter)
-#                print('Saved {}th environment model.'.format(self.saved_env_model_counter))
 #            # Save data for visualize extrinsic state action value
 #            if self.episode_counter % self.embedding_extrinsic_state_action_value_episodic_frequency == 0:
 #                self.peoriodically_save_extrinsic_state_action_value_embedding(self.episode_counter)
@@ -1164,42 +893,28 @@ class LASAgent_Actor_Critic():
         #        Remember Experiences         #
         # *********************************** #
         # 1. Extrinsic Policy Replay Buffer
-        self.replay_buffer.add(np.reshape(self.observation_old, (self.extrinsic_actor_model.s_dim,)),
-                               np.reshape(self.action_old, (self.extrinsic_actor_model.a_dim,)),
-                               self.reward_new,
-                               self.done,
-                               np.reshape(self.observation_new, (self.extrinsic_actor_model.s_dim,)))
+        self.replay_buffer.add(self.observation_old, self.action_old, self.reward_new, self.done, self.observation_new)
         # 2. Environment Model Replay Buffer
         if np.random.rand(1) <= self.env_model_buffer_test_ratio:
-            self.env_model_test_buffer.add(np.reshape(self.observation_old, (self.extrinsic_actor_model.s_dim,)),
-                                           np.reshape(self.action_old, (self.extrinsic_actor_model.a_dim,)),
-                                           self.reward_new,
-                                           self.done,
-                                           np.reshape(self.observation_new, (self.extrinsic_actor_model.s_dim,)))
+            self.env_model_test_buffer.add(self.observation_old, self.action_old, self.reward_new, self.done, self.observation_new)
         else:
-            self.env_model_train_buffer.add(np.reshape(self.observation_old, (self.extrinsic_actor_model.s_dim,)),
-                                            np.reshape(self.action_old, (self.extrinsic_actor_model.a_dim,)),
-                                            self.reward_new,
-                                            self.done,
-                                            np.reshape(self.observation_new, (self.extrinsic_actor_model.s_dim,)))
-        # 3. Intrinsc Policy Replay Buffer
-        #    The Learning Progress plays the role of intrinsic reward
-        #    a. knowledge-based intirnsic motivation
-        # number of env models in knowledge_based_intrinsic_motivation_model >= sliding window size
-        if len(self.knowledge_based_intrinsic_motivation_model.env_models) == self.knowledge_based_intrinsic_reward_sliding_window_size:
-            self.k_based_intrinsic_r = self.knowledge_based_intrinsic_motivation_model.knowledge_based_intrinsic_reward(np.reshape(self.observation_old, (1,self.extrinsic_actor_model.s_dim)),
-                                                                                                                        np.reshape(self.action_old, (1,self.extrinsic_actor_model.a_dim)),
-                                                                                                                        np.reshape(self.reward_new, (1,1)),
-                                                                                                                        np.reshape(self.observation_new, (1,self.extrinsic_actor_model.s_dim)))
-            self.knowledge_based_intrinsic_policy_replay_buffer.add(np.reshape(self.observation_old, (self.extrinsic_actor_model.s_dim,)),
-                                                                np.reshape(self.action_old, (self.extrinsic_actor_model.a_dim,)),
-                                                                self.k_based_intrinsic_r,
-                                                                self.done,
-                                                                np.reshape(self.observation_new, (self.extrinsic_actor_model.s_dim,)))
-            # Summarize Knowledge-based Intrinsic Reward
-            sum_str = self.sess.run(self.summary_ops_kb_reward,
-                                    feed_dict={self.sum_kb_reward:self.k_based_intrinsic_r})
-            self.writer.add_summary(sum_str, self.total_step_counter)
+            self.env_model_train_buffer.add(self.observation_old, self.action_old,
+                                            self.reward_new, self.done,
+                                            self.observation_new)
+#        # 3. Intrinsc Policy Replay Buffer
+#        #    The Learning Progress plays the role of intrinsic reward
+#        #    a. knowledge-based intirnsic motivation
+#        self.k_based_intrinsic_r, _ = self.knowledge_based_intrinsic_motivation_model.knowledge_based_intrinsic_reward(self.observation_old,
+#                                                                                                                       self.action_old,
+#                                                                                                                       self.reward_new,
+#                                                                                                                       self.observation_new)
+#        self.knowledge_based_intrinsic_policy_replay_buffer.add(self.observation_old, self.action_old,
+#                                                                self.k_based_intrinsic_r, self.done,
+#                                                                self.observation_new)
+#        # Summarize Knowledge-based Intrinsic Reward
+#        sum_str = self.sess.run(self.summary_ops_kb_reward,
+#                                feed_dict={self.sum_kb_reward:self.k_based_intrinsic_r})
+#        self.writer.add_summary(sum_str, self.total_step_counter)
         #    b. competence-based intrinsic motivation
         
         
@@ -1207,7 +922,6 @@ class LASAgent_Actor_Critic():
         #             Train Models            #
         # *********************************** #
         self._train()
-        
         
         # *********************************** # 
         #       Reset Temporary Variables     #
@@ -1218,14 +932,21 @@ class LASAgent_Actor_Critic():
         self.total_step_counter += 1
         return action
     
-    def _act(self):
+    def _act(self, observation_new):
         """
         Produce action based on current observation.
+        Parameters
+        ----------
+        observation_new: np.shape(observation) = (obs_dim,)
+            
+        Returns
+        -------
+        action: np.shape(action) = (act_dim, )
         """
         # Epsilon-Greedy
         if self.exploration_epsilon_greedy_type != 'none':
             if np.random.rand(1) <= self.epsilon:
-                action = np.reshape(self.action_space.sample(), [1,self.action_space.shape[0]])
+                action = self.action_space.sample()
                 if self.epsilon > self.epsilon_min:
                     self.epsilon *= self.epsilon_decay
                 if self.total_step_counter % 2000 == 0:
@@ -1233,11 +954,11 @@ class LASAgent_Actor_Critic():
                 return action
         # Action Noise
         if self.exploration_action_noise_type != 'none':
-            action = self.extrinsic_actor_model.predict(np.reshape(self.observation_new, (1, self.extrinsic_actor_model.s_dim))) + self.actor_noise() #The noise is too huge.
+            action = self.extrinsic_actor_model.predict(np.reshape(observation_new, [1, self.observation_space.shape[0]])) + self.actor_noise() #The noise is too huge.
         else:
-            action = self.extrinsic_actor_model.predict(np.reshape(self.observation_new, (1, self.extrinsic_actor_model.s_dim)))
+            action = self.extrinsic_actor_model.predict(np.reshape(observation_new, [1, self.observation_space.shape[0]]))
         
-        return action
+        return action[0]
     
     def _train(self):
         """
@@ -1283,39 +1004,44 @@ class LASAgent_Actor_Critic():
             # Update target networks
             self.extrinsic_actor_model.update_target_network()
             self.extrinsic_critic_model.update_target_network()
-#        # ************************************************** # 
-#        #               Train Environment Model              #
-#        # ************************************************** #
-#        if self.env_model_train_buffer.size() > self.env_model_minibatch_size:
-#            # Train env model every step
-#            s_batch, a_batch, r_batch, t_batch, s2_batch = self.env_model_train_buffer.sample_batch(int(self.env_model_minibatch_size))
-#            self.environment_model.train(s_batch,
-#                                         a_batch,
-#                                         s2_batch,
-#                                         np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
-#            # Every "update_newest_env_model_every_xxx_steps" steps, replace the
-#            # oldeest env model in knowledge-based intrinsic motiavtion compoent
-#            # with the newest env model.
-#            if (self.total_step_counter % self.update_newest_env_model_every_xxx_steps) == 0: 
-#                newest_env_weights = self.environment_model.get_environment_model_weights()
-#                self.knowledge_based_intrinsic_motivation_model.set_weights_of_oldest_env_model_with_newest_env_model(newest_env_weights)
-#                
-#            # Evaluate on test buffer every step
-#            if self.env_model_test_buffer.size() > self.env_model_test_samples_size:
-#                s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test =\
-#                        self.env_model_test_buffer.sample_batch(int(self.env_model_test_samples_size))
-#                env_loss = self.environment_model.evaluate(s_batch_test,
-#                                                           a_batch_test,
-#                                                           s2_batch_test,
-#                                                           np.reshape(r_batch_test, (int(self.env_model_test_samples_size), 1)))
-#                # Summaries of Training Environment Model
-#                summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
-#                                                     feed_dict = {self.summary_env_loss: env_loss})
-#                self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
+        # ************************************************** # 
+        #               Train Environment Model              #
+        # ************************************************** #
+        if self.env_model_train_buffer.size() > self.env_model_minibatch_size:
+            # Train env model every step
+            s_batch, a_batch, r_batch, t_batch, s2_batch = self.env_model_train_buffer.sample_batch(int(self.env_model_minibatch_size))
+            self.environment_model.train_env_model(s_batch,a_batch,
+                                                   s2_batch,
+                                                   np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
+            # Every "update_newest_env_model_every_xxx_steps" steps, replace the
+            # oldeest env model in knowledge-based intrinsic motiavtion compoent
+            # with the newest env model.
+            if (self.total_step_counter % self.update_newest_env_model_every_xxx_steps) == 0:
+                self.knowledge_based_intrinsic_motivation_model.update_env_model_window(self.environment_model.get_env_model_weights())
+                
+            # Evaluate on test buffer every step
+            if self.env_model_test_buffer.size() > self.env_model_test_samples_size:
+                s_batch_test, a_batch_test, r_batch_test, t_batch_test, s2_batch_test =\
+                        self.env_model_test_buffer.sample_batch(int(self.env_model_test_samples_size))
+                env_obs_transition_model_loss, _ = self.environment_model.evaluate_env_model(s_batch_test, a_batch_test,
+                                                                                          s2_batch_test, 
+                                                                                          np.reshape(r_batch_test, (int(self.env_model_test_samples_size), 1)))
+                # Summaries of Training Environment Model
+                summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
+                                                     feed_dict = {self.summary_env_loss: env_obs_transition_model_loss})
+                self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
         # ********************************************************************* # 
         #  Train Knowledge-based Intrinsically Motivated Actor-Critic Model     #
         # ********************************************************************* #
-        
+
+    def _save_learned_model(self, version_number):
+        # Save extrinsically motivated actor-critic model 
+        self.extrinsic_actor_model.save_actor_network(version_number)
+        self.extrinsic_critic_model.save_critic_network(version_number)
+        logging.info('Save extrinsic_actor_model and extrinsic_critic_model: done.')
+        # Save Environment Model
+        self.environment_model.save_env_model(version_number)
+        logging.info('Save environment_model: done.')
 # =================================================================== #
 #                 Intrinsic Motivation Components                     #
 # =================================================================== #
@@ -1426,7 +1152,7 @@ class LASAgent_Actor_Critic():
         reward: tf.placeholder
             placeholder for feeding reward
         """
-        action = tf.placeholder(tf.float32, shape=[1,self.action_space.shape[0]])
+        action = tf.placeholder(tf.float32, shape=self.action_space.shape)
         reward = tf.placeholder(tf.float32)
         
         action_sum = tf.summary.histogram("action", action)
