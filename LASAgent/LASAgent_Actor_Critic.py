@@ -313,7 +313,7 @@ class CriticNetwork(object):
                                                       + tf.multiply(self.target_network_params[i], 1. - self.tau))
                     for i in range(len(self.target_network_params))]
     
-            # Network target (y_i)
+            # Network target
             self.target_q_value = tf.placeholder(tf.float32, [None, 1])
     
             # Define loss and optimization Op
@@ -793,13 +793,20 @@ class LASAgent_Actor_Critic():
         self.writer = tf.summary.FileWriter(self.summary_dir, self.sess.graph)
         
         # Summarize Extrinsically Motivated Actor-Critic Training
+        #   1. accumulated reward in one episode
+        # TODO: should summarize (obs, act, r, obs_new)??
+        #   2. observation, action, reward and  
+        #   3. loss of critic model
         self.summary_ops_accu_rewards, self.summary_vars_accu_rewards = self._init_summarize_accumulated_rewards()
         self.summary_ops_action_reward, self.summary_action, self.summary_reward = self._init_summarize_action_and_reward()
         self.summary_ops_critic_loss, self.summary_critic_loss = self._init_summarize_actor_critic()
+        
         # Summarize Knowledge-based Intrinsic Motivation Component
         self.summary_ops_kb_reward, self.sum_kb_reward = self._init_summarize_knowledge_based_intrinsic_reward()
+        
         # Summarize Environment Model Training
         self.summary_ops_env_loss, self.summary_env_loss = self._init_summarize_environment_model()
+        
         # Summarize Experiment Setting
         self.summary_ops_experiment_setting, self.summary_experiment_setting = self._init_summarize_experiment_setting()
         summary_str_experiment_setting = self.sess.run(self.summary_ops_experiment_setting,
@@ -853,21 +860,66 @@ class LASAgent_Actor_Critic():
             self.first_experience = False
             self.total_step_counter += 1
             return action
-        # Action, added exploration noise
+        
+        # Choose an action
         action = self._act(self.observation_new)
         
-        # *********************************** # 
-        #    Write Summaries for Analysis     #
-        # *********************************** #
+        # Add summary date
+        self._summary_meta_data()
+        
+        # Memorize experiencs
+        self._memorize_experience()
+        
+        # Train Models
+        self._train()
+        
+        # Reset Temporary Variables
+        # Note: Before return, set observation and action as old.
+        self.observation_old = self.observation_new
+        self.action_old = action
+        self.total_step_counter += 1
+        self.writer.flush()
+        
+        return action
+    
+    def _memorize_experience(self):
+        """Remember Experiences"""
+        # 1. Extrinsic Policy Replay Buffer
+        self.replay_buffer.add(self.observation_old, self.action_old, self.reward_new, self.done, self.observation_new)
+        
+        # 2. Environment Model Replay Buffer
+        if np.random.rand(1) <= self.env_model_buffer_test_ratio:
+            self.env_model_test_buffer.add(self.observation_old, self.action_old, self.reward_new, self.done, self.observation_new)
+        else:
+            self.env_model_train_buffer.add(self.observation_old, self.action_old,
+                                            self.reward_new, self.done,
+                                            self.observation_new)
+        # 3. Intrinsc Policy Replay Buffer
+        #    The Learning Progress plays the role of intrinsic reward
+        #    a. knowledge-based intirnsic motivation
+        self.k_based_intrinsic_r, _ = self.knowledge_based_intrinsic_motivation_model.knowledge_based_intrinsic_reward(self.observation_old,
+                                                                                                                       self.action_old,
+                                                                                                                       self.reward_new,
+                                                                                                                       self.observation_new)
+        self.knowledge_based_intrinsic_policy_replay_buffer.add(self.observation_old, self.action_old,
+                                                                self.k_based_intrinsic_r, self.done,
+                                                                self.observation_new)
+        # Summarize Knowledge-based Intrinsic Reward
+        self.writer.add_summary(self.sess.run(self.summary_ops_kb_reward,
+                                              feed_dict={self.sum_kb_reward:self.k_based_intrinsic_r}), 
+                                self.total_step_counter)
+        #    TODO: b. competence-based intrinsic motivation
+    
+    def _summary_meta_data(self):
+        """Write Summaries for Analysis"""
         # 1. Save Step Summaries
-        # TODO: bugs are here
-#        summary_str_action_rewards = self.sess.run(self.summary_ops_action_reward,
-#                                                   feed_dict = {self.summary_action: self.action_old,
-#                                                                self.summary_reward: self.reward_new})
-#        self.writer.add_summary(summary_str_action_rewards, self.total_step_counter)
+        self.writer.add_summary(self.sess.run(self.summary_ops_action_reward,
+                                                   feed_dict = {self.summary_action: self.action_old,
+                                                                self.summary_reward: self.reward_new}), 
+                                self.total_step_counter)
         # 2. Save Episode Summaries
         self.episode_rewards += self.reward_new
-        if self.steps_counter == self.max_episode_len or done == True:
+        if self.steps_counter == self.max_episode_len or self.done == True:
 #            # Save data for visualize extrinsic state action value
 #            if self.episode_counter % self.embedding_extrinsic_state_action_value_episodic_frequency == 0:
 #                self.peoriodically_save_extrinsic_state_action_value_embedding(self.episode_counter)
@@ -876,61 +928,15 @@ class LASAgent_Actor_Critic():
 #                self.peoriodically_save_extrinsic_action_value_given_a_state(self.observation_new,
 #                                                                         self.episode_counter)
             # Episodic Summary
-            summary_str = self.sess.run(self.summary_ops_accu_rewards,
-                                        feed_dict = {self.summary_vars_accu_rewards: self.episode_rewards})
-            self.writer.add_summary(summary_str,self.episode_counter)
-            self.writer.flush()
-            
+            self.writer.add_summary(self.sess.run(self.summary_ops_accu_rewards,
+                                                  feed_dict = {self.summary_vars_accu_rewards: self.episode_rewards}),
+                                    self.episode_counter)
             # Reset Summary Data
             self.steps_counter = 1
             self.episode_rewards = 0
             self.episode_counter += 1
-            
         else:
             self.steps_counter += 1
-        
-        # *********************************** # 
-        #        Remember Experiences         #
-        # *********************************** #
-        # 1. Extrinsic Policy Replay Buffer
-        self.replay_buffer.add(self.observation_old, self.action_old, self.reward_new, self.done, self.observation_new)
-        # 2. Environment Model Replay Buffer
-        if np.random.rand(1) <= self.env_model_buffer_test_ratio:
-            self.env_model_test_buffer.add(self.observation_old, self.action_old, self.reward_new, self.done, self.observation_new)
-        else:
-            self.env_model_train_buffer.add(self.observation_old, self.action_old,
-                                            self.reward_new, self.done,
-                                            self.observation_new)
-#        # 3. Intrinsc Policy Replay Buffer
-#        #    The Learning Progress plays the role of intrinsic reward
-#        #    a. knowledge-based intirnsic motivation
-#        self.k_based_intrinsic_r, _ = self.knowledge_based_intrinsic_motivation_model.knowledge_based_intrinsic_reward(self.observation_old,
-#                                                                                                                       self.action_old,
-#                                                                                                                       self.reward_new,
-#                                                                                                                       self.observation_new)
-#        self.knowledge_based_intrinsic_policy_replay_buffer.add(self.observation_old, self.action_old,
-#                                                                self.k_based_intrinsic_r, self.done,
-#                                                                self.observation_new)
-#        # Summarize Knowledge-based Intrinsic Reward
-#        sum_str = self.sess.run(self.summary_ops_kb_reward,
-#                                feed_dict={self.sum_kb_reward:self.k_based_intrinsic_r})
-#        self.writer.add_summary(sum_str, self.total_step_counter)
-        #    b. competence-based intrinsic motivation
-        
-        
-        # *********************************** # 
-        #             Train Models            #
-        # *********************************** #
-        self._train()
-        
-        # *********************************** # 
-        #       Reset Temporary Variables     #
-        # *********************************** #
-        # Before return, set observation and action as old.
-        self.observation_old = self.observation_new
-        self.action_old = action
-        self.total_step_counter += 1
-        return action
     
     def _act(self, observation_new):
         """
@@ -961,14 +967,10 @@ class LASAgent_Actor_Critic():
         return action[0]
     
     def _train(self):
-        """
-        Train Actor-Critic Model
-        """
-        # Keep adding experience to the memory until
-        # there are at least minibatch size samples
-        # ************************************************** # 
-        #  Train Extrinsically Motivated Actor-Critic Model  #
-        # ************************************************** #
+        """ Train Actor-Critic Model """
+        # ******************************************************************* # 
+        #            Train Extrinsically Motivated Actor-Critic Model         #
+        # ******************************************************************* #
         if self.replay_buffer.size() > self.minibatch_size:
             # Random Samples
             s_batch, a_batch, r_batch, t_batch, s2_batch = \
@@ -979,24 +981,23 @@ class LASAgent_Actor_Critic():
             target_q = self.extrinsic_critic_model.predict_target(
                 s2_batch, self.extrinsic_actor_model.predict_target(s2_batch))
 
-            y_i = []
+            target_q_value = []
             for k in range(int(self.minibatch_size)):
                 if t_batch[k]:
-                    y_i.append(r_batch[k])
+                    target_q_value.append(r_batch[k])
                 else:
-                    y_i.append(r_batch[k] + self.extrinsic_critic_model.gamma * target_q[k])
+                    target_q_value.append(r_batch[k] + self.extrinsic_critic_model.gamma * target_q[k])
 
             # Update the critic given the targets
-            critic_loss, predicted_q_value, _ = self.extrinsic_critic_model.train(\
-                                                                                  s_batch,
-                                                                                  a_batch,
-                                                                                  np.reshape(y_i, (int(self.minibatch_size), 1)))
+            critic_loss, _, _ = self.extrinsic_critic_model.train(s_batch,a_batch,
+                                                                  np.reshape(target_q_value, (int(self.minibatch_size), 1)))
             # Summarize critic training loss
-            summary_critic_loss_str = self.sess.run(self.summary_ops_critic_loss,
-                                                    feed_dict = {self.summary_critic_loss: critic_loss})
-            self.writer.add_summary(summary_critic_loss_str, self.total_step_counter)
+            self.writer.add_summary(self.sess.run(self.summary_ops_critic_loss,
+                                                  feed_dict = {self.summary_critic_loss: critic_loss}), 
+                                    self.total_step_counter)
             
-            # Update the actor policy using the sampled gradient
+            # Optimize the actor using the gradient of Q-value with respect 
+            # to action in sampled experiences batch
             a_outs = self.extrinsic_actor_model.predict(s_batch)
             grads = self.extrinsic_critic_model.action_gradients(s_batch, a_outs)
             self.extrinsic_actor_model.train(s_batch, grads[0])
@@ -1004,18 +1005,17 @@ class LASAgent_Actor_Critic():
             # Update target networks
             self.extrinsic_actor_model.update_target_network()
             self.extrinsic_critic_model.update_target_network()
-        # ************************************************** # 
-        #               Train Environment Model              #
-        # ************************************************** #
+        # ******************************************************************* # 
+        #                          Train Environment Model                    #
+        # ******************************************************************* #
         if self.env_model_train_buffer.size() > self.env_model_minibatch_size:
             # Train env model every step
             s_batch, a_batch, r_batch, t_batch, s2_batch = self.env_model_train_buffer.sample_batch(int(self.env_model_minibatch_size))
             self.environment_model.train_env_model(s_batch,a_batch,
                                                    s2_batch,
                                                    np.reshape(r_batch, (int(self.env_model_minibatch_size), 1)))
-            # Every "update_newest_env_model_every_xxx_steps" steps, replace the
-            # oldeest env model in knowledge-based intrinsic motiavtion compoent
-            # with the newest env model.
+            # Replace the oldeest env model in knowledge-based intrinsic motiavtion compoent
+            # with the newest env model, every "update_newest_env_model_every_xxx_steps" steps.
             if (self.total_step_counter % self.update_newest_env_model_every_xxx_steps) == 0:
                 self.knowledge_based_intrinsic_motivation_model.update_env_model_window(self.environment_model.get_env_model_weights())
                 
@@ -1027,9 +1027,9 @@ class LASAgent_Actor_Critic():
                                                                                           s2_batch_test, 
                                                                                           np.reshape(r_batch_test, (int(self.env_model_test_samples_size), 1)))
                 # Summaries of Training Environment Model
-                summary_env_loss_str = self.sess.run(self.summary_ops_env_loss,
-                                                     feed_dict = {self.summary_env_loss: env_obs_transition_model_loss})
-                self.writer.add_summary(summary_env_loss_str, self.total_step_counter)
+                self.writer.add_summary(self.sess.run(self.summary_ops_env_loss,
+                                                      feed_dict = {self.summary_env_loss: env_obs_transition_model_loss}),
+                                        self.total_step_counter)
         # ********************************************************************* # 
         #  Train Knowledge-based Intrinsically Motivated Actor-Critic Model     #
         # ********************************************************************* #
@@ -1057,7 +1057,7 @@ class LASAgent_Actor_Critic():
 
 
 # =================================================================== #
-#                    Initialization Helper Functions                  #
+#               Initialization Exploratory Strageties                 #
 # =================================================================== # 
     def _init_epsilon_greedy(self, exploration_epsilon_greedy_type):
         """
