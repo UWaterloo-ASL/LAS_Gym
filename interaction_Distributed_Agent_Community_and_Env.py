@@ -5,9 +5,7 @@ Created on Wed Aug  8 21:15:57 2018
 
 @author: jack.lingheng.meng
 """
-
-
-
+import logging
 import tensorflow as tf
 import numpy as np
 import time
@@ -17,6 +15,15 @@ from datetime import datetime
 from Environment.LASEnv import LASEnv
 from LASAgent.InternalEnvOfAgent import InternalEnvOfAgent
 from LASAgent.InternalEnvOfCommunity import InternalEnvOfCommunity
+
+# Logging
+experiment_results_dir = os.path.join(os.path.abspath('..'), 'ROM_Experiment_results')
+if not os.path.exists(experiment_results_dir):
+    os.makedirs(experiment_results_dir)
+logging.basicConfig(filename = os.path.join(experiment_results_dir,'ROM_experiment_'+datetime.now().strftime("%Y%m%d_%H%M%S")+'.log'), 
+                    level = logging.DEBUG,
+                    format='%(asctime)s:%(levelname)s: %(message)s')
+
 ###############################################################################
 #                          Only Used For Summary                              #
 ###############################################################################
