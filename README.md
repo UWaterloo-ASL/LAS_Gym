@@ -104,4 +104,3 @@ When interacting with real or virtual environment, all data will be saved in dir
 ## Dependency
    1. [OpenAi gym](https://gym.openai.com/docs/#installation) package: `pip install gym`
    2. [Tensorflow](https://www.tensorflow.org/install/)
-   3. [tflearn](http://tflearn.org/installation/)
