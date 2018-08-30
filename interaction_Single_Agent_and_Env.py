@@ -5,12 +5,7 @@ Created on Wed Aug  8 19:35:51 2018
 
 @author: jack.lingheng.meng
 """
-
-
-
 import tensorflow as tf
-import numpy as np
-import time
 from datetime import datetime
 import os
 
