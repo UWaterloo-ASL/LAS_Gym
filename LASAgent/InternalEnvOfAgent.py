@@ -101,6 +101,7 @@ class InternalEnvOfAgent(object):
         self.action_space_name = action_space_name
         
         # Model saving directory
+        self.model_version_number = 0
         self.agent_model_save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results',self.agent_name)
         
         if load_pretrained_agent_flag == False:
@@ -113,8 +114,8 @@ class InternalEnvOfAgent(object):
                                                minibatch_size = 64,
                                                max_episodes = 50000, max_episode_len = 1000,
                                                # Exploration Strategies
-                                               exploration_action_noise_type = 'ou_0.2',
-                                               exploration_epsilon_greedy_type = 'epsilon-greedy-max_1_min_0.05_decay_0.999',
+                                               exploration_action_noise_type = 'none', #'ou_0.2',
+                                               exploration_epsilon_greedy_type = 'epsilon-greedy-max_1_min_0.05_decay_0.9',#'none',#
                                                # Save Summaries
                                                save_dir = self.agent_model_save_dir,
                                                experiment_runs = datetime.now().strftime("%Y%m%d-%H%M%S"),
@@ -168,7 +169,6 @@ class InternalEnvOfAgent(object):
             raise Exception('Please choose right interaction mode!')
         logging.debug('Reward of {} is: {}'.format(self.agent_name, reward))
         
-        done = False
         action = self.agent.perceive_and_act(observation_for_x_order_MDP, reward, done)
         # Logging interaction data
         self._logging_interaction_data(observation_for_x_order_MDP,
@@ -288,14 +288,15 @@ class InternalEnvOfAgent(object):
                                            minibatch_size = 64,
                                            max_episodes = 50000, max_episode_len = 1000,
                                            # Exploration Strategies
-                                           exploration_action_noise_type = 'ou_0.2',
-                                           exploration_epsilon_greedy_type = 'none',
+                                           exploration_action_noise_type = 'none',
+                                           exploration_epsilon_greedy_type = 'epsilon-greedy-max_0.05_min_0.05_decay_0.9',
                                            # Save Summaries
                                            save_dir = self.agent_model_save_dir,
                                            experiment_runs = directory_of_most_recent_models,
                                            # Save and Restore Actor-Critic Model
                                            restore_actor_model_flag = True,
-                                           restore_critic_model_flag = True)
+                                           restore_critic_model_flag = True,
+                                           restore_env_model_flag = True)
         
         
     def stop(self):
@@ -310,16 +311,20 @@ class InternalEnvOfAgent(object):
         recently trained agent, although there is a periodic saving which cannot
         ensure saving the most recent trained agent.)
         """
+        print('Stoping and Saving ...')
+        # TODO: the version number is better to be an unique time.
+        self.model_version_number += 1
         # Save Actor-Critic model
-        self.agent.extrinsic_actor_model.save_actor_network(self.agent.episode_counter)
-        self.agent.extrinsic_critic_model.save_critic_network(self.agent.episode_counter)
+        self.agent.extrinsic_actor_model.save_actor_network(self.model_version_number)
+        self.agent.extrinsic_critic_model.save_critic_network(self.model_version_number)
         # Save Environment Model
-        self.agent.saved_env_model_counter += 1
-        self.agent.environment_model.save_environment_model_network(self.agent.saved_env_model_counter)
+        
+        self.agent.environment_model.save_env_model(self.model_version_number)
         # Save Replay Buffer ?? (not really necessary)
         
         # Release TensorFlow.Session resources
         self.tf_session.close()
+        print('Saved model.')
         
     def feed_observation(self, observation, external_reward = 0, done = False):
         """
