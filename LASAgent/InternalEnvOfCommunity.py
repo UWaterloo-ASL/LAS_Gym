@@ -10,8 +10,6 @@ import os
 from datetime import datetime
 import numpy as np
 import csv
-from collections import deque
-import tensorflow as tf
 from gym import spaces
 from LASAgent.InternalEnvOfAgent import InternalEnvOfAgent
 from LASAgent.RandomLASAgent import RandomLASAgent
@@ -20,66 +18,59 @@ class InternalEnvOfCommunity(object):
     """
     This class provides an internal environment for a community of agents to 
     interact with external environment.
+    Note:
+        InternalEnvOfCommunity is only used to partition observation and action
+        space.
     """
     def __init__(self, community_name, community_size,
                  observation_space, action_space, 
                  observation_space_name, action_space_name,
-                 x_order_MDP = 1,
-                 x_order_MDP_observation_type = 'concatenate_observation',
+                 x_order_sensor_reading = 20,
+                 x_order_sensor_reading_sliding_window = 5,
+                 x_order_sensor_reading_preprocess_type = 'concatenate_sensory_readings',
                  occupancy_reward_type = 'IR_distance',
                  interaction_mode = 'real_interaction',
                  load_pretrained_agent_flag = False):
         """
-        Initialize internal environment for an agent
-        Parameters
-        ----------
-        community_name: string
-            the name of the community this internal environment serves for
+        Initialize internal environment for an agent community in where multiple
+        agents live in.
         
-        community_size: int
-            the # of agents living in the community 
+        Args:
+            community_name (string): the name of the community
+            community_size (int): the # of agents living in the community 
+            observation_space (gym.spaces.Box): the sensory space of the agent 
+                community
+            action_space (gym.spaces.Box): the actuator space of the whole agent
+                community
+            observation_space_name (list of string): each entry corresponds to
+                the name of sensor in observation space
+            action_space_name (list of string): each entry corresponds to the 
+                name of actuator in action space
         
-        observation_space: gym.spaces.Box datatype
-            firt-order observation space of "agent_name", if we use x_order_MDP
-            the actual_observation_space should be:
-                (observation_space * x_order_MDP)
-        
-        action_space: gym.spaces.Box datatype
-            this is actually actuator space
-        
-        observation_space_name: list of string
-            gives the name of each entry in observation space
-        
-        action_space_name: list of strings
-            gives the name of each entry in action space
-        
-        x_order_MDP: int default=1
-            define the order of MDP. If x_order_MDP != 1, we combine multiple
-            observations as one single observation.
-        
-        x_order_MDP_observation_type: default = 'concatenate_observation'
-            ways to generate observation for x_order_MDP:
-                1. 'concatenate_observation'
-                2. 'average_observation'
-        
-        occupancy_reward_type: string default = 'IR_distance'
-            1. 'IR_distance': based on IR distance from detected object to IR
-            2. 'IR_state_ratio': the ratio of # of detected objects and all # 
-                                 of IR sensors 
-            3. 'IR_state_number': the number of detected objects
-        
-        interaction_mode: string default = 'real_interaction'
-            indicate interaction mode: 
-                1) 'real_interaction': interact with real robot
-                2) 'virtual_interaction': interact with virtual environment
-        
-        load_pretrained_agent_flag: boolean default = False
-            if == True: load pretrained agent, otherwise randomly initialize.
+        Kwargs:
+            x_order_sensor_reading (int): the # of sensory readings after which
+                an action will be produced
+            x_order_sensor_reading_sliding_window (int): size of sliding window
+                for preprocessing sensory readings
+            x_order_sensor_reading_preprocess_type (string): the way to combine
+                sensory readings to form an observation:
+                    1. concatenate_sensory_readings
+                    2. average_pool_sensory_readings
+                    3. max_pool_sensory_readings
+            occupancy_reward_type (string): the way to calculate reward:
+                    1. 'IR_distance': based on IR distance from detected object to IR
+                    2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                            of IR sensors 
+                    3. 'IR_state_number': the number of detected objects
+            interaction_mode (string): indicates interaction mode: 
+                    1. 'real_interaction': interact with real robot
+                    2. 'virtual_interaction': interact with virtual environment
+            load_pretrained_agent_flag (bool): whether load pretrained agent
+                    if True: load pretrained agent. Otherwise randomly initialize.
         """
-        
-        self.x_order_MDP = x_order_MDP
-        self.x_order_MDP_observation_sequence = deque(maxlen = self.x_order_MDP)
-        self.x_order_MDP_observation_type = x_order_MDP_observation_type
+        self.x_order_sensor_reading = x_order_sensor_reading
+        self.x_order_sensor_reading_sliding_window = x_order_sensor_reading_sliding_window
+        self.x_order_sensor_reading_preprocess_type = x_order_sensor_reading_preprocess_type
         
         self.occupancy_reward_type = occupancy_reward_type
         self.interaction_mode = interaction_mode
@@ -141,13 +132,16 @@ class InternalEnvOfCommunity(object):
                                                              self.action_space,
                                                              self.action_space_name,
                                                              self.community_config_obs,
-                                                             self.community_config_act,
-                                                             self.x_order_MDP,
-                                                             self.x_order_MDP_observation_type)
+                                                             self.community_config_act)
         # Creat a community of agents
         #   1. 'random_agent'
         #   2. 'actor_critic_agent'
         self.agent_community = self._create_agent_community(self.agent_community_partition_config,
+                                                            self.x_order_sensor_reading,
+                                                            self.x_order_sensor_reading_sliding_window,
+                                                            self.x_order_sensor_reading_preprocess_type,
+                                                            self.occupancy_reward_type,
+                                                            self.interaction_mode,
                                                             self.load_pretrained_agent_flag,
                                                             agent_config = 'actor_critic_agent')  
         ####################################################################
@@ -162,61 +156,18 @@ class InternalEnvOfCommunity(object):
         #       data saving directory. Here is a saving of interaction from #
         #       the perspective of Agent-Community.
         #####################################################################
-        self.interaction_data_dir = os.path.join(os.path.abspath('..'),
-                                                      'ROM_Experiment_results',
-                                                      self.community_name,
-                                                      'interaction_data')
+        self.interaction_data_dir = os.path.join(os.path.abspath('..'), 'ROM_Experiment_results',
+                                                 self.community_name, 'interaction_data')
         if not os.path.exists(self.interaction_data_dir):
             os.makedirs(self.interaction_data_dir)
         self.interaction_data_file = os.path.join(self.interaction_data_dir,
                                                   datetime.now().strftime("%Y%m%d-%H%M%S")+'.csv')
         with open(self.interaction_data_file, 'a') as csv_datafile:
-            fieldnames = ['Time', 'Observation_queue', 'Observation_partition',
-                          'Reward_partition', 
-                          'Action_partition', 'Action']
+            fieldnames = ['time', 'observation', 'observation_partition', 'reward_partition',
+                          'action_partition', 'take_action_flag_partition',
+                          'take_action_flag', 'action']
             writer = csv.DictWriter(csv_datafile, fieldnames = fieldnames)
             writer.writeheader()
-        
-        
-    def interact(self, observation_partition, reward_partition = 0, done_partition = False):
-        """
-        The interface function interacts with external environment.
-        
-        Parameters
-        ----------
-        observation_partition: dict
-            a dist of observation where each value corresponds to the observation
-            of one agent:
-                observation_partition = {'agent_name': observation}
-        
-        reward_partition: dict
-            a dict of reward:
-                reward_partition = {'agent_name': reward}
-        
-        done_partition: dict
-            a dict of done:
-                reward_partition = {'agent_name': done}
-            
-        Returns
-        -------
-        action: ndarray
-            the combined action chosen by intelligent agent
-        """
-        # Collect actions from each agent
-        action_partition = self._collect_action(observation_partition,
-                                                reward_partition,
-                                                self.agent_community)
-        # Combine actions from agents
-        action = self._combine_action(action_partition, self.agent_community_partition_config)
-        
-        self.total_step_counter += 1
-        # Logging interaction data
-        self._logging_interaction_data(self.x_order_MDP_observation_sequence.copy(),
-                                       observation_partition,
-                                       reward_partition,
-                                       action_partition,
-                                       action)
-        return action
     
     def _create_community_partition_from_config(self, community_name,
                                                 community_size, 
@@ -225,52 +176,30 @@ class InternalEnvOfCommunity(object):
                                                 action_space,
                                                 action_space_name,
                                                 community_config_obs,
-                                                community_config_act,
-                                                x_order_MDP,
-                                                x_order_MDP_observation_type):
+                                                community_config_act):
         """
         Partition a community consisting of #community_size agents according to
-        configuration.
+        configurations of sensors and actuators.
         
-        Parameters
-        ----------
-        community_name: string
-            the name of the community this internal environment serves for
+        Args:
+            community_name (string): the name of the agent community
+            community_size (int): the # of agents living in the community 
+            observation_space (gym.spaces.Box): the sensory space of the agent 
+                community
+            action_space (gym.spaces.Box): the actuator space of the whole agent
+                community
+            observation_space_name (list of string): each entry corresponds to
+                the name of sensor in observation space
+            action_space_name (list of string): each entry corresponds to the 
+                name of actuator in action space
+            community_config_obs (dict): give the information on how to configurate 
+                sensors for the community
+            community_config_act (dict): give the information on how to configurate 
+                actuators for the community
         
-        community_size: int
-            size of community i.e. # of agents in the community
-        
-        observation_space: gym.spaces.Box datatype
-            observation space of "agent_name"
-        
-        observation_space_name: list of string
-            gives the name of each entry in observation space
-        
-        action_space: gym.spaces.Box datatype
-            action space of "agent_name"
-        
-        action_space_name: list of strings
-            gives the name of each entry in action space
-        
-        community_config_obs: 
-            give the information on how to configurate observation for the community
-        
-        community_config_act:
-            give the information on how to configurate action for the community
-        
-        x_order_MDP: int 
-            define the order of MDP. If x_order_MDP != 1, we combine multiple
-            observations as one single observation.
-        
-        x_order_MDP_observation_type: string
-            ways to generate observation for x_order_MDP:
-                1. 'concatenate_observation'
-                2. 'average_observation'
-        
-        Returns
-        -------
-        agent_community_partition: dictionary
-            a dictionary of community partition configuration in where:
+        Returns:
+            agent_community_partition (dict): a dictionary of community partition 
+                configuration in where:
                 agent_community_partition = {'agent_name_1': {'obs_mask':agent_obs_mask,
                                                               'act_mask':agent_act_mask,
                                                               'observation_space':observation_space,
@@ -321,46 +250,55 @@ class InternalEnvOfCommunity(object):
                     act_high[act_temp_i] = action_space.high[act_i]
                     act_name.append(action_space_name[act_i])
                     act_temp_i += 1
-            # Generate observation_space accroding to:
-            #       x_order_MDP and x_order_MDP_observation_type
-            if x_order_MDP_observation_type == 'concatenate_observation':
-                obs_low = np.tile(obs_low, x_order_MDP)
-                obs_high = np.tile(obs_high, x_order_MDP)
-                agent_community_partition[agent_name]['observation_space'] = spaces.Box(low=obs_low,high=obs_high, dtype = np.float32)
-                agent_community_partition[agent_name]['observation_space_name'] = np.tile(obs_name, x_order_MDP)
-            elif x_order_MDP_observation_type == 'average_observation':
-                agent_community_partition[agent_name]['observation_space'] = spaces.Box(low=obs_low,high=obs_high, dtype = np.float32)
-                agent_community_partition[agent_name]['observation_space_name'] = obs_name
-            else:
-                raise Exception()
+            # Generate observation_space accroding to partition configuration
+            agent_community_partition[agent_name]['observation_space'] = spaces.Box(low=obs_low,high=obs_high, dtype = np.float32)
+            agent_community_partition[agent_name]['observation_space_name'] = obs_name
             agent_community_partition[agent_name]['action_space'] = spaces.Box(low=act_low, high=act_high, dtype = np.float32)
             agent_community_partition[agent_name]['action_space_name'] = act_name
         return agent_community_partition
         
     def _create_agent_community(self, agent_community_partition_config,
-                                load_pretrained_agent_flag,
+                                x_order_sensor_reading = 20,
+                                x_order_sensor_reading_sliding_window = 5,
+                                x_order_sensor_reading_preprocess_type = 'concatenate_sensory_readings',
+                                occupancy_reward_type = 'IR_distance',
+                                interaction_mode = 'real_interaction',
+                                load_pretrained_agent_flag = False,
                                 agent_config = 'random_agent'):
         """
         Create agent community according to community partition configuration
         and agent configuration.
         
-        Parameters
-        ----------
-        agent_community_partition_config: dict of dict
-            contains information on how to partition observation and action space
+        Args:
+            agent_community_partition_config (dict of dict): contains information 
+                on how to partition observation and action space
         
-        load_pretrained_agent_flag: boolean default = False
-            if == True: load pretrained agent, otherwise randomly initialize.
+        Kwargs:
+            x_order_sensor_reading (int): the # of sensory readings after which
+                an action will be produced
+            x_order_sensor_reading_sliding_window (int): size of sliding window
+                for preprocessing sensory readings
+            x_order_sensor_reading_preprocess_type (string): the way to combine
+                sensory readings to form an observation:
+                    1. concatenate_sensory_readings
+                    2. average_pool_sensory_readings
+                    3. max_pool_sensory_readings
+            occupancy_reward_type (string): the way to calculate reward:
+                    1. 'IR_distance': based on IR distance from detected object to IR
+                    2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                            of IR sensors 
+                    3. 'IR_state_number': the number of detected objects
+            interaction_mode (string): indicates interaction mode: 
+                    1. 'real_interaction': interact with real robot
+                    2. 'virtual_interaction': interact with virtual environment
+            load_pretrained_agent_flag (bool): whether load pretrained agent
+                    if True: load pretrained agent. Otherwise randomly initialize.
+            agent_config (string): information on how to configurate each agent:
+                    1. 'random_agent': random agent
+                    2. 'actor_critic_agent': actor_critic agent
         
-        agent_config: (not determined)
-            contains information on how to configurate each agent:
-                1. 'random_agent': random agent
-                2. 'actor_critic_agent': actor_critic agent
-        
-        Returns
-        -------
-        agent_community: dict
-            a dict of agent living in the community:
+        Returns:
+            agent_community (dict): a dict of agent living in the community:
                 agent_community = {'agent_name': agent}
         """
         agent_community = {}
@@ -378,31 +316,18 @@ class InternalEnvOfCommunity(object):
                 observation_space_name = agent_community_partition_config[agent_name]['observation_space_name']
                 action_space_name = agent_community_partition_config[agent_name]['action_space_name']
                 
-                # Note:
-                #   Instantiate LAS-agent
-                #   x_order_MDP = 1: 
-                #       observations have been combined, so use x_order_MDP=1
-                #   x_order_MDP_observation_type = 'concatenate_observation':
-                #       doesn't matter, since x_order_MDP = 1
-                #   occupancy_reward_type = 'IR_distance':
-                #       doesn't matter, since interaction_mode = 'virtual_interaction'
-                #   interaction_mode = 'virtual_interaction':
-                #       because rward is provided by InternalEnvOfCommunity
-                x_order_MDP = 1
-                x_order_MDP_observation_type = 'concatenate_observation' # doesn't matter
-                occupancy_reward_type = 'IR_distance'                    # doesn't matter
-                interaction_mode = 'virtual_interaction'
                 agent_community[agent_name] = InternalEnvOfAgent(agent_name, 
                                                                  observation_space, 
                                                                  action_space,
                                                                  observation_space_name, 
                                                                  action_space_name,
-                                                                 x_order_MDP,
-                                                                 x_order_MDP_observation_type,
+                                                                 x_order_sensor_reading,
+                                                                 x_order_sensor_reading_sliding_window,
+                                                                 x_order_sensor_reading_preprocess_type,
                                                                  occupancy_reward_type,
                                                                  interaction_mode,
                                                                  load_pretrained_agent_flag)
-            print('Create actor_critic_agent community done!')
+            logging.info('Create actor_critic_agent community done!')
         else:
             raise Exception('Please choose a right agent type!')
         return agent_community
@@ -412,21 +337,15 @@ class InternalEnvOfCommunity(object):
         Partition whole observation into each agent's observation field according
         to community partition configuration.
         
-        Parameters
-        ----------
-        observation: ndarray
-            observation of whole external environment.
-            
-        agent_community_partition_config: dict of dict
-            contains info on how to partition whole observation and action.
+        Args:
+            observation (list): observation of whole external environment.
+            agent_community_partition_config (dict of dict): info on how to 
+                partition whole observation and action.
         
-        Returns
-        -------
-        observation_partition: dict
-            a dist of observation where each value corresponds to the observation
-            of one agent:
-                observation_partition = {'agent_name': observation}
-        
+        Returns:
+            observation_partition (dict): a dist of partitioned observation 
+                where each value corresponds to the observation of one agent:
+                    observation_partition = {'agent_name': observation}
         """
         observation_partition = {}
         for agent_name in agent_community_partition_config.keys():
@@ -437,81 +356,31 @@ class InternalEnvOfCommunity(object):
             observation_partition[agent_name] = observation_temp
         return observation_partition
     
-    def _generate_observation_for_x_order_MDP(self, observation_sequence,
-                                              x_order_MDP_observation_type,
-                                              agent_community_partition_config):
-        """
-        
-        Parameters
-        ----------
-        observation_sequence: deque object
-            with x_order_MDP observations
-            
-        x_order_MDP_observation_type: string
-            ways to generate observation for x_order_MDP:
-                1. 'concatenate_observation'
-                2. 'average_observation'
-        
-        agent_community_partition_config: dict of dict
-            contains info on how to partition whole observation and action.
-        
-        Returns
-        -------
-        observation_partition: dict
-            a dict of observation:
-                observation_partition = {'agent_name': observation}
-        """
-        observation_partition = {}
-        if x_order_MDP_observation_type == 'concatenate_observation':
-            # Initialize observation_partition
-            for agent_name in agent_community_partition_config.keys():
-                observation_partition[agent_name] = []
-            # Extract observation for each agent and concatenate obs-sequence
-            while observation_sequence:
-                obs_temp = observation_sequence.popleft()
-                obs_partition_temp = self._partition_observation(obs_temp, agent_community_partition_config)
-                for agent_name_temp in obs_partition_temp.keys():
-                    observation_partition[agent_name_temp] = np.append(observation_partition[agent_name_temp],obs_partition_temp[agent_name_temp])
-        elif x_order_MDP_observation_type == 'average_observation':
-            observation_partition = 0
-        else:
-            raise Exception('Please choose a proper x_order_MDP_observation_type!')
-        
-        return observation_partition
-    
+    # TODO: _partition_reward is useless in real interaction.
     def _partition_reward(self, observation_partition, 
                           agent_community_partition_config,
-                          x_order_MDP,
                           reward_type = 'IR_distance'):
         """
         Partition reward based on observation_partition and agent_community_partition_config
         
-        Parameters
-        ----------
-        observation_partition: dict
-            observation_partition = {'agent_name': observation}
-            
-        agent_community_partition_config: dict of dict
-            agent_community_partition_config = {'agent_name_1': {'obs_mask':agent_obs_mask,
-                                                                 'act_mask':agent_act_mask,
-                                                                 'observation_space':observation_space,
-                                                                 'action_space':action_space
-                                                                 }}
-        x_order_MDP: int 
-            define the order of MDP. If x_order_MDP != 1, we combine multiple
-            observations as one single observation.
-            
-        reward_type: string
-            1. 'IR_distance': based on IR distance from detected object to IR
-            2. 'IR_state_ratio': the ratio of # of detected objects and all # 
-                                 of IR sensors 
-            3. 'IR_state_number': the number of detected objects
+        Args:
+            observation_partition (dict):
+                observation_partition = {'agent_name': observation}
+            agent_community_partition_config (dict of dict):
+                agent_community_partition_config = {'agent_name_1': {'obs_mask':agent_obs_mask,
+                                                                     'act_mask':agent_act_mask,
+                                                                     'observation_space':observation_space,
+                                                                     'action_space':action_space
+                                                                     }}
+            reward_type (string):
+                1. 'IR_distance': based on IR distance from detected object to IR
+                2. 'IR_state_ratio': the ratio of # of detected objects and all # 
+                        of IR sensors 
+                3. 'IR_state_number': the number of detected objects
         
-        Returns
-        -------
-        reward_partition: dict
-            a dict of reward:
-                reward_partition = {'agent_name': reward}
+        Returns:
+            reward_partition (dict): a dict of reward:
+                    reward_partition = {'agent_name': reward}
         
         """
         reward_partition = {}
@@ -542,77 +411,28 @@ class InternalEnvOfCommunity(object):
             else:
                 raise Exception('Please choose a proper reward type!')
             # Average occupancy
-            reward_partition[agent_name] = reward_temp / x_order_MDP
+            reward_partition[agent_name] = reward_temp
         return reward_partition
-    
-    def _collect_action(self, observation_partition, reward_partition, agent_community):
-        """
-        Collect actions from each agent into a dict.
-        
-        Parameters
-        ----------
-        observation_partition: dict
-            a dict of observation partitions:
-                observation_partition = {'agent_name': observation}
-        
-        reward_partition: dict
-            a dict of reward partitions:
-                reward_partition = {'agent_name': reward}
-        
-        agent_community: dict
-            a dict of agents:
-                agent_community = {'agent_name': agent_object}
-        
-        Returns
-        -------
-        action_partition: dict
-            a dict of actions:
-                action_partition = {'agent_name': action}
-        """
-        done = False
-        action_partition = {}
-        for agent_name in agent_community.keys():
-            action_partition[agent_name] = agent_community[agent_name].interact(observation_partition[agent_name],\
-                            reward_partition[agent_name],done)
-        return action_partition
     
     def _combine_action(self, action_partition, agent_community_partition_config):
         """
         Combine each agent's action into a whole action.
         
-        Parameters
-        ----------
-        action_partition: dict
-            a dict of actions:
-                action_partition = {'agent_name': action}
+        Args:
+            action_partition (dict): a dict of actions:
+                    action_partition = {'agent_name': action}
+            agent_community_partition_config (dict of dict): contains info on 
+                how to partition whole observation and action.
         
-        agent_community_partition_config: dict of dict
-            contains info on how to partition whole observation and action.
-        
-        Returns
-        -------
-        action: ndarray
-            an array of action on the whole action space
+        Returns:
+            action (list): an array of action on the whole action space
         """
         action = np.zeros(self.action_space.shape)
         for agent_name in agent_community_partition_config.keys():
             act_index = []
             act_index = np.where(agent_community_partition_config[agent_name]['act_mask']==1)
             action[act_index] = action_partition[agent_name]
-        return action
-    
-    def _extrinsic_reward_func(self, observation):
-        """
-        This function is used to provide extrinsic reward.
-        """
-        reward = 1
-        return reward
-    
-    def start(self):
-        """
-        This interface function is to load pretrained models.
-        """
-        
+        return action        
         
     def stop(self):
         """
@@ -631,91 +451,79 @@ class InternalEnvOfCommunity(object):
         
         (Training could also be done when feeding observation.)
         
-        Parameters
-        ----------
-        observation: ndarray
-            the observation received from external environment
+        Args:
+            observation (list): the observation received from external environment
+            external_reward (float): only provied when using virtual environment 
+                (ignored when interact with real system)
+            done (bool): only provied when using virtual environment
+                (ignored when interact with real system)
         
-        external_reward: float default = 0
-            only provied when using virtual environment 
-            (ignore when interact with real system)
-        
-        done: bool default = False
-            only provied when using virtual environment
-            (ignore when interact with real system)
-        
-        Returns
-        -------
-        take_action_flag: bool
-            indicate whether to take an action
-        
-        action: array
-            the action value
+        Returns:
+            take_action_flag (bool): indicate whether to take an action
+            action (list): the action value
         """
-        # If x_order_MDP_observation_sequence is not filled, keep filling.
-        # After filled, take an action.
-        if len(self.x_order_MDP_observation_sequence) != self.x_order_MDP:
-            self.x_order_MDP_observation_sequence.append(observation)
-            action = []
-            take_action_flag = False
-            # Train all agent when feeding observation (Optional)
-            for agent_name in self.agent_community.keys():
-                self.agent_community[agent_name].agent._train()
+        action_partition = {}
+        take_action_flag_partition = {}
+        # Partition observation
+        observation_partition = self._partition_observation(observation, self.agent_community_partition_config)
+        # TODO: For virtual env, let's see how to particition external reward
+        reward_partition = self._partition_reward(observation_partition, self.agent_community_partition_config,
+                                                  self.occupancy_reward_type)
+        # Collect actions 
+        for agent_name_temp in observation_partition.keys():
+            take_action_flag_partition[agent_name_temp], action_partition[agent_name_temp] = self.agent_community[agent_name_temp].feed_observation(observation_partition[agent_name_temp], reward_partition[agent_name_temp], done = False)
+        # TODO: here take action synchronously among all agents. In future, we
+        #   can make it  synchroneously.
+        take_action_flag = take_action_flag_partition[agent_name_temp]
+        # Combine actions
+        if take_action_flag == True:
+            action = self._combine_action(action_partition, self.agent_community_partition_config)
         else:
-            # Generate partitioned observation for x_order_MDP with multiple-agents
-            #   Note: use shallow copy:
-            #             self.x_order_MDP_observation_sequence.copy(),
-            #         otherwise the self.x_order_MDP_observation_sequence is reset to empty,
-            #         after call this function.
-            observation_partition = self._generate_observation_for_x_order_MDP(self.x_order_MDP_observation_sequence.copy(),
-                                                                               self.x_order_MDP_observation_type,
-                                                                               self.agent_community_partition_config)
-            # Partition reward
-            #   1. 'IR_distance': based on IR distance from detected object to IR
-            #   2. 'IR_state_ratio': the ratio of # of detected objects and all # 
-            #                        of IR sensors 
-            #   3. 'IR_state_number': the number of detected objects
-            reward_partition = self._partition_reward(observation_partition,
-                                                      self.agent_community_partition_config,
-                                                      self.x_order_MDP,
-                                                      self.occupancy_reward_type)
-            for agent_name in reward_partition.keys():
-                logging.debug('Reward of {} is: {}'.format(agent_name,reward_partition[agent_name]))
-            # Get an action
-            action = self.interact(observation_partition, reward_partition, done)
-            take_action_flag = True
-            # Clear the observation queue
-            self.x_order_MDP_observation_sequence.clear()
+            action = []
+        
+        self._logging_interaction_data(observation,
+                                       observation_partition,
+                                       reward_partition,
+                                       action_partition,
+                                       take_action_flag_partition,
+                                       take_action_flag,
+                                       action)
+        
         return take_action_flag, action
+        
     
-    def _logging_interaction_data(self, x_order_MDP_observation_sequence,
+    def _logging_interaction_data(self, observation,
                                   observation_partition,
                                   reward_partition,
                                   action_partition,
+                                  take_action_flag_partition,
+                                  take_action_flag,
                                   action):
         """
         Saving interaction data
         
-        Parameters
-        ----------
-        observation_for_x_order_MDP: array
-        
-        reward: float
-        
-        action: array
-        
+        Args:
+            observation:
+            observation_partition:
+            reward_partition:
+            action_partition:
+            take_action_flag_partition:
+            take_action_flag:
+            action:
         """
         with open(self.interaction_data_file, 'a') as csv_datafile:
-            fieldnames = ['Time', 'Observation_queue', 'Observation_partition',
-                          'Reward_partition', 
-                          'Action_partition', 'Action']
+            fieldnames = ['time', 'observation', 'observation_partition', 'reward_partition',
+                          'action_partition', 'take_action_flag_partition',
+                          'take_action_flag', 'action']
             writer = csv.DictWriter(csv_datafile, fieldnames = fieldnames)
-            writer.writerow({'Time':datetime.now().strftime("%Y%m%d-%H%M%S"),
-                             'Observation_queue': x_order_MDP_observation_sequence,
-                             'Observation_partition': observation_partition,
-                             'Reward_partition': reward_partition,
-                             'Action_partition': action_partition,
-                             'Action':action})
+            writer.writerow({'time':datetime.now().strftime("%Y%m%d-%H%M%S"),
+                             'observation': observation,
+                             'observation_partition': observation_partition,
+                             'reward_partition': reward_partition,
+                             'action_partition': action_partition,
+                             'take_action_flag_partition': take_action_flag_partition,
+                             'take_action_flag': take_action_flag,
+                             'action':action})
 # =================================================================== #
 #                   Initialization Summary Functions                  #
 # =================================================================== #     

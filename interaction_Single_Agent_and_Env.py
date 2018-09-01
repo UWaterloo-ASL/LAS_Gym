@@ -70,8 +70,9 @@ if __name__ == '__main__':
     action_space = envLAS.action_space
     observation_space_name = [], 
     action_space_name = []
-    x_order_MDP = 5
-    x_order_MDP_observation_type = 'concatenate_observation'
+    x_order_sensor_reading = 20
+    x_order_sensor_reading_sliding_window = 5
+    x_order_sensor_reading_preprocess_type = 'max_pool_sensory_readings'#'average_pool_sensory_readings'#'concatenate_sensory_readings'
     occupancy_reward_type = 'IR_distance'
     interaction_mode = 'real_interaction'
     load_pretrained_agent_flag = False
@@ -81,8 +82,9 @@ if __name__ == '__main__':
                                action_space,
                                observation_space_name, 
                                action_space_name,
-                               x_order_MDP,
-                               x_order_MDP_observation_type,
+                               x_order_sensor_reading,
+                               x_order_sensor_reading_sliding_window,
+                               x_order_sensor_reading_preprocess_type,
                                occupancy_reward_type,
                                interaction_mode,
                                load_pretrained_agent_flag)

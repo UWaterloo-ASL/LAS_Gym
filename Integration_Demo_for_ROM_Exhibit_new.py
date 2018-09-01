@@ -36,36 +36,35 @@ observation = envLAS.reset()
 # Note: 1. Set load_pretrained_agent_flag to "True" only when you have 
 #           and want to load pretrained agent.
 #       2. Keep observation unchanged if using pretrained agent.
-agent_name = 'LAS_Single_Agent'
-
 # TODO: Adam provides information and we will define these variables.
 #   In realy system, there is no virtual environment. We need to define:
 #       1. observation_space: gym.spaces.Box object
 #       2. observation_space_name: each entry is the name of sensor
 #       3. action_space: gym.spaces.Box object
 #       4. action_space_name: ench entry is the name of actuator
-
+agent_name = 'LAS_Single_Agent'
 observation_space = envLAS.observation_space
 action_space = envLAS.action_space
-observation_space_name = envLAS.observation_space_name
-action_space_name = envLAS.action_space_name
-
-x_order_MDP = 5
-x_order_MDP_observation_type = 'concatenate_observation'
+observation_space_name = [], 
+action_space_name = []
+x_order_sensor_reading = 20
+x_order_sensor_reading_sliding_window = 5
+x_order_sensor_reading_preprocess_type = 'max_pool_sensory_readings'#'average_pool_sensory_readings'#'concatenate_sensory_readings'
 occupancy_reward_type = 'IR_distance'
 interaction_mode = 'real_interaction'
 load_pretrained_agent_flag = False
 
-single_agent = InternalEnvOfAgent(agent_name, 
-                           observation_space, 
-                           action_space,
-                           observation_space_name, 
-                           action_space_name,
-                           x_order_MDP,
-                           x_order_MDP_observation_type,
-                           occupancy_reward_type,
-                           interaction_mode,
-                           load_pretrained_agent_flag)
+single_agent = InternalEnvOfAgent(agent_name,
+                                  observation_space, 
+                                  action_space,
+                                  observation_space_name, 
+                                  action_space_name,
+                                  x_order_sensor_reading,
+                                  x_order_sensor_reading_sliding_window,
+                                  x_order_sensor_reading_preprocess_type,
+                                  occupancy_reward_type,
+                                  interaction_mode,
+                                  load_pretrained_agent_flag)
 logging.info('Instantiate LAS-Agent done!')
 #######################################################################
 #                    Instatiate LAS-Agent-Community                   #
@@ -75,8 +74,13 @@ logging.info('Instantiate LAS-Agent done!')
 #       2. Keep observation unchanged if using pretrained agent.
 community_name = 'LAS_Agent_Community'
 community_size = 3
-x_order_MDP = 5
-x_order_MDP_observation_type = 'concatenate_observation'
+observation_space = envLAS.observation_space
+action_space = envLAS.action_space
+observation_space_name = envLAS.observation_space_name
+action_space_name = envLAS.action_space_name
+x_order_sensor_reading = 20
+x_order_sensor_reading_sliding_window = 5
+x_order_sensor_reading_preprocess_type = 'max_pool_sensory_readings'#'average_pool_sensory_readings'#'concatenate_sensory_readings'
 occupancy_reward_type = 'IR_distance'
 interaction_mode = 'real_interaction'
 load_pretrained_agent_flag = False
@@ -87,14 +91,13 @@ LAS_agent_community = InternalEnvOfCommunity(community_name,
                                              action_space, 
                                              observation_space_name,
                                              action_space_name,
-                                             x_order_MDP,
-                                             x_order_MDP_observation_type,
+                                             x_order_sensor_reading,
+                                             x_order_sensor_reading_sliding_window,
+                                             x_order_sensor_reading_preprocess_type,
                                              occupancy_reward_type,
                                              interaction_mode,
                                              load_pretrained_agent_flag)
 logging.info('Instantiate LAS-Agent-Community done!')
-
-
 #######################################################################
 #                      Schedual two experiments                       #
 # Note:
@@ -195,8 +198,8 @@ schedule_start_time = datetime.now()
 
 # Schedule first experiment
 # TODO: set start and end times to '130002' and '143000'
-first_experiment_start_time = '210801'  # format: %H%M%S e.g. 1:00pm is 130000
-first_experiment_end_time = '212800'    # format: %H%M%S e.g. 2:30pm is 143000
+first_experiment_start_time = '165301'  # format: %H%M%S e.g. 1:00pm is 130000
+first_experiment_end_time = '171000'    # format: %H%M%S e.g. 2:30pm is 143000
 first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent,
                                                      single_agent,
                                                      first_experiment_start_time, 
@@ -204,8 +207,8 @@ first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agen
                                                      schedule_start_time)
 # Schedule second experiment
 # TODO: set start and end times to '143002' and '160000'
-second_experiment_start_time = '212801' # format: %H%M%S e.g. 2:30pm is 143000
-second_experiment_end_time = '214800'   # format: %H%M%S e.g. 4:00pm is 160000
+second_experiment_start_time = '171001' # format: %H%M%S e.g. 2:30pm is 143000
+second_experiment_end_time = '173000'   # format: %H%M%S e.g. 4:00pm is 160000
 second_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent, 
                                                       LAS_agent_community,
                                                       second_experiment_start_time, 
@@ -217,8 +220,8 @@ second_experiment_thread = interaction_mode_scheduler(interact_with_learning_age
 #   start thsi script and the start time for the first interaction. 
 #   (This is because instantiating learning agent takes around 8 minutes.)
 # TODO: set start and end times to '093000' and '130000'
-prescribed_behavior_start_time_1 = '210501' # format: %H%M%S e.g. 10:00am is 100000
-prescribed_behavior_end_time_1 = '210800'   # format: %H%M%S e.g. 1:00pm is 130000
+prescribed_behavior_start_time_1 = '164801' # format: %H%M%S e.g. 10:00am is 100000
+prescribed_behavior_end_time_1 = '165300'   # format: %H%M%S e.g. 1:00pm is 130000
 prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescribed_behavior,
                                                           'prescribed_behavior',
                                                           prescribed_behavior_start_time_1,
@@ -226,8 +229,8 @@ prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescrib
                                                           schedule_start_time)
 # Schedule prescribed-behavior 2
 # TODO: set start and end times to '160002' and '173000'
-prescribed_behavior_start_time_2 = '214801' # format: %H%M%S e.g. 4:00pm is 160000
-prescribed_behavior_end_time_2 = '215300'   # format: %H%M%S e.g. 5:30pm is 173000
+prescribed_behavior_start_time_2 = '173001' # format: %H%M%S e.g. 4:00pm is 160000
+prescribed_behavior_end_time_2 = '173300'   # format: %H%M%S e.g. 5:30pm is 173000
 prescribed_behavior_thread_2 = interaction_mode_scheduler(interact_with_prescribed_behavior,
                                                           'prescribed_behavior',
                                                           prescribed_behavior_start_time_2, 
@@ -239,14 +242,14 @@ if __name__ == '__main__':
     
     # Schedule interaction with learning agent
     first_experiment_thread.start()
-    logging.info('first_experiment_thread scheduled...')
+    logging.info('first_experiment_thread scheduled: {}-{}'.format(first_experiment_start_time, first_experiment_end_time))
     second_experiment_thread.start()
-    logging.info('second_experiment_thread scheduled...')
+    logging.info('second_experiment_thread scheduled: {}-{}'.format(second_experiment_start_time, second_experiment_end_time))
     # Schedule interaction with presribed-behavior
     prescribed_behavior_thread_1.start()
-    logging.info('prescribed_behavior_thread_1 scheduled...')
+    logging.info('prescribed_behavior_thread_1 scheduled: {}-{}'.format(prescribed_behavior_start_time_1, prescribed_behavior_end_time_1))
     prescribed_behavior_thread_2.start()
-    logging.info('prescribed_behavior_thread_2 scheduled...')
+    logging.info('prescribed_behavior_thread_2 scheduled: {}-{}'.format(prescribed_behavior_start_time_2, prescribed_behavior_end_time_2))
     
     # Check if all interactions are done.
     while True:

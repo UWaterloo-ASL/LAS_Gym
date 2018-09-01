@@ -77,22 +77,29 @@ if __name__ == '__main__':
     # Note: 1. Set load_pretrained_agent_flag to "True" only when you have and want 
     #          to load pretrained agent.
     #       2. Keep observation unchanged if using pretrained agent.
+    
     community_name = 'LAS_Agent_Community'
     community_size = 3
-    x_order_MDP = 5
-    x_order_MDP_observation_type = 'concatenate_observation'
+    observation_space = envLAS.observation_space
+    action_space = envLAS.action_space
+    observation_space_name = envLAS.observation_space_name
+    action_space_name = envLAS.action_space_name
+    x_order_sensor_reading = 20
+    x_order_sensor_reading_sliding_window = 5
+    x_order_sensor_reading_preprocess_type = 'max_pool_sensory_readings'#'average_pool_sensory_readings'#'concatenate_sensory_readings'
     occupancy_reward_type = 'IR_distance'
-    interaction_mode = 'virtual_interaction'
+    interaction_mode = 'real_interaction'
     load_pretrained_agent_flag = False
     
     LAS_agent_community = InternalEnvOfCommunity(community_name, 
                                                  community_size,
-                                                 envLAS.observation_space,
-                                                 envLAS.action_space, 
-                                                 envLAS.observation_space_name,
-                                                 envLAS.action_space_name,
-                                                 x_order_MDP,
-                                                 x_order_MDP_observation_type,
+                                                 observation_space,
+                                                 action_space, 
+                                                 observation_space_name,
+                                                 action_space_name,
+                                                 x_order_sensor_reading,
+                                                 x_order_sensor_reading_sliding_window,
+                                                 x_order_sensor_reading_preprocess_type,
                                                  occupancy_reward_type,
                                                  interaction_mode,
                                                  load_pretrained_agent_flag)
