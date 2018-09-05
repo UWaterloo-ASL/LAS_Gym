@@ -10,6 +10,9 @@ from datetime import datetime, date
 from threading import Timer
 import os
 
+from gym import spaces
+import numpy as np
+
 from Environment.LASEnv import LASEnv
 from LASAgent.InternalEnvOfAgent import InternalEnvOfAgent
 from LASAgent.InternalEnvOfCommunity import InternalEnvOfCommunity
@@ -47,12 +50,13 @@ observation_space = envLAS.observation_space
 action_space = envLAS.action_space
 observation_space_name = [], 
 action_space_name = []
+
 x_order_sensor_reading = 20
 x_order_sensor_reading_sliding_window = 5
 x_order_sensor_reading_preprocess_type = 'max_pool_sensory_readings'#'average_pool_sensory_readings'#'concatenate_sensory_readings'
 occupancy_reward_type = 'IR_distance'
 interaction_mode = 'real_interaction'
-load_pretrained_agent_flag = False
+load_pretrained_agent_flag = True
 
 single_agent = InternalEnvOfAgent(agent_name,
                                   observation_space, 
@@ -83,7 +87,7 @@ x_order_sensor_reading_sliding_window = 5
 x_order_sensor_reading_preprocess_type = 'max_pool_sensory_readings'#'average_pool_sensory_readings'#'concatenate_sensory_readings'
 occupancy_reward_type = 'IR_distance'
 interaction_mode = 'real_interaction'
-load_pretrained_agent_flag = False
+load_pretrained_agent_flag = True
 
 LAS_agent_community = InternalEnvOfCommunity(community_name, 
                                              community_size,
@@ -198,8 +202,8 @@ schedule_start_time = datetime.now()
 
 # Schedule first experiment
 # TODO: set start and end times to '130002' and '143000'
-first_experiment_start_time = '165301'  # format: %H%M%S e.g. 1:00pm is 130000
-first_experiment_end_time = '171000'    # format: %H%M%S e.g. 2:30pm is 143000
+first_experiment_start_time = '175501'  # format: %H%M%S e.g. 1:00pm is 130000
+first_experiment_end_time = '180500'    # format: %H%M%S e.g. 2:30pm is 143000
 first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent,
                                                      single_agent,
                                                      first_experiment_start_time, 
@@ -207,8 +211,8 @@ first_experiment_thread = interaction_mode_scheduler(interact_with_learning_agen
                                                      schedule_start_time)
 # Schedule second experiment
 # TODO: set start and end times to '143002' and '160000'
-second_experiment_start_time = '171001' # format: %H%M%S e.g. 2:30pm is 143000
-second_experiment_end_time = '173000'   # format: %H%M%S e.g. 4:00pm is 160000
+second_experiment_start_time = '180501' # format: %H%M%S e.g. 2:30pm is 143000
+second_experiment_end_time = '182500'   # format: %H%M%S e.g. 4:00pm is 160000
 second_experiment_thread = interaction_mode_scheduler(interact_with_learning_agent, 
                                                       LAS_agent_community,
                                                       second_experiment_start_time, 
@@ -220,8 +224,8 @@ second_experiment_thread = interaction_mode_scheduler(interact_with_learning_age
 #   start thsi script and the start time for the first interaction. 
 #   (This is because instantiating learning agent takes around 8 minutes.)
 # TODO: set start and end times to '093000' and '130000'
-prescribed_behavior_start_time_1 = '164801' # format: %H%M%S e.g. 10:00am is 100000
-prescribed_behavior_end_time_1 = '165300'   # format: %H%M%S e.g. 1:00pm is 130000
+prescribed_behavior_start_time_1 = '175301' # format: %H%M%S e.g. 10:00am is 100000
+prescribed_behavior_end_time_1 = '175500'   # format: %H%M%S e.g. 1:00pm is 130000
 prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescribed_behavior,
                                                           'prescribed_behavior',
                                                           prescribed_behavior_start_time_1,
@@ -229,8 +233,8 @@ prescribed_behavior_thread_1 = interaction_mode_scheduler(interact_with_prescrib
                                                           schedule_start_time)
 # Schedule prescribed-behavior 2
 # TODO: set start and end times to '160002' and '173000'
-prescribed_behavior_start_time_2 = '173001' # format: %H%M%S e.g. 4:00pm is 160000
-prescribed_behavior_end_time_2 = '173300'   # format: %H%M%S e.g. 5:30pm is 173000
+prescribed_behavior_start_time_2 = '182501' # format: %H%M%S e.g. 4:00pm is 160000
+prescribed_behavior_end_time_2 = '182800'   # format: %H%M%S e.g. 5:30pm is 173000
 prescribed_behavior_thread_2 = interaction_mode_scheduler(interact_with_prescribed_behavior,
                                                           'prescribed_behavior',
                                                           prescribed_behavior_start_time_2, 
