@@ -144,8 +144,10 @@ def avg_smoothing(x, window_len):
     x_smo = np.zeros([1,length])
     half_window = int((window_len - 1 )/2)
     for i in range(0,length):
-        if i < half_window or i >= (length - half_window):
-            x_smo[0,i] = x[i]
+        if i < half_window:
+            x_smo[0,i] = np.mean(x[0:i + half_window + 1])
+        elif i >= (length - half_window):
+            x_smo[0,i] = np.mean(x[i - half_window :i])
         else:
             x_smo[0,i] = np.mean(x[i - half_window : i + half_window + 1])
     return x_smo[0,:]
@@ -165,9 +167,10 @@ if __name__ == '__main__':
     if MPI.COMM_WORLD.Get_rank() == 0:
         logger.configure()
     # Run actual script.
-    reward_history = np.zeros((1, 1000))
+    reward_history = np.zeros((1, 400))
     # r_history[0, :] = np.array(run(**args, share=True))
     reward_history = np.array(run(**args,env=env, share=False))
-    x = np.linspace(1,1000,1000)
+    x = np.linspace(1,400,400)
     reward_history_smo = avg_smoothing(reward_history,15)
     plt.plot(x,reward_history)
+    plt.plot(x,reward_history_smo)

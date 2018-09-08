@@ -175,7 +175,7 @@ class LASROMEnv(gym.Env):
         self.behaviour.act([x,y,z,radius,threshold,max(intensity,radius)]) # taking max() here is to make it consistant with the Behaviour class
 
         # Visualize excitor
-        self._set_excitor_pos_and_size("Excitor", threshold, [x,y,z])
+        # self._set_excitor_pos_and_size("Excitor", threshold, [x,y,z])
 
         # move the visitor based on observations one step ago
         # self._move_single_to_excitor_location(self.observation, isBody=True)
