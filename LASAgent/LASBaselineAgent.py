@@ -29,7 +29,7 @@ import numpy as np
 
 
 class LASBaselineAgent:
-    def __init__(self, observation_dim, action_dim, num_observation=20, env=None ):
+    def __init__(self, observation_dim, action_dim, num_observation=20, env=None, load_pretrained_agent_flag=False ):
 
         #=======================================#
         # Get parameters defined in parse_arg() #
@@ -113,13 +113,7 @@ class LASBaselineAgent:
         # Disable logging for rank != 0 to avoid noise.
         if rank == 0:
             start_time = time.time()
-        # r_history = training.train(env=env, eval_env=eval_env, param_noise=param_noise,
-        #                            action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
 
-        # if env is not None:
-        #     env.close_connection()
-        if rank == 0:
-            logger.info('total runtime: {}s'.format(time.time() - start_time))
 
 
 
@@ -174,6 +168,12 @@ class LASBaselineAgent:
         self.nb_train_steps = args['nb_train_steps']
         self.training_step_cnt = 0
 
+        #========================#
+        # Model saving directory #
+        #========================#
+        self.model_dir = os.path.join(os.path.abspath('..'), 'save','model')
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
         #=======================#
         # Initialize tf session #
         #=======================#
@@ -181,7 +181,10 @@ class LASBaselineAgent:
         self.sess = U.make_session(num_cpu=1, make_default=True)
 
         self.agent.initialize(self.sess)
-        self.sess.graph.finalize()
+        if load_pretrained_agent_flag == True:
+            self._load_model(self.model_dir)
+
+        # self.sess.graph.finalize()
 
         self.agent.reset()
 
@@ -207,12 +210,17 @@ class LASBaselineAgent:
         self.param_noise_adaption_interval = 50
 
 
+
     def interact(self, observation, reward = 0, done = False):
         """
         Receive observation and produce action
 
         """
-        self.observe(observation)
+
+        # # For the case of simulator only,
+        # # since with the simulator, we always use interact() instead of feed_observation()
+        # if self.env is not None:
+        #     self.observe(observation)
 
         action, q = self.agent.pi(self.flt_observation, apply_noise=True, compute_Q=True)
         assert action.shape == self.action_space.shape
@@ -233,6 +241,7 @@ class LASBaselineAgent:
         self.epoch_actions.append(action)
         self.epoch_qs.append(q)
         # Note: self.action correspond to flt_prev_observation
+        #       reward correspond to flt_observation
         if self.action is not None:
             self.agent.store_transition(self.flt_prev_observation, self.action, reward, self.flt_observation, done)
         self.action = action
@@ -336,16 +345,45 @@ class LASBaselineAgent:
     def observe(self, observation):
         """
         Store and filter the observation
+
+        :return take_action_flag  the flag = True if it has received observations equal to self.num_observation
         """
+
         self.observation[self.observation_cnt] = observation
         self.observation_cnt += 1
-
+        print(self.observation_cnt)
         # Update filtered observation every self.num_observation cycles
         if self.observation_cnt >= self.num_observation:
             self.observation_cnt = 0
             self.flt_prev_observation = self.flt_observation
             self.flt_observation = self._filter(self.observation)
+            return True
 
+        return False
+
+    def cal_reward(self, flt_observation):
+        """
+        Calculate the extrinsic rewards based on the filtered observation
+        Filtered observation should have same size as observation space
+        :return: reward
+        """
+        reward = 0
+        for i in range(flt_observation.shape[0]):
+            reward += flt_observation[i]
+        return reward
+
+    def feed_observation(self, observation):
+        """
+        Interface to Adam's master script
+        :param observation:
+        :return: take_action_flag, action
+        """
+        take_action_flag = self.observe(observation)
+        action = np.zeros(self.action_space.shape[0])
+        if take_action_flag == True:
+            reward = self.cal_reward(self.flt_observation)
+            action = self.interact(observation, reward, done=False)
+        return take_action_flag, action
 
     def _filter(self, signal):
         """
@@ -357,6 +395,25 @@ class LASBaselineAgent:
         return np.mean(signal, axis = 0)
 
 
+    def _load_model(self, model_dir):
+        """
+        Load a pre-trained model from file specified in model directory
+        """
+        saver = tf.train.Saver()
+        file_dir = os.path.join(model_dir,'param_action.ckpt')
+        saver.restore(self.sess, file_dir)
+        print("Model loaded from {}", format(file_dir))
+
+    def _save_model(self, model_dir):
+        """
+        Save a model to specified directory
+        :param model_dir:
+
+        """
+        saver = tf.train.Saver()
+        file_dir = os.path.join(model_dir, 'param_action.ckpt')
+        path = saver.save(self.sess, file_dir)
+        print("Model saved at {}".format(path))
 
     def parse_args(self):
         """
@@ -379,11 +436,11 @@ class LASBaselineAgent:
         parser.add_argument('--gamma', type=float, default=0.99)
         parser.add_argument('--reward-scale', type=float, default=1.)
         parser.add_argument('--clip-norm', type=float, default=None)
-        parser.add_argument('--nb-epochs', type=int, default=20)  # with default settings (500), perform 1M steps total
-        parser.add_argument('--nb-epoch-cycles', type=int, default=20)
+        parser.add_argument('--nb-epochs', type=int, default=40)  # with default settings (500), perform 1M steps total
+        parser.add_argument('--nb-epoch-cycles', type=int, default=10)
         parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
         parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
-        parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
+        parser.add_argument('--nb-rollout-steps', type=int, default=50)  # per epoch cycle and MPI worker
         parser.add_argument('--noise-type', type=str,
                             default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
         parser.add_argument('--num-timesteps', type=int, default=None)
@@ -404,5 +461,12 @@ class LASBaselineAgent:
         """
         # if using the simulator
         if self.env is not None:
+            print("close connection to simulator")
             self.env.close_connection()
+
+        # save the model
+        self._save_model(self.model_dir)
+        # close the tf session
+        self.sess.close()
+
 
