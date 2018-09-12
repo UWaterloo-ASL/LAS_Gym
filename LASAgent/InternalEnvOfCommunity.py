@@ -156,7 +156,7 @@ class InternalEnvOfCommunity(object):
         #       data saving directory. Here is a saving of interaction from #
         #       the perspective of Agent-Community.
         #####################################################################
-        self.interaction_data_dir = os.path.join(os.path.abspath('..'), 'ROM_Experiment_results',
+        self.interaction_data_dir = os.path.join(os.path.abspath('../..'), 'ROM_Experiment_results',
                                                  self.community_name, 'interaction_data')
         if not os.path.exists(self.interaction_data_dir):
             os.makedirs(self.interaction_data_dir)

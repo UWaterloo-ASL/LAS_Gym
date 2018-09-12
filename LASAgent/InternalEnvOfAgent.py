@@ -128,7 +128,7 @@ class InternalEnvOfAgent(object):
         #####################################################################
         #                 Interaction data saving directory                 #
         #####################################################################
-        self.interaction_data_dir = os.path.join(os.path.abspath('..'),
+        self.interaction_data_dir = os.path.join(os.path.abspath('../..'),
                                                  'ROM_Experiment_results',
                                                  self.agent_name,
                                                  'interaction_data')
