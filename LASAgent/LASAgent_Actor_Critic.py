@@ -1160,13 +1160,13 @@ class LASAgent_Actor_Critic():
     def _init_summarize_reward_of_random_action(self):
         reward_of_random_action = tf.placeholder(tf.float32)
         reward_sum = tf.summary.scalar("reward_of_random_action", reward_of_random_action)
-        summary_ops = tf.summary.merge(reward_sum)
+        summary_ops = tf.summary.merge([reward_sum])
         return summary_ops, reward_of_random_action
     
     def _init_summarize_reward_of_greedy_action(self):
         reward_of_greedy_action = tf.placeholder(tf.float32)
         reward_sum = tf.summary.scalar('reward_of_greedy_action', reward_of_greedy_action)
-        summary_ops = tf.summary.merge(reward_sum)
+        summary_ops = tf.summary.merge([reward_sum])
         return summary_ops, reward_of_greedy_action
         
     def _init_summarize_action_and_reward(self):
