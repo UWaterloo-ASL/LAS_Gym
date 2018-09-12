@@ -1,12 +1,13 @@
 import argparse
 import time
+import datetime
 import os
 import logging
 import pickle
+import csv
 from collections import deque
 
 
-from Environment.LASROMEnv import LASROMEnv
 from baselines.ddpg.ddpg import DDPG
 import baselines.common.tf_util as U
 
@@ -15,7 +16,6 @@ from baselines.common.misc_util import (
     set_global_seeds,
     boolean_flag,
 )
-import LASAgent.training as training
 from baselines.ddpg.models import Actor, Critic
 from baselines.ddpg.memory import Memory
 from baselines.ddpg.noise import *
@@ -71,8 +71,8 @@ class LASBaselineAgent:
         self.observation = np.zeros((num_observation, self.observation_space.shape[0]))
         self.action = np.zeros(self.action_space.shape[0])
 
-        self.flt_observation = np.zeros(self.observation_space.shape[0])
-        self.flt_prev_observation = np.zeros(self.observation_space.shape[0])
+        self.flt_observation = np.zeros(self.observation_space.shape[0], dtype=np.float32)
+        self.flt_prev_observation = np.zeros(self.observation_space.shape[0], dtype=np.float32 )
         # =============#
         # Define noise #
         # =============#
@@ -119,7 +119,7 @@ class LASBaselineAgent:
 
         assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
         max_action = env.action_space.high
-        logger.info('scaling actions by {} before executing in env'.format(max_action))
+        # logger.info('scaling actions by {} before executing in env'.format(max_action))
 
         #=======================#
         # Create learning agent #
@@ -146,8 +146,8 @@ class LASBaselineAgent:
                      critic_l2_reg=critic_l2_reg,
                      actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
                      reward_scale=reward_scale)
-        logger.info('Using agent with the following configuration:')
-        logger.info(str(self.agent.__dict__.items()))
+        # logger.info('Using agent with the following configuration:')
+        # logger.info(str(self.agent.__dict__.items()))
 
         # Reward histories
 
@@ -172,8 +172,11 @@ class LASBaselineAgent:
         # Model saving directory #
         #========================#
         self.model_dir = os.path.join(os.path.abspath('..'), 'save','model')
+        self.log_dir = os.path.join(os.path.abspath('..'), 'save','log')
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
         #=======================#
         # Initialize tf session #
         #=======================#
@@ -247,7 +250,9 @@ class LASBaselineAgent:
         self.action = action
         self.reward = reward
 
-        # Logging the training reward info
+        self._save_log(self.log_dir,[self.flt_prev_observation, self.action, reward])
+
+        # Logging the training reward info for debug purpose
         if done:
             # Episode done.
             self.epoch_episode_rewards.append(self.episode_reward)
@@ -265,6 +270,7 @@ class LASBaselineAgent:
 
         self.rollout_step_cnt += 1
         # Training
+        # Everytime interact() is called, it will train the model by nb_train_steps times
         if self.rollout_step_cnt >= self.nb_rollout_steps:
 
             self.epoch_actor_losses = []
@@ -351,7 +357,6 @@ class LASBaselineAgent:
 
         self.observation[self.observation_cnt] = observation
         self.observation_cnt += 1
-        print(self.observation_cnt)
         # Update filtered observation every self.num_observation cycles
         if self.observation_cnt >= self.num_observation:
             self.observation_cnt = 0
@@ -415,6 +420,18 @@ class LASBaselineAgent:
         path = saver.save(self.sess, file_dir)
         print("Model saved at {}".format(path))
 
+    def _save_log(self, save_dir, data):
+        """
+        Save action, observation and rewards in a local file
+        :param save_dir:
+        """
+        date = datetime.datetime.today().strftime('%Y-%m-%d')
+        file_dir = os.path.join(save_dir, date + ".csv")
+        with open(file_dir, 'a') as csvFile:
+            writer = csv.writer(csvFile)
+            writer.writerow(data)
+
+
     def parse_args(self):
         """
         This is the place to define training variables. Still using the code from OpenAI Baseline library
@@ -438,7 +455,7 @@ class LASBaselineAgent:
         parser.add_argument('--clip-norm', type=float, default=None)
         parser.add_argument('--nb-epochs', type=int, default=40)  # with default settings (500), perform 1M steps total
         parser.add_argument('--nb-epoch-cycles', type=int, default=10)
-        parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
+        parser.add_argument('--nb-train-steps', type=int, default=20)  # per epoch cycle and MPI worker
         parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
         parser.add_argument('--nb-rollout-steps', type=int, default=50)  # per epoch cycle and MPI worker
         parser.add_argument('--noise-type', type=str,
