@@ -56,10 +56,13 @@ class Learning():
         #######################################################################
         # Initialize observation and action space
         self.instantiate_observation_and_action_space()
+        # Initialize baseline agent which only collects data under Adam's default 
+        # parameters.
+        self.instantiate_LAS_Baseline_Agent_parameterized_action()
         # Initialize Learning Agents
-#        self.instantiate_LAS_Agent_parameterized_action()
+        self.instantiate_LAS_Agent_parameterized_action()
         self.instantiate_LAS_Agent_raw_action()
-#        self.instantiate_LAS_Agent_Community_raw_action()
+        self.instantiate_LAS_Agent_Community_raw_action()
         # Schedule Experiments
         self.schedule_experiments()
         # Start Threads
@@ -162,7 +165,7 @@ class Learning():
                                       'moth_node#12', 'moth_node#13', 'moth_node#14', 'moth_node#15',
                                       'moth_node#16', 'moth_node#17', 'moth_node#18', 'moth_node#19',
                                       'moth_node#20', 'moth_node#21', 'moth_node#22', 'moth_node']
-        raw_actuators_dim = (6+1)*24 # (1 moth + 1 LED + 6 SMAs) * 24 nodes
+        raw_actuators_dim = (6+1+1)*24 # (1 moth + 1 LED + 6 SMAs) * 24 nodes
         raw_act_max = np.array([1]*raw_actuators_dim)
         raw_act_min = np.array([-1]*raw_actuators_dim)
         self.raw_action_space = spaces.Box(raw_act_max, raw_act_min, dtype = np.float32)
@@ -195,6 +198,38 @@ class Learning():
                                                                     occupancy_reward_type,
                                                                     interaction_mode,
                                                                     load_pretrained_agent_flag)
+        logger.info('Instantiate {} done!'.format(agent_name))
+
+    def instantiate_LAS_Baseline_Agent_parameterized_action(self):
+
+        #######################################################################
+        #                          Instatiate LAS-Agent                       #
+        #######################################################################
+        # Note: 1. Set load_pretrained_agent_flag to "True" only when you have 
+        #           and want to load pretrained agent.
+        #       2. Keep initializing parameters unchanged if using pretrained agent.
+        #agent_name = 'LAS_Single_Agent_Parameterized_Action'
+        agent_name = 'L_baseline'
+        x_order_sensor_reading = 20
+        x_order_sensor_reading_sliding_window = 5
+        x_order_sensor_reading_preprocess_type = 'max_pool_sensory_readings'#'average_pool_sensory_readings'#'concatenate_sensory_readings'
+        occupancy_reward_type = 'IR_distance'
+        interaction_mode = 'real_interaction'
+        load_pretrained_agent_flag = False
+        baseline_agent_flag = True
+        
+        self.single_baseline_agent_parameterized_action = InternalEnvOfAgent(agent_name,
+                                                                             self.observation_space, 
+                                                                             self.para_action_space,
+                                                                             self.observation_space_name, 
+                                                                             self.para_action_space_name,
+                                                                             x_order_sensor_reading,
+                                                                             x_order_sensor_reading_sliding_window,
+                                                                             x_order_sensor_reading_preprocess_type,
+                                                                             occupancy_reward_type,
+                                                                             interaction_mode,
+                                                                             load_pretrained_agent_flag,
+                                                                             baseline_agent_flag)
         logger.info('Instantiate {} done!'.format(agent_name))
 
     def instantiate_LAS_Agent_raw_action(self):
@@ -282,19 +317,27 @@ class Learning():
         logger.info('{}: Saving learned models done.'.format(agent.name))
     
 
-    def interact_with_prescribed_behavior(self, agent = 'prescribed_behavior', end_time = '130000'):
+    def interact_with_prescribed_behavior(self, agent, end_time):
         """
         TODO: Please put prescribed behavior in this function.
         
         Args:
-            agent (str):not important paramter just for keeping the same format with interact_with_learning_agent
+            agent (learning agent object):not important paramter just for keeping the same format with interact_with_learning_agent
             end_time (str):(in format %HH%MM%SS) the end time of interaction
         """
         logger.info('{}: Start interaction. Default End_time: {}'.format(agent, end_time))
         # Interact untill end_time
-        # TODO: check the name of this function
         self.learning_system.reset()
-        logger.info('{}: Interaction is done.'.format(agent))
+        # Note: After reset still need to get_observation(), because we are only 
+        #       allowed to collect data from 1pm to 4pm. 
+        #       Thus, Adam doesn't need to save any data for us.
+        while not datetime.now().strftime("%H%M%S") > end_time:
+            new_observation_flag, observation = self.learning_system.get_observation()
+            if new_observation_flag:
+                # Note: only collect data
+                take_action_flag, action = agent.feed_observation(observation)
+                    
+        logger.info('{}: Interaction is done.'.format(agent.name))
 
     def interaction_mode_scheduler(self, interaction_mode, agent, 
                                    start_time, end_time, schedule_start_time):
@@ -325,62 +368,72 @@ class Learning():
         # Get current time to calculate interaction start-time-delay
         schedule_start_time = datetime.now()
 
-#        # Schedule first experiment:
-#        #     Daiwei's Experiment: Agent controls parameterized actions
-#        # TODO: set start and end times to '130002' and '140000'
-#        self.first_experiment_start_time = '200001'  # format: %H%M%S e.g. 1:00pm is 130000
-#        self.first_experiment_end_time = '201001'    # format: %H%M%S e.g. 2:30pm is 143000
-#        self.first_experiment_thread = self.interaction_mode_scheduler(self.interact_with_learning_agent,
-#                                                                       self.single_agent_parameterized_action,
-#                                                                       self.first_experiment_start_time, 
-#                                                                       self.first_experiment_end_time, 
-#                                                                       schedule_start_time)
-        # TODO: Four our first test, comment out second and third experiments 
+        # Schedule prescribed-behavior 1
+        # TODO: set start and end times to '093000' and '130000'
+        self.prescribed_behavior_start_time_1 = '093001' # format: %H%M%S e.g. 10:00am is 100000
+        self.prescribed_behavior_end_time_1 = '130000'   # format: %H%M%S e.g. 1:00pm is 130000
+        self.prescribed_behavior_thread_1 = self.interaction_mode_scheduler(self.interact_with_prescribed_behavior,
+                                                                            self.single_baseline_agent_parameterized_action,
+                                                                            self.prescribed_behavior_start_time_1,
+                                                                            self.prescribed_behavior_end_time_1, 
+                                                                            schedule_start_time)
+        
+        # Schedule first experiment:
+        #     Daiwei's Experiment: Agent controls parameterized actions
+        # TODO: set start and end times to '130002' and '140000'
+        self.first_experiment_start_time = '130002'  # format: %H%M%S e.g. 1:00pm is 130000
+        self.first_experiment_end_time = '150000'    # format: %H%M%S e.g. 2:30pm is 143000
+        self.first_experiment_thread = self.interaction_mode_scheduler(self.interact_with_learning_agent,
+                                                                       self.single_agent_parameterized_action,
+                                                                       self.first_experiment_start_time, 
+                                                                       self.first_experiment_end_time, 
+                                                                       schedule_start_time)
         # Schedule second experiment:
         #     Lingheng's Experiment 1: Single-Agent controls raw actions
         # TODO: set start and end times to '140002' and '150000'
-        self.second_experiment_start_time = '212301' # format: %H%M%S e.g. 2:30pm is 143000
-        self.second_experiment_end_time = '212800'   # format: %H%M%S e.g. 4:00pm is 160000
+        self.second_experiment_start_time = '212801' # format: %H%M%S e.g. 2:30pm is 143000
+        self.second_experiment_end_time = '214800'   # format: %H%M%S e.g. 4:00pm is 160000
         self.second_experiment_thread = self.interaction_mode_scheduler(self.interact_with_learning_agent, 
                                                                         self.single_agent_raw_action,
                                                                         self.second_experiment_start_time, 
                                                                         self.second_experiment_end_time, 
                                                                         schedule_start_time)
-#        # Schedule third experiment:
-#        #     Lingheng's Experiment 2: Agent-Community contrls raw actions
-#        # TODO: set start and end times to '150002' and '160000'
-#        self.third_experiment_start_time = '212801' # format: %H%M%S e.g. 2:30pm is 143000
-#        self.third_experiment_end_time = '214800'   # format: %H%M%S e.g. 4:00pm is 160000
-#        self.third_experiment_thread = self.interaction_mode_scheduler(self.interact_with_learning_agent, 
-#                                                                        self.LAS_agent_community_raw_action,
-#                                                                        self.third_experiment_start_time, 
-#                                                                        self.third_experiment_end_time, 
-#                                                                        schedule_start_time)
-#        # Schedule prescribed-behavior 1
-#        # TODO: set start and end times to '093000' and '130000'
-#        self.prescribed_behavior_start_time_1 = '104501' # format: %H%M%S e.g. 10:00am is 100000
-#        self.prescribed_behavior_end_time_1 = '105000'   # format: %H%M%S e.g. 1:00pm is 130000
-#        self.prescribed_behavior_thread_1 = self.interaction_mode_scheduler(self.interact_with_prescribed_behavior,
-#                                                                            'prescribed_behavior',
-#                                                                            self.prescribed_behavior_start_time_1,
-#                                                                            self.prescribed_behavior_end_time_1, 
-#                                                                            schedule_start_time)
-#        # Schedule prescribed-behavior 2
-#        # TODO: set start and end times to '160002' and '173000'
-#        self.prescribed_behavior_start_time_2 = '214801' # format: %H%M%S e.g. 4:00pm is 160000
-#        self.prescribed_behavior_end_time_2 = '215300'   # format: %H%M%S e.g. 5:30pm is 173000
-#        self.prescribed_behavior_thread_2 = self.interaction_mode_scheduler(self.interact_with_prescribed_behavior,
-#                                                                            'prescribed_behavior',
-#                                                                            self.prescribed_behavior_start_time_2, 
-#                                                                            self.prescribed_behavior_end_time_2, 
-#                                                                            schedule_start_time)
+        # Schedule third experiment:
+        #     Lingheng's Experiment 2: Agent-Community contrls raw actions
+        # TODO: set start and end times to '150002' and '160000'
+        self.third_experiment_start_time = '212801' # format: %H%M%S e.g. 2:30pm is 143000
+        self.third_experiment_end_time = '214800'   # format: %H%M%S e.g. 4:00pm is 160000
+        self.third_experiment_thread = self.interaction_mode_scheduler(self.interact_with_learning_agent, 
+                                                                        self.LAS_agent_community_raw_action,
+                                                                        self.third_experiment_start_time, 
+                                                                        self.third_experiment_end_time, 
+                                                                        schedule_start_time)
+        # Schedule baseline:
+        #   Baseline experiment: only collect data with Adam's default parameters
+        # TODO: set start and end time to '' and ''
+        self.baseline_experiment_start_time = '150002'
+        self.baseline_experiment_end_time = '160000'
+        self.baseline_experiment_thread = self.interaction_mode_scheduler(self.interact_with_prescribed_behavior,
+                                                                          self.single_baseline_agent_parameterized_action,
+                                                                          self.baseline_experiment_start_time,
+                                                                          self.baseline_experiment_end_time,
+                                                                          schedule_start_time)
+        # Schedule prescribed-behavior 2
+        # TODO: set start and end times to '160002' and '173000'
+        self.prescribed_behavior_start_time_2 = '160002' # format: %H%M%S e.g. 4:00pm is 160000
+        self.prescribed_behavior_end_time_2 = '173000'   # format: %H%M%S e.g. 5:30pm is 173000
+        self.prescribed_behavior_thread_2 = self.interaction_mode_scheduler(self.interact_with_prescribed_behavior,
+                                                                            self.single_baseline_agent_parameterized_action,
+                                                                            self.prescribed_behavior_start_time_2, 
+                                                                            self.prescribed_behavior_end_time_2, 
+                                                                            schedule_start_time)
 
     def start_threads(self):
         # Schedule interaction with learning agent
-#        self.first_experiment_thread.start()
-#        logger.info('first_experiment_thread scheduled: {}-{}'.format(self.first_experiment_start_time, self.first_experiment_end_time))
-        self.second_experiment_thread.start()
-        logger.info('second_experiment_thread scheduled: {}-{}'.format(self.second_experiment_start_time, self.second_experiment_end_time))
+        self.first_experiment_thread.start()
+        logger.info('first_experiment_thread scheduled: {}-{}'.format(self.first_experiment_start_time, self.first_experiment_end_time))
+#        self.second_experiment_thread.start()
+#        logger.info('second_experiment_thread scheduled: {}-{}'.format(self.second_experiment_start_time, self.second_experiment_end_time))
 #        self.third_experiment_thread.start()
 #        logger.info('second_experiment_thread scheduled: {}-{}'.format(self.third_experiment_start_time, self.third_experiment_end_time))
 #        # Schedule interaction with presribed-behavior
@@ -388,11 +441,14 @@ class Learning():
 #        logger.info('prescribed_behavior_thread_1 scheduled: {}-{}'.format(self.prescribed_behavior_start_time_1, self.prescribed_behavior_end_time_1))
 #        self.prescribed_behavior_thread_2.start()
 #        logger.info('prescribed_behavior_thread_2 scheduled: {}-{}'.format(self.prescribed_behavior_start_time_2, self.prescribed_behavior_end_time_2))
+        self.baseline_experiment_thread.start()
+        logger.info('baseline_experiment_thread scheduled: {}-{}'.format(self.baseline_experiment_start_time, self.baseline_experiment_end_time))
 
     def check_if_interactions_done(self):
         if not self.first_experiment_thread.is_alive()\
             and not self.second_experiment_thread.is_alive()\
             and not self.third_experiment_thread.is_alive()\
+            and not self.baseline_experiment_thread.is_alive()\
             and not self.prescribed_behavior_thread_1.is_alive()\
             and not self.prescribed_behavior_thread_2.is_alive():
             logger.info('All interactions are done.')
