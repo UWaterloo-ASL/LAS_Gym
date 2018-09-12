@@ -31,6 +31,9 @@ class LearningSystem(object):
     
     def take_action(self, action):
         self.env.step(action)
+        
+    def reset(self):
+        self.env.reset()
 
 learning_system = LearningSystem()
 
