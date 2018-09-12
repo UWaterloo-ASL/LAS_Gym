@@ -60,9 +60,9 @@ class Learning():
         # parameters.
         self.instantiate_LAS_Baseline_Agent_parameterized_action()
         # Initialize Learning Agents
-        self.instantiate_LAS_Agent_parameterized_action()
+#        self.instantiate_LAS_Agent_parameterized_action()
         self.instantiate_LAS_Agent_raw_action()
-        self.instantiate_LAS_Agent_Community_raw_action()
+#        self.instantiate_LAS_Agent_Community_raw_action()
         # Schedule Experiments
         self.schedule_experiments()
         # Start Threads
@@ -165,7 +165,9 @@ class Learning():
                                       'moth_node#12', 'moth_node#13', 'moth_node#14', 'moth_node#15',
                                       'moth_node#16', 'moth_node#17', 'moth_node#18', 'moth_node#19',
                                       'moth_node#20', 'moth_node#21', 'moth_node#22', 'moth_node']
-        raw_actuators_dim = (6+1+1)*24 # (1 moth + 1 LED + 6 SMAs) * 24 nodes
+        #raw_actuators_dim = (6+1+1)*24 # (1 moth + 1 LED + 6 SMAs) * 24 nodes
+        # For test, (1 LED + 6 SMAs) * 24 nodes
+        raw_actuators_dim = (6+1+1)*24 
         raw_act_max = np.array([1]*raw_actuators_dim)
         raw_act_min = np.array([-1]*raw_actuators_dim)
         self.raw_action_space = spaces.Box(raw_act_max, raw_act_min, dtype = np.float32)
@@ -220,7 +222,9 @@ class Learning():
         
         self.single_baseline_agent_parameterized_action = InternalEnvOfAgent(agent_name,
                                                                              self.observation_space, 
-                                                                             self.para_action_space,
+                                                                             #self.para_action_space,
+                                                                             # For test
+                                                                             self.raw_action_space,
                                                                              self.observation_space_name, 
                                                                              self.para_action_space_name,
                                                                              x_order_sensor_reading,
@@ -430,10 +434,10 @@ class Learning():
 
     def start_threads(self):
         # Schedule interaction with learning agent
-        self.first_experiment_thread.start()
-        logger.info('first_experiment_thread scheduled: {}-{}'.format(self.first_experiment_start_time, self.first_experiment_end_time))
-#        self.second_experiment_thread.start()
-#        logger.info('second_experiment_thread scheduled: {}-{}'.format(self.second_experiment_start_time, self.second_experiment_end_time))
+#        self.first_experiment_thread.start()
+#        logger.info('first_experiment_thread scheduled: {}-{}'.format(self.first_experiment_start_time, self.first_experiment_end_time))
+        self.second_experiment_thread.start()
+        logger.info('second_experiment_thread scheduled: {}-{}'.format(self.second_experiment_start_time, self.second_experiment_end_time))
 #        self.third_experiment_thread.start()
 #        logger.info('second_experiment_thread scheduled: {}-{}'.format(self.third_experiment_start_time, self.third_experiment_end_time))
 #        # Schedule interaction with presribed-behavior
