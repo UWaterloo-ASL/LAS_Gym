@@ -329,7 +329,7 @@ class Learning():
             agent (learning agent object):not important paramter just for keeping the same format with interact_with_learning_agent
             end_time (str):(in format %HH%MM%SS) the end time of interaction
         """
-        logger.info('{}: Start interaction. Default End_time: {}'.format(agent, end_time))
+        logger.info('{}: Start interaction. Default End_time: {}'.format(agent.name, end_time))
         # Interact untill end_time
         self.learning_system.reset()
         # Note: After reset still need to get_observation(), because we are only 
