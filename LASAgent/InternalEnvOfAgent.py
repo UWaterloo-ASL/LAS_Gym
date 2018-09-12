@@ -6,6 +6,8 @@ Created on Wed Aug  8 17:12:06 2018
 @author: jack.lingheng.meng
 """
 import logging
+logger = logging.getLogger(__name__)
+
 from gym import spaces
 from datetime import datetime
 import os
@@ -30,7 +32,8 @@ class InternalEnvOfAgent(object):
                  x_order_sensor_reading_preprocess_type = 'concatenate_sensory_readings',
                  occupancy_reward_type = 'IR_distance',
                  interaction_mode = 'real_interaction',
-                 load_pretrained_agent_flag = False):
+                 load_pretrained_agent_flag = False,
+                 baseline_agent_flag = False):
         """
         Initialize internal environment for an agent
         
@@ -63,6 +66,8 @@ class InternalEnvOfAgent(object):
                     2. 'virtual_interaction': interact with virtual environment
             load_pretrained_agent_flag (bool): whether load pretrained agent
                     if True: load pretrained agent. Otherwise randomly initialize.
+            baseline_agent_flag (bool): whether choose baseline_agent
+                    if True, only collect data and not produce action.
         """
         # self.tf_session is released in self.stop()
         self.tf_session = tf.Session()
@@ -92,11 +97,11 @@ class InternalEnvOfAgent(object):
         self.actual_action_space = action_space
         self.actual_action_space_name = action_space_name
         
-        
+        self.baseline_agent_flag = baseline_agent_flag
         
         # Model saving directory
         self.model_version_number = 0
-        self.agent_model_save_dir = os.path.join(os.path.abspath('..'),'ROM_Experiment_results',self.agent_name)
+        self.agent_model_save_dir = os.path.join(os.path.abspath('../..'),'ROM_Experiment_results',self.agent_name)
         
         if load_pretrained_agent_flag == False:
             self.agent = LASAgent_Actor_Critic(self.tf_session,
@@ -106,7 +111,7 @@ class InternalEnvOfAgent(object):
                                                actor_lr = 0.0001, actor_tau = 0.001,
                                                critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
                                                minibatch_size = 64,
-                                               max_episodes = 50000, max_episode_len = 1000,
+                                               max_episodes = 50000, max_episode_len = 500,
                                                # Exploration Strategies
                                                exploration_action_noise_type = 'none', #'ou_0.2',
                                                exploration_epsilon_greedy_type = 'epsilon-greedy-max_1_min_0.05_decay_0.9',#'none',#
@@ -124,9 +129,9 @@ class InternalEnvOfAgent(object):
         #                 Interaction data saving directory                 #
         #####################################################################
         self.interaction_data_dir = os.path.join(os.path.abspath('..'),
-                                                      'ROM_Experiment_results',
-                                                      self.agent_name,
-                                                      'interaction_data')
+                                                 'ROM_Experiment_results',
+                                                 self.agent_name,
+                                                 'interaction_data')
         if not os.path.exists(self.interaction_data_dir):
             os.makedirs(self.interaction_data_dir)
         self.interaction_data_file = os.path.join(self.interaction_data_dir,
@@ -163,9 +168,14 @@ class InternalEnvOfAgent(object):
             reward = external_reward
         else:
             raise Exception('Please choose right interaction mode!')
-        logging.debug('Reward of {} is: {}'.format(self.agent_name, reward))
-        
-        action = self.agent.perceive_and_act(actual_observation, reward, done)
+        logger.info('Reward of {} is: {}'.format(self.agent_name, reward))
+        # If running baseline only collect data, no need to calculate action
+        if self.baseline_agent_flag == False:
+            logger.info('Not use baseline_agent')
+            action = self.agent.perceive_and_act(actual_observation, reward, done)
+        else:
+            logger.info('Use baseline_agent!')
+            action = []
         # Logging interaction data
         self._logging_interaction_data(actual_observation,
                                        reward,
@@ -295,7 +305,7 @@ class InternalEnvOfAgent(object):
         if reward_type == 'IR_distance':
             for distance in prox_distances:
                 if distance != 0:
-                    reward_temp += 1/distance
+                    reward_temp += distance
         elif reward_type == 'IR_state_ratio':
             for distance in prox_distances:
                 if distance != 0:
@@ -336,10 +346,10 @@ class InternalEnvOfAgent(object):
                                            actor_lr = 0.0001, actor_tau = 0.001,
                                            critic_lr = 0.0001, critic_tau = 0.001, gamma = 0.99,
                                            minibatch_size = 64,
-                                           max_episodes = 50000, max_episode_len = 1000,
+                                           max_episodes = 50000, max_episode_len = 500,
                                            # Exploration Strategies
                                            exploration_action_noise_type = 'none',
-                                           exploration_epsilon_greedy_type = 'epsilon-greedy-max_0.05_min_0.05_decay_0.9',
+                                           exploration_epsilon_greedy_type = 'epsilon-greedy-max_0.5_min_0.05_decay_0.9',
                                            # Save Summaries
                                            save_dir = self.agent_model_save_dir,
                                            experiment_runs = directory_of_most_recent_models,
