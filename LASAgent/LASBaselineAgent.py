@@ -29,8 +29,9 @@ import numpy as np
 
 
 class LASBaselineAgent:
-    def __init__(self, observation_dim, action_dim, num_observation=20, env=None, load_pretrained_agent_flag=False ):
+    def __init__(self, agent_name, observation_dim, action_dim, num_observation=20, env=None, load_pretrained_agent_flag=False ):
 
+        self.name = agent_name
         #=======================================#
         # Get parameters defined in parse_arg() #
         #=======================================#
@@ -117,8 +118,8 @@ class LASBaselineAgent:
 
 
 
-        assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
-        max_action = env.action_space.high
+        assert (np.abs(self.action_space.low) == self.action_space.high).all()  # we assume symmetric actions.
+        max_action = self.action_space.high
         # logger.info('scaling actions by {} before executing in env'.format(max_action))
 
         #=======================#
@@ -139,7 +140,7 @@ class LASBaselineAgent:
         reward_scale = args['reward_scale']
 
         # create learning agent
-        self.agent = DDPG(actor, critic, self.memory, env.observation_space.shape, env.action_space.shape,
+        self.agent = DDPG(actor, critic, self.memory, self.observation_space.shape, self.action_space.shape,
                      gamma=gamma, tau=tau, normalize_returns=normalize_returns,
                      normalize_observations=normalize_observations,
                      batch_size=self.batch_size, action_noise=action_noise, param_noise=param_noise,
@@ -169,7 +170,7 @@ class LASBaselineAgent:
         self.training_step_cnt = 0
 
         #========================#
-        # Model saving directory #
+        # Model saving           #
         #========================#
         self.model_dir = os.path.join(os.path.abspath('..'), 'save','model')
         self.log_dir = os.path.join(os.path.abspath('..'), 'save','log')
@@ -177,6 +178,8 @@ class LASBaselineAgent:
             os.makedirs(self.model_dir)
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
+
+
         #=======================#
         # Initialize tf session #
         #=======================#
@@ -184,10 +187,12 @@ class LASBaselineAgent:
         self.sess = U.make_session(num_cpu=1, make_default=True)
 
         self.agent.initialize(self.sess)
+        self.saver = tf.train.Saver()
         if load_pretrained_agent_flag == True:
             self._load_model(self.model_dir)
 
         # self.sess.graph.finalize()
+
 
         self.agent.reset()
 
@@ -224,126 +229,126 @@ class LASBaselineAgent:
         # # since with the simulator, we always use interact() instead of feed_observation()
         # if self.env is not None:
         #     self.observe(observation)
+        with self.sess.as_default():
+            action, q = self.agent.pi(observation, apply_noise=True, compute_Q=True)
+            assert action.shape == self.action_space.shape
 
-        action, q = self.agent.pi(self.flt_observation, apply_noise=True, compute_Q=True)
-        assert action.shape == self.action_space.shape
-
-        # Execute next action.
-
-
-        # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-        if self.rollout_step_cnt == self.nb_rollout_steps - 1:
-            done = True
-        self.t += 1
-
-        self.episode_reward += reward  # <<<<<<<<<<<<<<<<<<<<<<<<
-        self.episode_step += 1
+            # Execute next action.
 
 
-        # Book-keeping.
-        self.epoch_actions.append(action)
-        self.epoch_qs.append(q)
-        # Note: self.action correspond to flt_prev_observation
-        #       reward correspond to flt_observation
-        if self.action is not None:
-            self.agent.store_transition(self.flt_prev_observation, self.action, reward, self.flt_observation, done)
-        self.action = action
-        self.reward = reward
+            # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+            if self.rollout_step_cnt == self.nb_rollout_steps - 1:
+                done = True
+            self.t += 1
 
-        self._save_log(self.log_dir,[self.flt_prev_observation, self.action, reward])
-
-        # Logging the training reward info for debug purpose
-        if done:
-            # Episode done.
-            self.epoch_episode_rewards.append(self.episode_reward)
-            self.episode_rewards_history.append(self.episode_reward)
-            self.epoch_episode_steps.append(self.episode_step)
-            self.avg_episode_rewards_history.append(self.episode_reward / self.episode_step)
-            self.episode_reward = 0.
-            self.episode_step = 0
-            self.epoch_episodes += 1
-            self.episodes += 1
-
-            self.agent.reset()
-            if self.env is not None:
-                obs = self.env.reset()
-
-        self.rollout_step_cnt += 1
-        # Training
-        # Everytime interact() is called, it will train the model by nb_train_steps times
-        if self.rollout_step_cnt >= self.nb_rollout_steps:
-
-            self.epoch_actor_losses = []
-            self.epoch_critic_losses = []
-            self.epoch_adaptive_distances = []
-            for t_train in range(self.nb_train_steps):
-                # Adapt param noise, if necessary.
-                if self.memory.nb_entries >= self.batch_size and t_train % self.param_noise_adaption_interval == 0:
-                    distance = self.agent.adapt_param_noise()
-                    self.epoch_adaptive_distances.append(distance)
-
-                cl, al = self.agent.train()
-                self.epoch_critic_losses.append(cl)
-                self.epoch_actor_losses.append(al)
-                self.agent.update_target_net()
-
-            self.rollout_step_cnt = 0
-            self.epoch_cycle_cnt += 1
-
-        #==============#
-        # Create stats #
-        #==============#
-        if self.epoch_cycle_cnt >= self.nb_epoch_cycles:
-            # rank = MPI.COMM_WORLD.Get_rank()
-            mpi_size = MPI.COMM_WORLD.Get_size()
-            # Log stats.
-            # XXX shouldn't call np.mean on variable length lists
-            duration = time.time() - self.start_time
-            stats = self.agent.get_stats()
-            combined_stats = stats.copy()
-            combined_stats['rollout/return'] = np.mean(self.epoch_episode_rewards)
-            combined_stats['rollout/return_history'] = np.mean(self.episode_rewards_history)
-            combined_stats['rollout/episode_steps'] = np.mean(self.epoch_episode_steps)
-            combined_stats['rollout/actions_mean'] = np.mean(self.epoch_actions)
-            combined_stats['rollout/Q_mean'] = np.mean(self.epoch_qs)
-            combined_stats['train/loss_actor'] = np.mean(self.epoch_actor_losses)
-            combined_stats['train/loss_critic'] = np.mean(self.epoch_critic_losses)
-            combined_stats['train/param_noise_distance'] = np.mean(self.epoch_adaptive_distances)
-            combined_stats['total/duration'] = duration
-            combined_stats['total/steps_per_second'] = float(self.t) / float(duration)
-            combined_stats['total/episodes'] = self.episodes
-            combined_stats['rollout/episodes'] = self.epoch_episodes
-            combined_stats['rollout/actions_std'] = np.std(self.epoch_actions)
-
-            def as_scalar(x):
-                if isinstance(x, np.ndarray):
-                    assert x.size == 1
-                    return x[0]
-                elif np.isscalar(x):
-                    return x
-                else:
-                    raise ValueError('expected scalar, got %s' % x)
-
-            combined_stats_sums = MPI.COMM_WORLD.allreduce(np.array([as_scalar(x) for x in combined_stats.values()]))
-            combined_stats = {k: v / mpi_size for (k, v) in zip(combined_stats.keys(), combined_stats_sums)}
-
-            # Total statistics.
-            combined_stats['total/epochs'] = self.epoch_cnt + 1
-            combined_stats['total/steps'] = self.t
-
-            for key in sorted(combined_stats.keys()):
-                logger.record_tabular(key, combined_stats[key])
-            logger.dump_tabular()
-            logger.info('')
+            self.episode_reward += reward  # <<<<<<<<<<<<<<<<<<<<<<<<
+            self.episode_step += 1
 
 
-            self.epoch_cycle_cnt = 0
-            self.epoch_cnt += 1
-        #===================#
-        # Stop the learning #
-        #===================#
-        if self.epoch_cnt >= self.nb_epoch_cycles:
-            self.stop()
+            # Book-keeping.
+            self.epoch_actions.append(action)
+            self.epoch_qs.append(q)
+            # Note: self.action correspond to flt_prev_observation
+            #       reward correspond to flt_observation
+            if self.action is not None:
+                self.agent.store_transition(self.flt_prev_observation, self.action, reward, observation, done)
+            self.action = action
+            self.reward = reward
+
+            self._save_log(self.log_dir,[self.flt_prev_observation, self.action, reward])
+
+            # Logging the training reward info for debug purpose
+            if done:
+                # Episode done.
+                self.epoch_episode_rewards.append(self.episode_reward)
+                self.episode_rewards_history.append(self.episode_reward)
+                self.epoch_episode_steps.append(self.episode_step)
+                self.avg_episode_rewards_history.append(self.episode_reward / self.episode_step)
+                self.episode_reward = 0.
+                self.episode_step = 0
+                self.epoch_episodes += 1
+                self.episodes += 1
+
+                self.agent.reset()
+                if self.env is not None:
+                    obs = self.env.reset()
+
+            self.rollout_step_cnt += 1
+            # Training
+            # Everytime interact() is called, it will train the model by nb_train_steps times
+            if self.rollout_step_cnt >= self.nb_rollout_steps:
+
+                self.epoch_actor_losses = []
+                self.epoch_critic_losses = []
+                self.epoch_adaptive_distances = []
+                for t_train in range(self.nb_train_steps):
+                    # Adapt param noise, if necessary.
+                    if self.memory.nb_entries >= self.batch_size and t_train % self.param_noise_adaption_interval == 0:
+                        distance = self.agent.adapt_param_noise()
+                        self.epoch_adaptive_distances.append(distance)
+
+                    cl, al = self.agent.train()
+                    self.epoch_critic_losses.append(cl)
+                    self.epoch_actor_losses.append(al)
+                    self.agent.update_target_net()
+
+                self.rollout_step_cnt = 0
+                self.epoch_cycle_cnt += 1
+
+            #==============#
+            # Create stats #
+            #==============#
+            if self.epoch_cycle_cnt >= self.nb_epoch_cycles:
+                # rank = MPI.COMM_WORLD.Get_rank()
+                mpi_size = MPI.COMM_WORLD.Get_size()
+                # Log stats.
+                # XXX shouldn't call np.mean on variable length lists
+                duration = time.time() - self.start_time
+                stats = self.agent.get_stats()
+                combined_stats = stats.copy()
+                combined_stats['rollout/return'] = np.mean(self.epoch_episode_rewards)
+                combined_stats['rollout/return_history'] = np.mean(self.episode_rewards_history)
+                combined_stats['rollout/episode_steps'] = np.mean(self.epoch_episode_steps)
+                combined_stats['rollout/actions_mean'] = np.mean(self.epoch_actions)
+                combined_stats['rollout/Q_mean'] = np.mean(self.epoch_qs)
+                combined_stats['train/loss_actor'] = np.mean(self.epoch_actor_losses)
+                combined_stats['train/loss_critic'] = np.mean(self.epoch_critic_losses)
+                combined_stats['train/param_noise_distance'] = np.mean(self.epoch_adaptive_distances)
+                combined_stats['total/duration'] = duration
+                combined_stats['total/steps_per_second'] = float(self.t) / float(duration)
+                combined_stats['total/episodes'] = self.episodes
+                combined_stats['rollout/episodes'] = self.epoch_episodes
+                combined_stats['rollout/actions_std'] = np.std(self.epoch_actions)
+
+                def as_scalar(x):
+                    if isinstance(x, np.ndarray):
+                        assert x.size == 1
+                        return x[0]
+                    elif np.isscalar(x):
+                        return x
+                    else:
+                        raise ValueError('expected scalar, got %s' % x)
+
+                combined_stats_sums = MPI.COMM_WORLD.allreduce(np.array([as_scalar(x) for x in combined_stats.values()]))
+                combined_stats = {k: v / mpi_size for (k, v) in zip(combined_stats.keys(), combined_stats_sums)}
+
+                # Total statistics.
+                combined_stats['total/epochs'] = self.epoch_cnt + 1
+                combined_stats['total/steps'] = self.t
+
+                for key in sorted(combined_stats.keys()):
+                    logger.record_tabular(key, combined_stats[key])
+                logger.dump_tabular()
+                logger.info('')
+
+
+                self.epoch_cycle_cnt = 0
+                self.epoch_cnt += 1
+            #===================#
+            # Stop the learning #
+            #===================#
+            if self.epoch_cnt >= self.nb_epoch_cycles:
+                self.stop()
 
         return action
 
@@ -404,10 +409,11 @@ class LASBaselineAgent:
         """
         Load a pre-trained model from file specified in model directory
         """
-        saver = tf.train.Saver()
-        file_dir = os.path.join(model_dir,'param_action.ckpt')
-        saver.restore(self.sess, file_dir)
-        print("Model loaded from {}", format(file_dir))
+        with self.sess.as_default():
+            # saver = tf.train.Saver()
+            file_dir = os.path.join(model_dir,'param_action.ckpt')
+            self.saver.restore(self.sess, file_dir)
+            print("Model loaded from {}", format(file_dir))
 
     def _save_model(self, model_dir):
         """
@@ -415,9 +421,10 @@ class LASBaselineAgent:
         :param model_dir:
 
         """
-        saver = tf.train.Saver()
+
+        # saver = tf.train.Saver() # move this up to initialization
         file_dir = os.path.join(model_dir, 'param_action.ckpt')
-        path = saver.save(self.sess, file_dir)
+        path = self.saver.save(self.sess, file_dir)
         print("Model saved at {}".format(path))
 
     def _save_log(self, save_dir, data):
@@ -443,7 +450,7 @@ class LASBaselineAgent:
         boolean_flag(parser, 'layer-norm', default=True)
         boolean_flag(parser, 'render', default=False)
         boolean_flag(parser, 'normalize-returns', default=False)
-        boolean_flag(parser, 'normalize-observations', default=True)
+        boolean_flag(parser, 'normalize-observations', default=True) # default = True
         # parser.add_argument('--seed', help='RNG seed', type=int, default=0)
         parser.add_argument('--critic-l2-reg', type=float, default=1e-2)
         parser.add_argument('--batch-size', type=int, default=64)  # per MPI worker
