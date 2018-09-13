@@ -100,3 +100,8 @@ ENV/
 # mypy
 .mypy_cache/
 cs885project.ipynb
+.idea/LAS_Gym.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/workspace.xml

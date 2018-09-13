@@ -347,7 +347,8 @@ class LASBaselineAgent:
             #===================#
             # Stop the learning #
             #===================#
-            if self.epoch_cnt >= self.nb_epoch_cycles:
+
+            if self.epoch_cnt >= self.nb_epochs:
                 self.stop()
 
         return action
@@ -442,6 +443,9 @@ class LASBaselineAgent:
     def parse_args(self):
         """
         This is the place to define training variables. Still using the code from OpenAI Baseline library
+
+        # total step = nb_epochs * nb_epoch_cycles * nb_rollout_steps
+
         """
         parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
