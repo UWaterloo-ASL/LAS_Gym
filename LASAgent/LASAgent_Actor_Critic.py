@@ -10,6 +10,8 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+logger = logging.getLogger('Learning.'+__name__)
+
 import os
 import glob
 import tensorflow as tf
@@ -88,7 +90,7 @@ class ActorNetwork(object):
         self.restore_model_flag = restore_model_flag
         self.restore_model_version = self._find_the_most_recent_model_version() 
         if self.restore_model_flag and self.restore_model_version == -1:
-            logging.error('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
+            logger.error('You do not have pretrained models.\nPlease set "load_pretrained_agent_flag = False".')
         
         with tf.name_scope(self.name):
             
@@ -169,8 +171,8 @@ class ActorNetwork(object):
         self.actor_model_saver.save(self.sess, actor_filepath)
         self.target_actor_model_saver.save(self.sess, target_actor_filepath)
         
-        logging.info('Actor model saved in path: {}.'.format(actor_filepath))
-        logging.info('Target Actor model saved in path: {}.'.format(target_actor_filepath))
+        logger.info('Actor model saved in path: {}.'.format(actor_filepath))
+        logger.info('Target Actor model saved in path: {}.'.format(target_actor_filepath))
 
     def restore_actor_and_target_actor_network(self, actor_filepath, target_actor_filepath):
         """ 
@@ -185,10 +187,8 @@ class ActorNetwork(object):
         self.actor_model_saver.restore(self.sess, actor_filepath)
         self.target_actor_model_saver.restore(self.sess, target_actor_filepath)
         
-        
-        
-        logging.info('Restored acotor: {}'.format(actor_filepath))
-        logging.info('Restored target acotor: {}'.format(target_actor_filepath))
+        logger.info('Restored acotor: {}'.format(actor_filepath))
+        logger.info('Restored target acotor: {}'.format(target_actor_filepath))
 
     def train(self, inputs, a_gradient):
         """Train actor"""
@@ -387,8 +387,8 @@ class CriticNetwork(object):
         self.critic_model_saver.save(self.sess, critic_filepath)
         self.target_critic_model_saver.save(self.sess, target_critic_filepath)
         
-        logging.info('Critic model saved in path: {}.'.format(critic_filepath))
-        logging.info('Target Critic model saved in path: {}.'.format(target_critic_filepath))
+        logger.info('Critic model saved in path: {}.'.format(critic_filepath))
+        logger.info('Target Critic model saved in path: {}.'.format(target_critic_filepath))
         
     def restore_critic_and_target_critic_network(self, critic_filepath, target_critic_filepath):
         """ 
@@ -398,8 +398,8 @@ class CriticNetwork(object):
         """
         self.critic_model_saver.restore(self.sess, critic_filepath)
         self.target_critic_model_saver.restore(self.sess, target_critic_filepath)
-        logging.info('Restored acotor: {}'.format(critic_filepath))
-        logging.info('Restored target acotor: {}'.format(target_critic_filepath))
+        logger.info('Restored acotor: {}'.format(critic_filepath))
+        logger.info('Restored target acotor: {}'.format(target_critic_filepath))
 
     def train(self, observation, action, target_q_value):
         """
@@ -797,9 +797,14 @@ class LASAgent_Actor_Critic():
         # TODO: should summarize (obs, act, r, obs_new)??
         #   2. observation, action, reward and  
         #   3. loss of critic model
+        #   4. reward of random action
+        #   5. reward of greedy action
         self.summary_ops_accu_rewards, self.summary_vars_accu_rewards = self._init_summarize_accumulated_rewards()
         self.summary_ops_action_reward, self.summary_action, self.summary_reward = self._init_summarize_action_and_reward()
         self.summary_ops_critic_loss, self.summary_critic_loss = self._init_summarize_actor_critic()
+        
+        self.summary_ops_reward_random, self.summary_reward_random = self._init_summarize_reward_of_random_action()
+        self.summary_ops_reward_greedy, self.summary_reward_greedy = self._init_summarize_reward_of_greedy_action()
         
         # Summarize Knowledge-based Intrinsic Motivation Component
         self.summary_ops_kb_reward, self.sum_kb_reward = self._init_summarize_knowledge_based_intrinsic_reward()
@@ -917,6 +922,15 @@ class LASAgent_Actor_Critic():
                                                    feed_dict = {self.summary_action: self.action_old,
                                                                 self.summary_reward: self.reward_new}), 
                                 self.total_step_counter)
+        # TODO: separatively save reward caused by random action and greedy action
+        if self.random_action_flag == True:
+            self.writer.add_summary(self.sess.run(self.summary_ops_reward_random,
+                                                  feed_dict = {self.summary_reward_random: self.reward_new}),
+                                    self.total_step_counter)
+        else:
+            self.writer.add_summary(self.sess.run(self.summary_ops_reward_greedy,
+                                                  feed_dict = {self.summary_reward_greedy: self.reward_new}),
+                                    self.total_step_counter)
         # 2. Save Episode Summaries
         self.episode_rewards += self.reward_new
         if self.steps_counter == self.max_episode_len or self.done == True:
@@ -953,11 +967,15 @@ class LASAgent_Actor_Critic():
         if self.exploration_epsilon_greedy_type != 'none':
             if np.random.rand(1) <= self.epsilon:
                 action = self.action_space.sample()
+                # TODO: set random_action_flag = True
+                self.random_action_flag = True
                 if self.epsilon > self.epsilon_min:
                     self.epsilon *= self.epsilon_decay
                 if self.total_step_counter % 2000 == 0:
-                    print("epsilon:{}".format(self.epsilon))
+                    logger.info("epsilon:{}".format(self.epsilon))
                 return action
+            else:
+                self.random_action_flag = False
         # Action Noise
         if self.exploration_action_noise_type != 'none':
             action = self.extrinsic_actor_model.predict(np.reshape(observation_new, [1, self.observation_space.shape[0]])) + self.actor_noise() #The noise is too huge.
@@ -1038,10 +1056,10 @@ class LASAgent_Actor_Critic():
         # Save extrinsically motivated actor-critic model 
         self.extrinsic_actor_model.save_actor_network(version_number)
         self.extrinsic_critic_model.save_critic_network(version_number)
-        logging.info('Save extrinsic_actor_model and extrinsic_critic_model: done.')
+        logger.info('Save extrinsic_actor_model and extrinsic_critic_model: done.')
         # Save Environment Model
         self.environment_model.save_env_model(version_number)
-        logging.info('Save environment_model: done.')
+        logger.info('Save environment_model: done.')
 # =================================================================== #
 #                 Intrinsic Motivation Components                     #
 # =================================================================== #
@@ -1139,6 +1157,18 @@ class LASAgent_Actor_Critic():
     
         return summary_ops, episode_rewards
     
+    def _init_summarize_reward_of_random_action(self):
+        reward_of_random_action = tf.placeholder(tf.float32)
+        reward_sum = tf.summary.scalar("reward_of_random_action", reward_of_random_action)
+        summary_ops = tf.summary.merge([reward_sum])
+        return summary_ops, reward_of_random_action
+    
+    def _init_summarize_reward_of_greedy_action(self):
+        reward_of_greedy_action = tf.placeholder(tf.float32)
+        reward_sum = tf.summary.scalar('reward_of_greedy_action', reward_of_greedy_action)
+        summary_ops = tf.summary.merge([reward_sum])
+        return summary_ops, reward_of_greedy_action
+        
     def _init_summarize_action_and_reward(self):
         """
         Histogram summaries of action and reward

@@ -21,10 +21,17 @@ class RandomLASAgent():
     Single LAS agent contorl all actuators i.e. non-distributed
     
     """
-    def __init__(self, env):
-        self.env = env
-        self.action_space = env.action_space             # gym.spaces.Box object
-        self.observation_space = env.observation_space   # gym.spaces.Box object
+    def __init__(self, observation_space, action_space):
+        """
+        Parameters
+        ----------
+        observation_space: gym.spaces.Box
+            
+        action_space: gym.spaces.Box
+            
+        """
+        self.action_space = action_space             # gym.spaces.Box object
+        self.observation_space = observation_space   # gym.spaces.Box object
         
         # ========================================================================= #
         #                 Initialize Temprary Memory                                #
@@ -42,7 +49,7 @@ class RandomLASAgent():
         self._cumulativeRewardMemory = deque(maxlen = 10000)
         self._rewardMemory = deque(maxlen = 10000)
         
-    def perceive_and_act(self, observation, reward, done):
+    def interact(self, observation, reward, done):
         self._observation = observation
         self._reward = reward
         self._done = done
@@ -51,9 +58,9 @@ class RandomLASAgent():
         self._cumulativeReward += reward
         self._cumulativeRewardMemory.append([self._cumulativeReward])
         # plot in real time
-        if len(self._memory) %200 == 0:
-            #plot_cumulative_reward(self._cumulativeRewardMemory)
-            plot_cumulative_reward(self._rewardMemory)
+#        if len(self._memory) %200 == 0:
+#            #plot_cumulative_reward(self._cumulativeRewardMemory)
+#            plot_cumulative_reward(self._rewardMemory)
         
         self._actionNew = self._act()
         return self._actionNew

@@ -6,6 +6,8 @@ Created on Wed Aug  8 21:47:50 2018
 @author: jack.lingheng.meng
 """
 import logging
+logger = logging.getLogger('Learning.'+__name__)
+
 import os
 from datetime import datetime
 import numpy as np
@@ -156,7 +158,7 @@ class InternalEnvOfCommunity(object):
         #       data saving directory. Here is a saving of interaction from #
         #       the perspective of Agent-Community.
         #####################################################################
-        self.interaction_data_dir = os.path.join(os.path.abspath('..'), 'ROM_Experiment_results',
+        self.interaction_data_dir = os.path.join(os.path.abspath('../..'), 'ROM_Experiment_results',
                                                  self.community_name, 'interaction_data')
         if not os.path.exists(self.interaction_data_dir):
             os.makedirs(self.interaction_data_dir)
@@ -327,7 +329,7 @@ class InternalEnvOfCommunity(object):
                                                                  occupancy_reward_type,
                                                                  interaction_mode,
                                                                  load_pretrained_agent_flag)
-            logging.info('Create actor_critic_agent community done!')
+            logger.info('Create actor_critic_agent community done!')
         else:
             raise Exception('Please choose a right agent type!')
         return agent_community

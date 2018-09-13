@@ -6,7 +6,7 @@ Created on Wed Aug  8 17:12:06 2018
 @author: jack.lingheng.meng
 """
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('Learning.'+__name__)
 
 from gym import spaces
 from datetime import datetime
@@ -128,7 +128,7 @@ class InternalEnvOfAgent(object):
         #####################################################################
         #                 Interaction data saving directory                 #
         #####################################################################
-        self.interaction_data_dir = os.path.join(os.path.abspath('..'),
+        self.interaction_data_dir = os.path.join(os.path.abspath('../..'),
                                                  'ROM_Experiment_results',
                                                  self.agent_name,
                                                  'interaction_data')
@@ -171,10 +171,12 @@ class InternalEnvOfAgent(object):
         logger.info('Reward of {} is: {}'.format(self.agent_name, reward))
         # If running baseline only collect data, no need to calculate action
         if self.baseline_agent_flag == False:
-            logger.info('Not use baseline_agent')
+            #logger.info('Not use baseline_agent')
             action = self.agent.perceive_and_act(actual_observation, reward, done)
         else:
-            logger.info('Use baseline_agent!')
+            # TODO: The reward of baseline is not summarized in tensorflow summary.
+            #logger.info('Use baseline_agent!')
+            action = self.agent.perceive_and_act(actual_observation, reward, done)
             action = []
         # Logging interaction data
         self._logging_interaction_data(actual_observation,
