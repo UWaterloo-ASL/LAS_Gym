@@ -460,11 +460,11 @@ class LASBaselineAgent:
         parser.add_argument('--gamma', type=float, default=0.99)
         parser.add_argument('--reward-scale', type=float, default=1.)
         parser.add_argument('--clip-norm', type=float, default=None)
-        parser.add_argument('--nb-epochs', type=int, default=40)  # with default settings (500), perform 1M steps total
+        parser.add_argument('--nb-epochs', type=int, default=60)  # with default settings (500), perform 1M steps total
         parser.add_argument('--nb-epoch-cycles', type=int, default=10)
         parser.add_argument('--nb-train-steps', type=int, default=20)  # per epoch cycle and MPI worker
         parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
-        parser.add_argument('--nb-rollout-steps', type=int, default=50)  # per epoch cycle and MPI worker
+        parser.add_argument('--nb-rollout-steps', type=int, default=10)  # per epoch cycle and MPI worker  default 50
         parser.add_argument('--noise-type', type=str,
                             default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
         parser.add_argument('--num-timesteps', type=int, default=None)

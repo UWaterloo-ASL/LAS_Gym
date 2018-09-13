@@ -62,7 +62,7 @@ class Learning():
         # self.instantiate_LAS_Baseline_Agent_parameterized_action()
         # Initialize Learning Agents
         self.instantiate_LAS_Agent_parameterized_action()
-        # self.instantiate_LAS_Agent_raw_action()
+        self.instantiate_LAS_Agent_raw_action()
         # self.instantiate_LAS_Agent_Community_raw_action()
         # Schedule Experiments
         self.schedule_experiments()
@@ -389,23 +389,23 @@ class Learning():
         # Schedule first experiment:
         #     Daiwei's Experiment: Agent controls parameterized actions
         # TODO: set start and end times to '130002' and '140000'
-        self.first_experiment_start_time = '224002'  # format: %H%M%S e.g. 1:00pm is 130000
-        self.first_experiment_end_time = '230000'    # format: %H%M%S e.g. 2:30pm is 143000
+        self.first_experiment_start_time = '000702'  # format: %H%M%S e.g. 1:00pm is 130000
+        self.first_experiment_end_time = '000900'    # format: %H%M%S e.g. 2:30pm is 143000
         self.first_experiment_thread = self.interaction_mode_scheduler(self.interact_with_learning_agent,
                                                                        self.single_agent_parameterized_action,
                                                                        self.first_experiment_start_time, 
                                                                        self.first_experiment_end_time, 
                                                                        schedule_start_time)
-        # # Schedule second experiment:
-        # #     Lingheng's Experiment 1: Single-Agent controls raw actions
-        # # TODO: set start and end times to '140002' and '150000'
-        # self.second_experiment_start_time = '212801' # format: %H%M%S e.g. 2:30pm is 143000
-        # self.second_experiment_end_time = '214800'   # format: %H%M%S e.g. 4:00pm is 160000
-        # self.second_experiment_thread = self.interaction_mode_scheduler(self.interact_with_learning_agent,
-        #                                                                 self.single_agent_raw_action,
-        #                                                                 self.second_experiment_start_time,
-        #                                                                 self.second_experiment_end_time,
-        #                                                                 schedule_start_time)
+        # Schedule second experiment:
+        #     Lingheng's Experiment 1: Single-Agent controls raw actions
+        # TODO: set start and end times to '140002' and '150000'
+        self.second_experiment_start_time = '212801' # format: %H%M%S e.g. 2:30pm is 143000
+        self.second_experiment_end_time = '214800'   # format: %H%M%S e.g. 4:00pm is 160000
+        self.second_experiment_thread = self.interaction_mode_scheduler(self.interact_with_learning_agent,
+                                                                        self.single_agent_raw_action,
+                                                                        self.second_experiment_start_time,
+                                                                        self.second_experiment_end_time,
+                                                                        schedule_start_time)
         # # Schedule third experiment:
         # #     Lingheng's Experiment 2: Agent-Community contrls raw actions
         # # TODO: set start and end times to '150002' and '160000'
