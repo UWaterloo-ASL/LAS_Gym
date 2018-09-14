@@ -255,7 +255,7 @@ class LASBaselineAgent:
             self.action = action
             self.reward = reward
 
-            self._save_log(self.log_dir,[self.flt_prev_observation, self.action, reward])
+            self._save_log(self.log_dir,[datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),self.flt_prev_observation, self.action, reward])
 
             # Logging the training reward info for debug purpose
             if done:
