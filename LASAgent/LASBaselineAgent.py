@@ -41,7 +41,7 @@ class LASBaselineAgent:
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.configure()
 
-        share = False
+        # share = False
         rank = MPI.COMM_WORLD.Get_rank()
         if rank != 0:
             logger.set_level(logger.DISABLED)
@@ -106,8 +106,8 @@ class LASBaselineAgent:
 
         self.memory = Memory(limit=int(1e6), action_shape=self.action_space.shape,
                         observation_shape=self.observation_space.shape)
-        critic = Critic(layer_norm=layer_norm, share=share)
-        actor = Actor(nb_actions, layer_norm=layer_norm, share=share)
+        critic = Critic(layer_norm=layer_norm)#, share=share)
+        actor = Actor(nb_actions, layer_norm=layer_norm) #, share=share)
 
         tf.reset_default_graph()
 
