@@ -29,10 +29,9 @@ import numpy as np
 
 
 class LASBaselineAgent:
-    def __init__(self, agent_name, observation_dim, action_dim, num_observation=20, env=None, load_pretrained_agent_flag=False, is_logging=False ):
+    def __init__(self, agent_name, observation_dim, action_dim, num_observation=20, env=None, load_pretrained_agent_flag=False ):
 
         self.name = agent_name
-        self.is_logging = is_logging
         #=======================================#
         # Get parameters defined in parse_arg() #
         #=======================================#
@@ -273,12 +272,8 @@ class LASBaselineAgent:
                 self.agent.store_transition(self.flt_prev_observation, self.action, reward, observation, done)
             self.action = action
             self.reward = reward
-            if self.is_logging:
-                self._save_log(self.log_dir,[datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),self.flt_prev_observation, [], reward])
-            else:
-                self._save_log(self.log_dir,
-                               [datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), self.flt_prev_observation, self.action,
-                                reward])
+
+            self._save_log(self.log_dir,[datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),self.flt_prev_observation, self.action, reward])
 
             # Logging the training reward info for debug purpose
             if done:
@@ -459,6 +454,7 @@ class LASBaselineAgent:
 
         """
 
+        # saver = tf.train.Saver() # move this up to initialization
         file_dir = os.path.join(model_dir, 'param_action.ckpt')
         path = self.saver.save(self.sess, file_dir)
         print("Model saved at {}".format(path))
@@ -528,8 +524,7 @@ class LASBaselineAgent:
             self.env.close_connection()
 
         # save the model
-        if self.is_logging == False:
-            self._save_model(self.model_dir)
+        self._save_model(self.model_dir)
         # close the tf session
         self.sess.close()
 
