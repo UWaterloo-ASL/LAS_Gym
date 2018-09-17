@@ -217,24 +217,6 @@ class LASBaselineAgent:
         self.epoch_episodes = 0
         self.param_noise_adaption_interval = 50
 
-        #==========================================#
-        # default prescripted behaviour parameters #
-        #==========================================#
-        # Actions are a list of values:
-        # [1a moth, 1a RS, 1b moth, 1b RS, 1c moth, 1c RS, 1d, 2, 3, 4, 5a, 5b, 6a, 6b, 7, 8a, 8b]        #
-        # constant parameters: 5a, 5b, 6a, 6b, 8a, 8b
-        min_val = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 15000, 60000, 0, 0, 0, 1000, 5, 200])
-
-        max_val = np.array(
-            [5000, 5000, 5000, 5000, 5000, 5000, 255, 5000, 5000, 60000, 100000, 10000, 100, 5000, 5000, 200, 400])
-
-        default_val = np.array(
-            [1500, 1500, 1000, 1000, 2500, 2500, 200, 1500, 300, 45000, 90000, 5000, 40, 1800, 700, 120, 240])
-
-        self.default_para = (default_val - min_val) / (max_val - min_val)
-        self.variable_para_index = [0,1,2,3,4,5,6,7,8,9,14]
-        assert len(self.variable_para_index) == self.action_space.shape[0]
-
 
 
     def interact(self, observation, reward = 0, done = False):
@@ -412,20 +394,7 @@ class LASBaselineAgent:
         if take_action_flag == True:
             reward = self.cal_reward(self.flt_observation)
             action = self.interact(observation, reward, done=False)
-        cmb_action = self.combine_action(action)
-        return take_action_flag, cmb_action
-
-    def combine_action(self, action):
-        """
-        Combine action(parameters) produced by learning agent with default actions(parameters)
-        :param action: action from learning agent
-        :return cmb_action: combined actions
-        """
-        cmb_action = self.default_para
-        for i in range(0,action.shape[0]):
-            cmb_action[self.variable_para_index[i]] = action[i]
-
-        return cmb_action
+        return take_action_flag, action
 
     def _filter(self, signal):
         """
