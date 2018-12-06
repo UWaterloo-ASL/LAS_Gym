@@ -158,7 +158,7 @@ class LASEnv(gym.Env):
         action_smas = action[:self.smas_num]
         action_lights_intensity = action[self.smas_num:]
         # Taking action
-
+        
         #vrep.simxPauseCommunication(self.clientID,True)     #temporarily halting the communication thread 
         self._set_all_joint_position(action_smas)
         # Actually only set light color
