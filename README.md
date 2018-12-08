@@ -39,11 +39,12 @@ In our design, the interaction between LAS and Environment (i.e. `Interaction_LA
    2. LAS Agent class: 
       * `RandomLASAgent.py`: random action
       * `LASAgent_Actor_Critic.py`: extrinsically motivated behavior
+      * `BaselineAgent.py`: DDPG agent using OpenAI Baseline lib
    3. Environment class for Visitor Agent: `VisitorEnv.py`
    4. Visitor Agent class: 
       * `RedLightExcitedVisitorAgent.py`: red light excited visitor
 ### Interaction paradigm and Simulator
-
+NEED UPDATE THE PIC HERE
 <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/WholePacture_Distributed_IntrinsicMotivation.png" width="400" height="400" />       <img src="https://github.com/UWaterloo-ASL/LAS_Gym/blob/master/InitialDesignIdeas/DesignFigures/LAS_Simulator.png" width="400" height="400" /> 
 
 
