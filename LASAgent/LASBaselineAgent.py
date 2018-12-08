@@ -25,11 +25,113 @@ import tensorflow as tf
 from mpi4py import MPI
 
 import numpy as np
-# import matplotlib.pyplot as plt
+
+
+class Internal_Environment:
+    def __init__(self,observation_dim, action_dim, num_observation):
+        self.observation_dim = observation_dim
+        self.action_dim = action_dim
+        self.num_observation = num_observation
+
+        self.observation_cnt = 0
+        self.observation_group = np.zeros((num_observation, observation_dim))
+
+    def feed_observation(self, observation):
+        """
+        1. Feed observation into internal environment
+        2. perform filtering
+        3. calculate reward
+        :param observation:
+        :return:
+        """
+
+        flt_observation = np.zeros((1,self.observation_dim), dtype=np.float32)
+        reward = 0
+        # stack observations
+        self.observation_group[self.observation_cnt] = observation
+        self.observation_cnt += 1
+
+        # Apply filter once observation group is fully updated
+        # After that, calculate the reward based on filtered observation
+        if self.observation_cnt >= self.num_observation:
+            self.observation_cnt = 0
+            # self.flt_prev_observation = self.flt_observation
+            flt_observation = self._filter(self.observation_group)
+            is_new_observation = True
+
+            reward = self._cal_reward(flt_observation)
+
+        else:
+            is_new_observation = False
+
+        return is_new_observation, flt_observation, reward
+
+    def take_action(self,action):
+        take_action_flag = True
+        return take_action_flag, action
+
+    def _cal_reward(self, flt_observation):
+        """
+        Calculate the extrinsic rewards based on the filtered observation
+        Filtered observation should have same size as observation space
+        :return: reward
+        """
+        reward = 0
+        for i in range(flt_observation.shape[0]):
+            reward += flt_observation[i]
+        return reward
+
+    def _filter(self, signal):
+        """
+        Averaging filter
+
+        signal: numpy matrix, one row is one observation
+
+        """
+        return np.mean(signal, axis = 0)
+
 
 
 class LASBaselineAgent:
     def __init__(self, agent_name, observation_dim, action_dim, num_observation=20, env=None, load_pretrained_agent_flag=False ):
+        self.baseline_agent = BaselineAgent(agent_name, observation_dim, action_dim, env, load_pretrained_agent_flag)
+        self.internal_env = Internal_Environment(observation_dim, action_dim, num_observation)
+
+    def feed_observation(self,observation):
+        """
+        Diagram of structure:
+
+        -----------------------------------------------------------------
+        |                                             LASBaselineAgent   |
+        |                                                                |
+        |  action,flag         observation                               |
+        |    /\                    |                                     |
+        |    |                    \/                                     |
+        |  -------------------------------                               |
+        |  |    Internal Environment     |                               |
+        |  -------------------------------                               |
+        |   /\                     |  Flt observation, reward, flag      |
+        |   |  action             \/                                     |
+        |  ---------------------------                                   |
+        |  |      Baseline agent     |                                   |
+        |  ---------------------------                                   |
+        |                                                                |
+        ------------------------------------------------------------------
+
+        """
+        is_new_observation, filtered_observation, reward = self.internal_env.feed_observation(observation)
+        if is_new_observation:
+            action = self.baseline_agent.interact(filtered_observation,reward,done=False)
+            take_action_flag, action = self.internal_env.take_action(action)
+            return take_action_flag, action
+        else:
+            return False,[]
+
+    def stop(self):
+        self.baseline_agent.stop()
+
+class BaselineAgent:
+    def __init__(self, agent_name, observation_dim, action_dim, env=None, load_pretrained_agent_flag=False ):
 
         self.name = agent_name
         #=======================================#
@@ -64,16 +166,9 @@ class LASBaselineAgent:
             self.action_space = env.action_space
             self.observation_space = env.observation_space
 
-
-        self.num_observation = num_observation # constant
-        self.observation_cnt = 0
-
         self.reward = 0
-        self.observation = np.zeros((num_observation, self.observation_space.shape[0]))
         self.action = np.zeros(self.action_space.shape[0])
-
-        self.flt_observation = np.zeros(self.observation_space.shape[0], dtype=np.float32)
-        self.flt_prev_observation = np.zeros(self.observation_space.shape[0], dtype=np.float32 )
+        self.prev_observation = np.zeros(self.observation_space.shape[0], dtype=np.float32 )
         # =============#
         # Define noise #
         # =============#
@@ -223,18 +318,17 @@ class LASBaselineAgent:
         # Actions are a list of values:
         # [1a moth, 1a RS, 1b moth, 1b RS, 1c moth, 1c RS, 1d, 2, 3, 4, 5a, 5b, 6a, 6b, 7, 8a, 8b]        #
         # constant parameters: 5a, 5b, 6a, 6b, 8a, 8b
-        min_val = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 15000, 60000, 0, 0, 0, 1000, 5, 200])
-
-        max_val = np.array(
-            [5000, 5000, 5000, 5000, 5000, 5000, 255, 5000, 5000, 60000, 100000, 10000, 100, 5000, 5000, 200, 400])
-
-        default_val = np.array(
-            [1500, 1500, 1000, 1000, 2500, 2500, 200, 1500, 300, 45000, 90000, 5000, 40, 1800, 700, 120, 240])
-
-        self.default_para = (default_val - min_val) / (max_val - min_val)
-        self.variable_para_index = [0,1,2,3,4,5,6,7,8,9,14]
-        assert len(self.variable_para_index) == self.action_space.shape[0]
-
+        # min_val = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 15000, 60000, 0, 0, 0, 1000, 5, 200])
+        #
+        # max_val = np.array(
+        #     [5000, 5000, 5000, 5000, 5000, 5000, 255, 5000, 5000, 60000, 100000, 10000, 100, 5000, 5000, 200, 400])
+        #
+        # default_val = np.array(
+        #     [1500, 1500, 1000, 1000, 2500, 2500, 200, 1500, 300, 45000, 90000, 5000, 40, 1800, 700, 120, 240])
+        #
+        # self.default_para = (default_val - min_val) / (max_val - min_val)
+        # self.variable_para_index = [0,1,2,3,4,5,6,7,8,9,14]
+        # assert len(self.variable_para_index) == self.action_space.shape[0], "variable_para_index={}, action_space={}".format(len(self.variable_para_index), self.action_space.shape[0])
 
 
     def interact(self, observation, reward = 0, done = False):
@@ -266,14 +360,15 @@ class LASBaselineAgent:
             # Book-keeping.
             self.epoch_actions.append(action)
             self.epoch_qs.append(q)
-            # Note: self.action correspond to flt_prev_observation
-            #       reward correspond to flt_observation
+            # Note: self.action correspond to prev_observation
+            #       reward correspond to observation
             if self.action is not None:
-                self.agent.store_transition(self.flt_prev_observation, self.action, reward, observation, done)
+                self.agent.store_transition(self.prev_observation, self.action, reward, observation, done)
             self.action = action
             self.reward = reward
+            self.prev_observation = observation
 
-            self._save_log(self.log_dir,[datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),self.flt_prev_observation, self.action, reward])
+            self._save_log(self.log_dir,[datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),self.prev_observation, self.action, reward])
 
             # Logging the training reward info for debug purpose
             if done:
@@ -371,72 +466,6 @@ class LASBaselineAgent:
 
         return action
 
-
-    def observe(self, observation):
-        """
-        Store and filter the observation
-
-        :return take_action_flag  the flag = True if it has received observations equal to self.num_observation
-        """
-
-        self.observation[self.observation_cnt] = observation
-        self.observation_cnt += 1
-        # Update filtered observation every self.num_observation cycles
-        if self.observation_cnt >= self.num_observation:
-            self.observation_cnt = 0
-            self.flt_prev_observation = self.flt_observation
-            self.flt_observation = self._filter(self.observation)
-            return True
-
-        return False
-
-    def cal_reward(self, flt_observation):
-        """
-        Calculate the extrinsic rewards based on the filtered observation
-        Filtered observation should have same size as observation space
-        :return: reward
-        """
-        reward = 0
-        for i in range(flt_observation.shape[0]):
-            reward += flt_observation[i]
-        return reward
-
-    def feed_observation(self, observation):
-        """
-        Interface to Adam's master script
-        :param observation:
-        :return: take_action_flag, action
-        """
-        take_action_flag = self.observe(observation)
-        action = np.zeros(self.action_space.shape[0])
-        if take_action_flag == True:
-            reward = self.cal_reward(self.flt_observation)
-            action = self.interact(observation, reward, done=False)
-        cmb_action = self.combine_action(action)
-        return take_action_flag, cmb_action
-
-    def combine_action(self, action):
-        """
-        Combine action(parameters) produced by learning agent with default actions(parameters)
-        :param action: action from learning agent
-        :return cmb_action: combined actions
-        """
-        cmb_action = self.default_para
-        for i in range(0,action.shape[0]):
-            cmb_action[self.variable_para_index[i]] = action[i]
-
-        return cmb_action
-
-    def _filter(self, signal):
-        """
-        Averaging filter
-
-        signal: numpy matrix, one row is one observation
-
-        """
-        return np.mean(signal, axis = 0)
-
-
     def _load_model(self, model_dir):
         """
         Load a pre-trained model from file specified in model directory
@@ -469,7 +498,6 @@ class LASBaselineAgent:
         with open(file_dir, 'a') as csvFile:
             writer = csv.writer(csvFile)
             writer.writerow(data)
-
 
     def parse_args(self):
         """

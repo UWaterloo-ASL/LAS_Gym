@@ -36,40 +36,40 @@ if __name__ == '__main__':
 
     # Instantiate environment object
 
-    # ROMenv = LASROMEnv(IP='127.0.0.1',
-    #              Port=19997,
-    #              reward_function_type='ir')
-    # agent = LASBaselineAgent('LAS_Baseline_Agent', 24,24,num_observation=1,env=ROMenv, load_pretrained_agent_flag=True)
-    #
-    # observation = ROMenv.reset()
-    #
-    # reward = 0
-    # done = False
-    # for i in range(0, 1000):
-    #     take_action_flag, action = agent.feed_observation(observation)
-    #     # print(i)
-    #     # action = agent.interact(observation,reward,done)
-    #     if take_action_flag == True:
-    #         # print("action taken at " + str(i) + "th step")
-    #         # print(action)
-    #         observation, reward, done, info = ROMenv.step(action)
-    # agent.stop()
+    ROMenv = LASROMEnv(IP='127.0.0.1',
+                 Port=19997,
+                 reward_function_type='ir')
+    agent = LASBaselineAgent('LAS_Baseline_Agent', 24,6,num_observation=1,env=ROMenv, load_pretrained_agent_flag=False)
+
+    observation = ROMenv.reset()
+
+    reward = 0
+    done = False
+    for i in range(0, 1000):
+        take_action_flag, action = agent.feed_observation(observation)
+        # print(i)
+        # action = agent.interact(observation,reward,done)
+        if take_action_flag == True:
+            # print("action taken at " + str(i) + "th step")
+            # print(action)
+            observation, reward, done, info = ROMenv.step(action)
+    agent.stop()
 
     #==========================================#
     # Testing the integration with learning.py #
     #==========================================#
 
-    ROMenv = LASROMEnv(IP='127.0.0.1',
-                                    Port=19997,
-                                    reward_function_type='ir')
-    learning_system = Learning_System(ROMenv)
-    learning = Learning(learning_system)
-
-    learning.setup_learning()
-
-    # TODO: put initialization work for master script in here
-    # Check if all interactions are done.
-    while True:
-        if learning.check_if_interactions_done():
-            break
-
+    # ROMenv = LASROMEnv(IP='127.0.0.1',
+    #                                 Port=19997,
+    #                                 reward_function_type='ir')
+    # learning_system = Learning_System(ROMenv)
+    # learning = Learning(learning_system)
+    #
+    # learning.setup_learning()
+    #
+    # # TODO: put initialization work for master script in here
+    # # Check if all interactions are done.
+    # while True:
+    #     if learning.check_if_interactions_done():
+    #         break
+    #
