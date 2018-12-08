@@ -27,7 +27,46 @@ from mpi4py import MPI
 import numpy as np
 
 
-class Internal_Environment:
+class LASBaselineAgent:
+    def __init__(self, agent_name, observation_dim, action_dim, num_observation=20, env=None, load_pretrained_agent_flag=False ):
+        self.baseline_agent = BaselineAgent(agent_name, observation_dim, action_dim, env, load_pretrained_agent_flag)
+        self.internal_env = InternalEnvironment(observation_dim, action_dim, num_observation)
+
+    def feed_observation(self,observation):
+        """
+        Diagram of structure:
+
+        -----------------------------------------------------------------
+        |                                             LASBaselineAgent   |
+        |                                                                |
+        |  action,flag         observation                               |
+        |    /\                    |                                     |
+        |    |                    \/                                     |
+        |  -------------------------------                               |
+        |  |    Internal Environment     |                               |
+        |  -------------------------------                               |
+        |   /\                     |  Flt observation, reward, flag      |
+        |   |  action             \/                                     |
+        |  ---------------------------                                   |
+        |  |      Baseline agent     |                                   |
+        |  ---------------------------                                   |
+        |                                                                |
+        ------------------------------------------------------------------
+
+        """
+        is_new_observation, filtered_observation, reward = self.internal_env.feed_observation(observation)
+        if is_new_observation:
+            action = self.baseline_agent.interact(filtered_observation,reward,done=False)
+            take_action_flag, action = self.internal_env.take_action(action)
+            return take_action_flag, action
+        else:
+            return False,[]
+
+    def stop(self):
+        self.baseline_agent.stop()
+
+
+class InternalEnvironment:
     def __init__(self,observation_dim, action_dim, num_observation):
         self.observation_dim = observation_dim
         self.action_dim = action_dim
@@ -90,45 +129,6 @@ class Internal_Environment:
         """
         return np.mean(signal, axis = 0)
 
-
-
-class LASBaselineAgent:
-    def __init__(self, agent_name, observation_dim, action_dim, num_observation=20, env=None, load_pretrained_agent_flag=False ):
-        self.baseline_agent = BaselineAgent(agent_name, observation_dim, action_dim, env, load_pretrained_agent_flag)
-        self.internal_env = Internal_Environment(observation_dim, action_dim, num_observation)
-
-    def feed_observation(self,observation):
-        """
-        Diagram of structure:
-
-        -----------------------------------------------------------------
-        |                                             LASBaselineAgent   |
-        |                                                                |
-        |  action,flag         observation                               |
-        |    /\                    |                                     |
-        |    |                    \/                                     |
-        |  -------------------------------                               |
-        |  |    Internal Environment     |                               |
-        |  -------------------------------                               |
-        |   /\                     |  Flt observation, reward, flag      |
-        |   |  action             \/                                     |
-        |  ---------------------------                                   |
-        |  |      Baseline agent     |                                   |
-        |  ---------------------------                                   |
-        |                                                                |
-        ------------------------------------------------------------------
-
-        """
-        is_new_observation, filtered_observation, reward = self.internal_env.feed_observation(observation)
-        if is_new_observation:
-            action = self.baseline_agent.interact(filtered_observation,reward,done=False)
-            take_action_flag, action = self.internal_env.take_action(action)
-            return take_action_flag, action
-        else:
-            return False,[]
-
-    def stop(self):
-        self.baseline_agent.stop()
 
 class BaselineAgent:
     def __init__(self, agent_name, observation_dim, action_dim, env=None, load_pretrained_agent_flag=False ):
