@@ -21,6 +21,7 @@ from baselines.ddpg.memory import Memory
 from baselines.ddpg.noise import *
 
 import gym
+from gym import spaces
 import tensorflow as tf
 from mpi4py import MPI
 
@@ -56,7 +57,7 @@ class LASBaselineAgent:
         """
         is_new_observation, filtered_observation, reward = self.internal_env.feed_observation(observation)
         if is_new_observation:
-            action = self.baseline_agent.interact(filtered_observation,reward,done=False)
+            action = self.baseline_agent.interact(filtered_observation, reward, done=False)
             take_action_flag, action = self.internal_env.take_action(action)
             return take_action_flag, action
         else:
@@ -131,7 +132,7 @@ class InternalEnvironment:
 
 
 class BaselineAgent:
-    def __init__(self, agent_name, observation_dim, action_dim, env=None, load_pretrained_agent_flag=False ):
+    def __init__(self, agent_name, observation_dim, action_dim, env=None, env_type='VREP', load_pretrained_agent_flag=False ):
 
         self.name = agent_name
         #=======================================#
@@ -150,21 +151,29 @@ class BaselineAgent:
 
         eval_env = None
 
-        #=====================================#
-        # Define observation and action space #
-        #=====================================#
+        # ===================================== #
+        # Define observation and action space   #
+        # ===================================== #
         if env is None:
             self.env = None
             obs_max = np.array([1.] * observation_dim)
             obs_min = np.array([0.] * observation_dim)
             act_max = np.array([1] * action_dim)
             act_min = np.array([-1] * action_dim)
-            self.observation_space = gym.spaces.Box(obs_min, obs_max, dtype=np.float32)
-            self.action_space = gym.spaces.Box(act_min, act_max, dtype=np.float32)
+            self.observation_space = spaces.Box(obs_min, obs_max, dtype=np.float32)
+            self.action_space = spaces.Box(act_min, act_max, dtype=np.float32)
         else:
             self.env = env
-            self.action_space = env.action_space
-            self.observation_space = env.observation_space
+            if env_type == 'VREP':
+                self.action_space = env.action_space
+                self.observation_space = env.observation_space
+            elif env_type == 'Unity':
+                obs_max = np.array([1.] * observation_dim)
+                obs_min = np.array([-1] * observation_dim)
+                act_max = np.array([1] * action_dim)
+                act_min = np.array([-1] * action_dim)
+            self.observation_space = spaces.Box(obs_min, obs_max, dtype=np.float32)
+            self.action_space = spaces.Box(act_min, act_max, dtype=np.float32)
 
         self.reward = 0
         self.action = np.zeros(self.action_space.shape[0])
@@ -349,8 +358,8 @@ class BaselineAgent:
 
 
             # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-            if self.rollout_step_cnt == self.nb_rollout_steps - 1:
-                done = True
+            # if self.rollout_step_cnt == self.nb_rollout_steps - 1:
+            #     done = True
             self.t += 1
 
             self.episode_reward += reward  # <<<<<<<<<<<<<<<<<<<<<<<<
@@ -523,7 +532,7 @@ class BaselineAgent:
         parser.add_argument('--gamma', type=float, default=0.99)
         parser.add_argument('--reward-scale', type=float, default=1.)
         parser.add_argument('--clip-norm', type=float, default=None)
-        parser.add_argument('--nb-epochs', type=int, default=60)  # with default settings (500), perform 1M steps total
+        parser.add_argument('--nb-epochs', type=int, default=500)  # with default settings (500), perform 1M steps total
         parser.add_argument('--nb-epoch-cycles', type=int, default=10)
         parser.add_argument('--nb-train-steps', type=int, default=20)  # per epoch cycle and MPI worker
         parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
